@@ -24,4 +24,24 @@ impl JsValue {
             JsValue::Function { .. } => true,
         }
     }
+
+    /// Convert to a string for concatenation (JS coercion rules).
+    pub fn to_js_string(&self) -> String {
+        match self {
+            JsValue::Undefined => "undefined".to_string(),
+            JsValue::Null => "null".to_string(),
+            JsValue::Boolean(b) => b.to_string(),
+            JsValue::Number(n) => {
+                if n.is_finite() && n.fract() == 0.0 {
+                    format!("{}", *n as i64)
+                } else {
+                    n.to_string()
+                }
+            }
+            JsValue::String(s) => s.clone(),
+            JsValue::Function { name, .. } => {
+                format!("function {name}() {{ [native code] }}")
+            }
+        }
+    }
 }

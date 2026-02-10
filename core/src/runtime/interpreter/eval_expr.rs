@@ -89,9 +89,11 @@ fn eval_literal(lit: &Literal) -> JsValue {
 }
 
 fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsValue, RuntimeError> {
-    // String concatenation
+    // String concatenation: if either side is a string, coerce the other
     if matches!(op, BinOp::Add) {
-        if let (JsValue::String(a), JsValue::String(b)) = (&lhs, &rhs) {
+        if matches!(&lhs, JsValue::String(_)) || matches!(&rhs, JsValue::String(_)) {
+            let a = lhs.to_js_string();
+            let b = rhs.to_js_string();
             return Ok(JsValue::String(format!("{a}{b}")));
         }
     }
