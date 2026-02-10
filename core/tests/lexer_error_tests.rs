@@ -21,3 +21,26 @@ fn lex_error_handling_keywords() {
         ]
     );
 }
+
+#[test]
+fn lex_class_keywords() {
+    let kinds: Vec<TokenKind> = lex("class Dog extends Animal { super }")
+        .expect("lexing should succeed")
+        .into_iter()
+        .map(|t| t.kind)
+        .collect();
+
+    assert_eq!(
+        kinds,
+        vec![
+            TokenKind::Class,
+            TokenKind::Ident("Dog".into()),
+            TokenKind::Extends,
+            TokenKind::Ident("Animal".into()),
+            TokenKind::LeftBrace,
+            TokenKind::Super,
+            TokenKind::RightBrace,
+            TokenKind::Eof,
+        ]
+    );
+}

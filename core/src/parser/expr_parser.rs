@@ -149,6 +149,10 @@ impl Parser {
             return self.parse_new_expr();
         }
 
+        if self.check(&TokenKind::Super) {
+            return self.parse_super_expr();
+        }
+
         if matches!(self.peek(), TokenKind::PlusPlus | TokenKind::MinusMinus) {
             let op_tok = self.advance().clone();
             let ident_tok = self.advance().clone();
@@ -220,7 +224,7 @@ impl Parser {
         }
     }
 
-    fn parse_call_args(&mut self) -> Result<Vec<Expr>, SyntaxError> {
+    pub(crate) fn parse_call_args(&mut self) -> Result<Vec<Expr>, SyntaxError> {
         let mut args = Vec::new();
         if !self.check(&TokenKind::RightParen) {
             args.push(self.parse_expr(0)?);
@@ -230,17 +234,5 @@ impl Parser {
             }
         }
         Ok(args)
-    }
-
-    pub(crate) fn expect_ident(&mut self) -> Result<String, SyntaxError> {
-        let token = self.advance().clone();
-        match token.kind {
-            TokenKind::Ident(name) => Ok(name),
-            _ => Err(SyntaxError::new(
-                format!("expected identifier, found {:?}", token.kind),
-                token.span.start,
-                token.span.len().max(1),
-            )),
-        }
     }
 }

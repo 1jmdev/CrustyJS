@@ -19,5 +19,8 @@ pub fn keywords() -> &'static [&'static str] {
         "finally",
         "throw",
         "new",
+        "class",
+        "extends",
+        "super",
     ]
 }

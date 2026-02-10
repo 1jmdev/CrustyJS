@@ -117,6 +117,9 @@ pub enum Expr {
         callee: Box<Expr>,
         args: Vec<Expr>,
     },
+    SuperCall {
+        args: Vec<Expr>,
+    },
     ArrowFunction {
         params: Vec<String>,
         body: ArrowBody,

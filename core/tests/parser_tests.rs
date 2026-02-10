@@ -164,3 +164,28 @@ fn parse_expression_without_semicolon_at_eof() {
     assert_eq!(stmts.len(), 1);
     assert!(matches!(stmts[0], Stmt::ExprStmt(Expr::Call { .. })));
 }
+
+#[test]
+fn parse_class_with_extends_and_constructor() {
+    let src = r#"
+        class Dog extends Animal {
+            constructor(name) {
+                super(name);
+            }
+            speak() {
+                return "woof";
+            }
+        }
+    "#;
+    let stmts = parse_source(src);
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Class(class_decl) => {
+            assert_eq!(class_decl.name, "Dog");
+            assert_eq!(class_decl.parent.as_deref(), Some("Animal"));
+            assert!(class_decl.constructor.is_some());
+            assert_eq!(class_decl.methods.len(), 1);
+        }
+        other => panic!("expected class declaration, got {other:?}"),
+    }
+}

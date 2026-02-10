@@ -1,4 +1,5 @@
 pub mod ast;
+mod class_parser;
 mod expr_literals;
 mod expr_ops;
 mod expr_parser;
@@ -64,5 +65,17 @@ impl Parser {
 
     pub(crate) fn check(&self, kind: &TokenKind) -> bool {
         self.peek() == kind
+    }
+
+    pub(crate) fn expect_ident(&mut self) -> Result<String, SyntaxError> {
+        let token = self.advance().clone();
+        match token.kind {
+            TokenKind::Ident(name) => Ok(name),
+            _ => Err(SyntaxError::new(
+                format!("expected identifier, found {:?}", token.kind),
+                token.span.start,
+                token.span.len().max(1),
+            )),
+        }
     }
 }

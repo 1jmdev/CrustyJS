@@ -4,6 +4,14 @@ use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
 impl Parser {
+    pub(crate) fn parse_super_expr(&mut self) -> Result<Expr, SyntaxError> {
+        self.advance(); // consume 'super'
+        self.expect(&TokenKind::LeftParen)?;
+        let args = self.parse_call_args()?;
+        self.expect(&TokenKind::RightParen)?;
+        Ok(Expr::SuperCall { args })
+    }
+
     pub(crate) fn parse_new_expr(&mut self) -> Result<Expr, SyntaxError> {
         self.advance(); // consume 'new'
         let callee_expr = self.parse_expr(12)?;
