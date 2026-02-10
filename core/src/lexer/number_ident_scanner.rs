@@ -51,6 +51,7 @@ impl<'src> Scanner<'src> {
             "of" => TokenKind::Of,
             "in" => TokenKind::In,
             "typeof" => TokenKind::Typeof,
+            "delete" => TokenKind::Delete,
             "try" => TokenKind::Try,
             "catch" => TokenKind::Catch,
             "finally" => TokenKind::Finally,

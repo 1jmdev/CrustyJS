@@ -165,6 +165,12 @@ impl Parser {
             return Ok(Expr::Typeof(Box::new(operand)));
         }
 
+        if self.check(&TokenKind::Delete) {
+            self.advance();
+            let operand = self.parse_expr(12)?;
+            return Ok(Expr::Delete(Box::new(operand)));
+        }
+
         if self.check(&TokenKind::Await) {
             self.advance();
             let operand = self.parse_expr(12)?;

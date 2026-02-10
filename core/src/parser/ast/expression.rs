@@ -142,6 +142,7 @@ pub enum Expr {
         pattern: String,
         flags: String,
     },
+    Delete(Box<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

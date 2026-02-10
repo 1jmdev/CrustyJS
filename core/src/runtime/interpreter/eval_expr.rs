@@ -321,6 +321,7 @@ impl Interpreter {
                     re,
                 ))))
             }
+            Expr::Delete(operand) => self.eval_delete_expr(operand),
         }
     }
 

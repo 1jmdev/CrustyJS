@@ -102,6 +102,7 @@ impl Parser {
             TokenKind::If => Ok("if".to_string()),
             TokenKind::Else => Ok("else".to_string()),
             TokenKind::Try => Ok("try".to_string()),
+            TokenKind::Delete => Ok("delete".to_string()),
             _ => Err(SyntaxError::new(
                 format!("expected property name, found {:?}", token.kind),
                 token.span.start,
