@@ -189,3 +189,19 @@ fn parse_class_with_extends_and_constructor() {
         other => panic!("expected class declaration, got {other:?}"),
     }
 }
+
+#[test]
+fn parse_object_method_shorthand() {
+    let stmts = parse_source("let obj = { speak() { return 1; } }; ");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::VarDecl {
+            init: Some(Expr::ObjectLiteral { properties }),
+            ..
+        } => {
+            assert_eq!(properties.len(), 1);
+            assert_eq!(properties[0].0, "speak");
+        }
+        other => panic!("expected object literal var decl, got {other:?}"),
+    }
+}

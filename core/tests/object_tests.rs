@@ -151,3 +151,18 @@ fn detached_method_loses_receiver_this() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["undefined"]);
 }
+
+#[test]
+fn object_method_shorthand_binds_this() {
+    let src = r#"
+        let obj = {
+            name: "Rex",
+            speak() {
+                return this.name + " barks";
+            }
+        };
+        console.log(obj.speak());
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["Rex barks"]);
+}

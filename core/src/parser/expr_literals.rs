@@ -83,8 +83,26 @@ impl Parser {
         let mut properties = Vec::new();
         while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
             let key = self.expect_ident()?;
-            self.expect(&TokenKind::Colon)?;
-            let value = self.parse_expr(0)?;
+            let value = if self.check(&TokenKind::Colon) {
+                self.advance();
+                self.parse_expr(0)?
+            } else if self.check(&TokenKind::LeftParen) {
+                self.advance();
+                let params = self.parse_method_params()?;
+                self.expect(&TokenKind::RightParen)?;
+                let body = self.parse_block()?;
+                Expr::ArrowFunction {
+                    params,
+                    body: ArrowBody::Block(body),
+                }
+            } else {
+                let token = self.tokens[self.pos].clone();
+                return Err(SyntaxError::new(
+                    "expected ':' or method parameter list",
+                    token.span.start,
+                    token.span.len().max(1),
+                ));
+            };
             properties.push((key, value));
             if !self.check(&TokenKind::RightBrace) {
                 self.expect(&TokenKind::Comma)?;
@@ -145,6 +163,18 @@ impl Parser {
         } else {
             Ok(ArrowBody::Expr(Box::new(self.parse_expr(0)?)))
         }
+    }
+
+    fn parse_method_params(&mut self) -> Result<Vec<String>, SyntaxError> {
+        let mut params = Vec::new();
+        if !self.check(&TokenKind::RightParen) {
+            params.push(self.expect_ident()?);
+            while self.check(&TokenKind::Comma) {
+                self.advance();
+                params.push(self.expect_ident()?);
+            }
+        }
+        Ok(params)
     }
 
     fn scan_arrow_params(&self, start_pos: usize) -> Option<(Vec<String>, usize)> {
