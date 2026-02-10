@@ -3,15 +3,17 @@ use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum RuntimeError {
-    #[error("'{name}' is not defined")]
+    #[error("ReferenceError: '{name}' is not defined")]
+    #[diagnostic(help("declare '{name}' with let or const before using it"))]
     UndefinedVariable { name: String },
 
-    #[error("'{name}' is not a function")]
+    #[error("TypeError: '{name}' is not a function")]
+    #[diagnostic(help("ensure '{name}' is declared as a function before calling it"))]
     NotAFunction { name: String },
 
-    #[error("expected {expected} arguments but got {got}")]
+    #[error("TypeError: expected {expected} arguments but got {got}")]
     ArityMismatch { expected: usize, got: usize },
 
-    #[error("type error: {message}")]
+    #[error("TypeError: {message}")]
     TypeError { message: String },
 }

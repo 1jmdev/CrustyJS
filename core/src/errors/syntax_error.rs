@@ -2,7 +2,8 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("{message}")]
+#[error("SyntaxError: {message}")]
+#[diagnostic(help("check the syntax around this location"))]
 pub struct SyntaxError {
     pub message: String,
 
