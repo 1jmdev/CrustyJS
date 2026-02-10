@@ -222,7 +222,11 @@ impl Interpreter {
                     JsValue::Function { .. } => "function",
                     JsValue::NativeFunction { .. } => "function",
                     JsValue::Symbol(_) => "symbol",
-                    JsValue::Object(_) | JsValue::Array(_) | JsValue::Promise(_) => "object",
+                    JsValue::Object(_)
+                    | JsValue::Array(_)
+                    | JsValue::Promise(_)
+                    | JsValue::Map(_)
+                    | JsValue::Set(_) => "object",
                 };
                 Ok(JsValue::String(t.to_string()))
             }

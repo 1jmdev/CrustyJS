@@ -1,8 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::runtime::value::JsValue;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
+use crate::runtime::value::JsValue;
 use serde_json::Value as JsonValue;
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -189,6 +189,8 @@ impl Interpreter {
             }
             JsValue::Promise(_) => JsonValue::Null,
             JsValue::Symbol(_) => JsonValue::Null,
+            JsValue::Map(_) => JsonValue::Null,
+            JsValue::Set(_) => JsonValue::Null,
         })
     }
 
