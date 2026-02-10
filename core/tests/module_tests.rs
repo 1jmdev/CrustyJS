@@ -75,6 +75,29 @@ console.log(value);
 }
 
 #[test]
+fn import_default_exported_function() {
+    let dir = std::env::temp_dir().join(format!("crustyjs_mod_{}_d", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).expect("create dir");
+
+    let util = dir.join("util.js");
+    let main = dir.join("main.js");
+
+    fs::write(&util, r#"export default function answer() { return 42; }"#).expect("write util");
+    fs::write(
+        &main,
+        r#"
+import answer from "./util.js";
+console.log(answer());
+"#,
+    )
+    .expect("write main");
+
+    let out = run_file(&main);
+    assert_eq!(out, vec!["42"]);
+}
+
+#[test]
 fn circular_import_is_reported() {
     let dir = std::env::temp_dir().join(format!("crustyjs_mod_{}_c", std::process::id()));
     let _ = fs::remove_dir_all(&dir);

@@ -18,6 +18,7 @@ pub enum ImportSpecifier {
 pub enum ExportDecl {
     NamedStmt(Box<Stmt>),
     Default(Expr),
+    DefaultStmt(Box<Stmt>),
     NamedList(Vec<ExportSpecifier>),
 }
 

@@ -57,6 +57,20 @@ impl Interpreter {
                 self.env.define("__default_export".to_string(), value);
                 Ok(ControlFlow::None)
             }
+            ExportDecl::DefaultStmt(stmt) => {
+                self.eval_stmt(stmt)?;
+                let name = match &**stmt {
+                    Stmt::FunctionDecl { name, .. } => name.clone(),
+                    _ => {
+                        return Err(RuntimeError::TypeError {
+                            message: "unsupported default export statement".to_string(),
+                        });
+                    }
+                };
+                let value = self.env.get(&name)?;
+                self.env.define("__default_export".to_string(), value);
+                Ok(ControlFlow::None)
+            }
             ExportDecl::NamedList(specs) => {
                 for spec in specs {
                     let value = self.env.get(&spec.local)?;

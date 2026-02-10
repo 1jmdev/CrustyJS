@@ -58,6 +58,17 @@ impl Parser {
         self.expect(&TokenKind::Export)?;
         if self.check(&TokenKind::Default) {
             self.advance();
+            if self.check(&TokenKind::Function) {
+                let stmt = self.parse_function_decl()?;
+                return Ok(Stmt::Export(ExportDecl::DefaultStmt(Box::new(stmt))));
+            }
+            if self.check(&TokenKind::Async) {
+                self.advance();
+                if self.check(&TokenKind::Function) {
+                    let stmt = self.parse_function_decl_with_async(true)?;
+                    return Ok(Stmt::Export(ExportDecl::DefaultStmt(Box::new(stmt))));
+                }
+            }
             let expr = self.parse_expr(0)?;
             self.consume_stmt_terminator()?;
             return Ok(Stmt::Export(ExportDecl::Default(expr)));
