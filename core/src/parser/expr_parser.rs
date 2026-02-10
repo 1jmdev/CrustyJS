@@ -274,6 +274,13 @@ impl Parser {
                 self.pos -= 1;
                 self.parse_async_expr()
             }
+            TokenKind::RegexLiteral {
+                ref pattern,
+                ref flags,
+            } => Ok(Expr::RegexLiteral {
+                pattern: pattern.clone(),
+                flags: flags.clone(),
+            }),
             _ => Err(SyntaxError::new(
                 format!("unexpected token {:?} in expression", token.kind),
                 token.span.start,

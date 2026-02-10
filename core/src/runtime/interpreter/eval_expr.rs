@@ -6,6 +6,7 @@ use crate::parser::ast::{
 };
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
+use crate::runtime::value::regexp::{JsRegExp, RegExpFlags};
 use crate::runtime::value::JsValue;
 impl Interpreter {
     pub(crate) fn eval_expr(&mut self, expr: &Expr) -> Result<JsValue, RuntimeError> {
@@ -228,7 +229,8 @@ impl Interpreter {
                     | JsValue::Map(_)
                     | JsValue::Set(_)
                     | JsValue::WeakMap(_)
-                    | JsValue::WeakSet(_) => "object",
+                    | JsValue::WeakSet(_)
+                    | JsValue::RegExp(_) => "object",
                 };
                 Ok(JsValue::String(t.to_string()))
             }
@@ -305,6 +307,15 @@ impl Interpreter {
                 }
 
                 Ok(current)
+            }
+            Expr::RegexLiteral { pattern, flags } => {
+                let fl = RegExpFlags::from_str(flags)
+                    .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                let re = JsRegExp::new(pattern, fl)
+                    .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                Ok(JsValue::RegExp(std::rc::Rc::new(std::cell::RefCell::new(
+                    re,
+                ))))
             }
         }
     }
