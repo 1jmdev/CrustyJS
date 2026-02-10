@@ -32,7 +32,14 @@ fn run_vm_file(path: &str) {
 #[test]
 fn compile_simple_expression_emits_arithmetic_opcode() {
     let ops = compile_source("1 + 2;");
-    assert!(ops.contains(&Opcode::Add));
+    assert!(
+        ops.iter().any(|op| matches!(op, Opcode::Nop)),
+        "constant folding should replace operands with Nop"
+    );
+    assert!(
+        !ops.contains(&Opcode::Add),
+        "Add should be folded away for constant operands"
+    );
 }
 
 #[test]
