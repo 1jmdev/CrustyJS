@@ -32,6 +32,7 @@ pub(crate) enum ControlFlow {
     None,
     Return(crate::runtime::value::JsValue),
     Break,
+    Yield(crate::runtime::value::JsValue),
 }
 
 /// The tree-walk interpreter.
@@ -42,6 +43,8 @@ pub struct Interpreter {
     pub(crate) super_stack: Vec<Option<String>>,
     pub(crate) event_loop: EventLoop,
     pub(crate) async_depth: usize,
+    pub(crate) generator_depth: usize,
+    pub(crate) generator_yields: Vec<crate::runtime::value::JsValue>,
     pub(crate) module_cache: ModuleCache,
     pub(crate) module_stack: Vec<PathBuf>,
     pub(crate) call_stack: CallStack,
@@ -69,6 +72,8 @@ impl Interpreter {
             super_stack: Vec::new(),
             event_loop: EventLoop::new_with_realtime(realtime_timers),
             async_depth: 0,
+            generator_depth: 0,
+            generator_yields: Vec::new(),
             module_cache: ModuleCache::default(),
             module_stack: Vec::new(),
             call_stack: CallStack::default(),

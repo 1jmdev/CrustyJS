@@ -232,9 +232,28 @@ impl Interpreter {
             Expr::New { callee, args } => self.eval_new(callee, args),
             Expr::SuperCall { args } => self.eval_super_call(args),
             Expr::Await(expr) => self.eval_await_expr(expr),
-            Expr::Yield { .. } => {
-                // Phase 34.2: Runtime support for generators
-                todo!("implement yield evaluation")
+            Expr::Yield { value, delegate } => {
+                if self.generator_depth == 0 {
+                    return Err(RuntimeError::TypeError {
+                        message: "yield is only valid inside generator functions".to_string(),
+                    });
+                }
+                if *delegate {
+                    // yield* iterable — collect all values from the sub-iterable
+                    let inner = match value {
+                        Some(expr) => self.eval_expr(expr)?,
+                        None => JsValue::Undefined,
+                    };
+                    let items = self.collect_iterable(&inner)?;
+                    self.generator_yields.extend(items);
+                } else {
+                    let val = match value {
+                        Some(expr) => self.eval_expr(expr)?,
+                        None => JsValue::Undefined,
+                    };
+                    self.generator_yields.push(val);
+                }
+                Ok(JsValue::Undefined)
             }
             Expr::ArrowFunction {
                 params,

@@ -50,6 +50,7 @@ impl Interpreter {
                     }
                     match self.eval_stmt(body)? {
                         ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
+                        ControlFlow::Yield(v) => return Ok(ControlFlow::Yield(v)),
                         ControlFlow::Break => break,
                         ControlFlow::None => {}
                     }
@@ -106,6 +107,10 @@ impl Interpreter {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Return(v));
                         }
+                        ControlFlow::Yield(v) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Yield(v));
+                        }
                         ControlFlow::Break => break,
                         ControlFlow::None => {}
                     }
@@ -131,6 +136,10 @@ impl Interpreter {
                         ControlFlow::Return(v) => {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Return(v));
+                        }
+                        ControlFlow::Yield(v) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Yield(v));
                         }
                         ControlFlow::Break => break,
                         ControlFlow::None => {}
@@ -161,6 +170,10 @@ impl Interpreter {
                         ControlFlow::Return(v) => {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Return(v));
+                        }
+                        ControlFlow::Yield(v) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Yield(v));
                         }
                         ControlFlow::Break => break,
                         ControlFlow::None => {}
@@ -204,7 +217,10 @@ impl Interpreter {
         let mut result = ControlFlow::None;
         for s in stmts {
             result = self.eval_stmt(s)?;
-            if matches!(result, ControlFlow::Return(_) | ControlFlow::Break) {
+            if matches!(
+                result,
+                ControlFlow::Return(_) | ControlFlow::Break | ControlFlow::Yield(_)
+            ) {
                 break;
             }
         }

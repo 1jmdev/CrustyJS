@@ -26,7 +26,10 @@ impl Interpreter {
                         let mut catch_flow = ControlFlow::None;
                         for stmt in catch_stmts {
                             catch_flow = self.eval_stmt(stmt)?;
-                            if matches!(catch_flow, ControlFlow::Return(_) | ControlFlow::Break) {
+                            if matches!(
+                                catch_flow,
+                                ControlFlow::Return(_) | ControlFlow::Break | ControlFlow::Yield(_)
+                            ) {
                                 break;
                             }
                         }
@@ -83,6 +86,7 @@ impl Interpreter {
                     ControlFlow::None => {}
                     ControlFlow::Break => return Ok(ControlFlow::None),
                     ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
+                    ControlFlow::Yield(v) => return Ok(ControlFlow::Yield(v)),
                 }
             }
             idx = if i + 1 < cases.len() {

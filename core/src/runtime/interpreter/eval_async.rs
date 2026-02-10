@@ -44,7 +44,7 @@ impl Interpreter {
                             message: "illegal break statement".to_string(),
                         });
                     }
-                    super::ControlFlow::None => {}
+                    super::ControlFlow::Yield(_) | super::ControlFlow::None => {}
                 }
             }
             Ok(())
