@@ -61,6 +61,19 @@ impl Interpreter {
                     Ok(JsValue::Undefined)
                 }
             }
+            JsValue::Proxy(proxy) => {
+                let (trap, target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("get"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    self.call_function(&trap_fn, &[target, JsValue::String(key.to_string())])
+                } else {
+                    self.get_property(&target, key)
+                }
+            }
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot access property '{key}' on {obj_val}"),
             }),
@@ -109,6 +122,23 @@ impl Interpreter {
                     Err(RuntimeError::TypeError {
                         message: format!("cannot set property '{key}' on array"),
                     })
+                }
+            }
+            JsValue::Proxy(proxy) => {
+                let (trap, target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("set"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    self.call_function(
+                        &trap_fn,
+                        &[target, JsValue::String(key.to_string()), value],
+                    )?;
+                    Ok(())
+                } else {
+                    self.set_property(&target, key, value)
                 }
             }
             _ => Err(RuntimeError::TypeError {
