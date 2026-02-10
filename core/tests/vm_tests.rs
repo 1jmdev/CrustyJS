@@ -11,6 +11,10 @@ fn compile_source(source: &str) -> Vec<Opcode> {
     chunk.instructions
 }
 
+fn run_vm_source(source: &str) {
+    crustyjs::run_vm(source).expect("vm run should succeed");
+}
+
 #[test]
 fn compile_simple_expression_emits_arithmetic_opcode() {
     let ops = compile_source("1 + 2;");
@@ -33,11 +37,46 @@ fn compile_while_emits_loop_opcode() {
 #[test]
 fn vm_path_runs_fib_example() {
     let source = std::fs::read_to_string("examples/fib.js").expect("read fib example");
-    crustyjs::run_vm(&source).expect("vm run should succeed");
+    run_vm_source(&source);
 }
 
 #[test]
 fn vm_path_runs_classes_example() {
     let source = std::fs::read_to_string("examples/classes.js").expect("read classes example");
-    crustyjs::run_vm(&source).expect("vm run should succeed");
+    run_vm_source(&source);
+}
+
+#[test]
+fn vm_compiles_fib_without_treewalk_fallback() {
+    let ops = compile_source(
+        r#"
+        function fib(n) {
+          if (n <= 1) return n;
+          return fib(n - 1) + fib(n - 2);
+        }
+        console.log(fib(20));
+        "#,
+    );
+    assert!(ops.iter().all(|op| !matches!(op, Opcode::RunTreeWalk)));
+}
+
+#[test]
+fn vm_path_runs_objects_example() {
+    let source = std::fs::read_to_string("examples/objects.js").expect("read objects example");
+    run_vm_source(&source);
+}
+
+#[test]
+fn vm_path_runs_array_and_closure_snippets() {
+    run_vm_source(
+        r#"
+        let arr = [1, 2, 3];
+        console.log(arr[0]);
+        function makeAdder(x) {
+          return y => x + y;
+        }
+        let add2 = makeAdder(2);
+        console.log(add2(5));
+        "#,
+    );
 }
