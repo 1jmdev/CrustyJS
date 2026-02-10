@@ -107,6 +107,10 @@ impl Interpreter {
             NativeFunction::GeneratorIterator => {
                 Ok(_this_binding.unwrap_or(JsValue::Undefined))
             }
+            NativeFunction::ProxyRevoke(proxy) => {
+                proxy.borrow_mut().revoked = true;
+                Ok(JsValue::Undefined)
+            }
         }
     }
 

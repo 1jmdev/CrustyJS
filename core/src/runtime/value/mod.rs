@@ -48,6 +48,7 @@ pub enum NativeFunction {
     GeneratorReturn(Rc<RefCell<JsGenerator>>),
     GeneratorThrow,
     GeneratorIterator,
+    ProxyRevoke(Rc<RefCell<JsProxy>>),
     Host(NativeFunctionBoxed),
 }
 
@@ -160,6 +161,11 @@ impl Trace for NativeFunction {
                     val.trace(tracer);
                 }
                 generator.borrow().return_value.trace(tracer);
+            }
+            NativeFunction::ProxyRevoke(proxy) => {
+                let p = proxy.borrow();
+                p.target.trace(tracer);
+                p.handler.borrow().trace(tracer);
             }
         }
     }

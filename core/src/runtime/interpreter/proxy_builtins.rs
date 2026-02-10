@@ -1,8 +1,9 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
+use crate::runtime::value::object::JsObject;
 use crate::runtime::value::proxy::JsProxy;
-use crate::runtime::value::JsValue;
+use crate::runtime::value::{JsValue, NativeFunction};
 
 impl Interpreter {
     pub(crate) fn eval_new_proxy(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {
@@ -13,6 +14,28 @@ impl Interpreter {
         }
         let target = self.eval_expr(&args[0])?;
         let handler_val = self.eval_expr(&args[1])?;
+        Self::create_proxy(target, handler_val)
+    }
+
+    fn create_proxy(target: JsValue, handler_val: JsValue) -> Result<JsValue, RuntimeError> {
+        let handler = match &handler_val {
+            JsValue::Object(obj) => obj.clone(),
+            _ => {
+                return Err(RuntimeError::TypeError {
+                    message: "Proxy handler must be an object".to_string(),
+                });
+            }
+        };
+        let proxy = JsProxy::new(target, handler);
+        Ok(JsValue::Proxy(proxy.wrapped()))
+    }
+
+    pub(crate) fn builtin_proxy_revocable(
+        &mut self,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        let target = args.first().cloned().unwrap_or(JsValue::Undefined);
+        let handler_val = args.get(1).cloned().unwrap_or(JsValue::Undefined);
 
         let handler = match &handler_val {
             JsValue::Object(obj) => obj.clone(),
@@ -24,6 +47,17 @@ impl Interpreter {
         };
 
         let proxy = JsProxy::new(target, handler);
-        Ok(JsValue::Proxy(proxy.wrapped()))
+        let proxy_rc = proxy.wrapped();
+        let proxy_val = JsValue::Proxy(proxy_rc.clone());
+
+        let revoke_fn = JsValue::NativeFunction {
+            name: "revoke".to_string(),
+            handler: NativeFunction::ProxyRevoke(proxy_rc),
+        };
+
+        let mut result = JsObject::new();
+        result.set("proxy".to_string(), proxy_val);
+        result.set("revoke".to_string(), revoke_fn);
+        Ok(JsValue::Object(result.wrapped()))
     }
 }

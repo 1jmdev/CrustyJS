@@ -57,6 +57,10 @@ impl Interpreter {
             if name == "Symbol" && !is_call {
                 return self.builtin_symbol_property(property);
             }
+            if name == "Proxy" && property == "revocable" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_proxy_revocable(&arg_values);
+            }
         }
 
         let obj_val = self.eval_expr(object)?;
@@ -139,6 +143,15 @@ impl Interpreter {
                 return self.call_regexp_method(re, property, &arg_values);
             }
             return self.get_regexp_property(re, property);
+        }
+
+        if let JsValue::Proxy(_) = obj_val {
+            if is_call {
+                let arg_values = self.eval_call_args(args)?;
+                let method = self.get_property(&obj_val, property)?;
+                return self.call_function_with_this(&method, &arg_values, Some(obj_val));
+            }
+            return self.get_property(&obj_val, property);
         }
 
         if !is_call {
