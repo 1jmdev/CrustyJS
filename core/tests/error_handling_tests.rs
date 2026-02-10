@@ -95,3 +95,9 @@ fn uncaught_exception_bubbles_out() {
         other => panic!("expected thrown error, got {other:?}"),
     }
 }
+
+#[test]
+fn error_constructor_exists_globally() {
+    let output = run_and_capture("console.log(typeof Error);");
+    assert_eq!(output, vec!["function"]);
+}

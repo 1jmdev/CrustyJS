@@ -7,6 +7,16 @@ use crate::runtime::value::string_methods;
 use crate::runtime::value::JsValue;
 
 impl Interpreter {
+    pub(crate) fn init_builtins(&mut self) {
+        let error_ctor = JsValue::Function {
+            name: "Error".to_string(),
+            params: vec!["message".to_string()],
+            body: Vec::new(),
+            closure_env: self.env.capture(),
+        };
+        self.env.define("Error".to_string(), error_ctor);
+    }
+
     pub(crate) fn eval_member_call(
         &mut self,
         object: &Expr,

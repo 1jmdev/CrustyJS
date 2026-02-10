@@ -21,10 +21,12 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        Self {
+        let mut interp = Self {
             env: Environment::new(),
             output: Vec::new(),
-        }
+        };
+        interp.init_builtins();
+        interp
     }
 
     /// Run a parsed program.
