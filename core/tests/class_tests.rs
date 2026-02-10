@@ -64,3 +64,25 @@ fn inherited_method_resolves_from_parent_prototype() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["Milo makes a noise"]);
 }
+
+#[test]
+fn instanceof_checks_prototype_chain() {
+    let src = r#"
+        class Animal {
+          constructor(name) {
+            this.name = name;
+          }
+        }
+        class Dog extends Animal {
+          constructor(name) {
+            super(name);
+          }
+        }
+        const d = new Dog("Rex");
+        console.log(d instanceof Dog);
+        console.log(d instanceof Animal);
+        console.log(d instanceof Error);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["true", "true", "false"]);
+}

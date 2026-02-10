@@ -60,6 +60,7 @@ pub enum TokenKind {
     Class,
     Extends,
     Super,
+    Instanceof,
 
     // Operators
     Plus,

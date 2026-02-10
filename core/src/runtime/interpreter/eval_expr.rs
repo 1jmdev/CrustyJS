@@ -13,6 +13,9 @@ impl Interpreter {
             Expr::Literal(lit) => Ok(eval_literal(lit)),
             Expr::Identifier(name) => self.env.get(name),
             Expr::Binary { left, op, right } => {
+                if matches!(op, BinOp::Instanceof) {
+                    return self.eval_instanceof_expr(left, right);
+                }
                 let lhs = self.eval_expr(left)?;
                 let rhs = self.eval_expr(right)?;
                 eval_binary(lhs, op, rhs)
@@ -213,6 +216,7 @@ fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsValue, Runtim
         BinOp::NotEqEq => Ok(JsValue::Boolean(lhs != rhs)),
         BinOp::EqEq => Ok(JsValue::Boolean(abstract_equals(&lhs, &rhs))),
         BinOp::NotEq => Ok(JsValue::Boolean(!abstract_equals(&lhs, &rhs))),
+        BinOp::Instanceof => unreachable!("instanceof handled before eval_binary"),
     }
 }
 

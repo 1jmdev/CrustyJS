@@ -58,6 +58,7 @@ impl<'src> Scanner<'src> {
             "class" => TokenKind::Class,
             "extends" => TokenKind::Extends,
             "super" => TokenKind::Super,
+            "instanceof" => TokenKind::Instanceof,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
             "null" => TokenKind::Null,

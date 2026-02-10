@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{ClassDecl, ClassMethod};
+use crate::parser::ast::{ClassDecl, ClassMethod, Expr};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
@@ -150,6 +150,37 @@ impl Interpreter {
         self.super_stack.pop();
         result?;
         Ok(JsValue::Undefined)
+    }
+
+    pub(crate) fn eval_instanceof_expr(
+        &mut self,
+        left: &Expr,
+        right: &Expr,
+    ) -> Result<JsValue, RuntimeError> {
+        let instance = self.eval_expr(left)?;
+        let class_name = match right {
+            Expr::Identifier(name) => name,
+            _ => return Ok(JsValue::Boolean(false)),
+        };
+
+        let class = match self.classes.get(class_name) {
+            Some(class) => class,
+            None => return Ok(JsValue::Boolean(false)),
+        };
+
+        let JsValue::Object(object) = instance else {
+            return Ok(JsValue::Boolean(false));
+        };
+
+        let mut current = object.borrow().prototype.clone();
+        while let Some(proto) = current {
+            if Rc::ptr_eq(&proto, &class.prototype) {
+                return Ok(JsValue::Boolean(true));
+            }
+            current = proto.borrow().prototype.clone();
+        }
+
+        Ok(JsValue::Boolean(false))
     }
 
     fn method_to_function(&self, method: &ClassMethod, class_name: &str) -> JsValue {

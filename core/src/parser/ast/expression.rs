@@ -17,6 +17,7 @@ pub enum BinOp {
     LessEq,
     Greater,
     GreaterEq,
+    Instanceof,
 }
 
 /// Unary operator kinds.
