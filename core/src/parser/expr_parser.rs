@@ -1,4 +1,4 @@
-use super::ast::{Expr, Literal, OptionalOp, UnaryOp, UpdateOp};
+use super::ast::{Expr, Literal, OptionalOp, TemplatePart, UnaryOp, UpdateOp};
 use super::expr_ops::{
     infix_binding_power, prefix_binding_power, token_to_binop, token_to_logical_op,
 };
@@ -113,6 +113,23 @@ impl Parser {
                                 2,
                             ));
                         }
+                    }
+                }
+                TokenKind::NoSubTemplate(s) => {
+                    let s = s.clone();
+                    self.advance();
+                    Expr::TaggedTemplate {
+                        tag: Box::new(lhs),
+                        parts: vec![TemplatePart::Str(s)],
+                    }
+                }
+                TokenKind::TemplateHead(s) => {
+                    let head = s.clone();
+                    self.advance();
+                    let parts = self.parse_tagged_template_parts(head)?;
+                    Expr::TaggedTemplate {
+                        tag: Box::new(lhs),
+                        parts,
                     }
                 }
                 _ => break,
@@ -318,5 +335,35 @@ impl Parser {
                 chain: vec![op],
             },
         }
+    }
+
+    fn parse_tagged_template_parts(
+        &mut self,
+        head: String,
+    ) -> Result<Vec<TemplatePart>, SyntaxError> {
+        let mut parts = Vec::new();
+        parts.push(TemplatePart::Str(head));
+        loop {
+            let expr = self.parse_expr(0)?;
+            parts.push(TemplatePart::Expression(expr));
+            let tok = self.advance().clone();
+            match tok.kind {
+                TokenKind::TemplateTail(ref s) => {
+                    parts.push(TemplatePart::Str(s.clone()));
+                    break;
+                }
+                TokenKind::TemplateMiddle(ref s) => {
+                    parts.push(TemplatePart::Str(s.clone()));
+                }
+                _ => {
+                    return Err(SyntaxError::new(
+                        "expected template continuation",
+                        tok.span.start,
+                        tok.span.len().max(1),
+                    ));
+                }
+            }
+        }
+        Ok(parts)
     }
 }

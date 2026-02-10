@@ -5,6 +5,16 @@ use crate::lexer::token::TokenKind;
 
 impl Parser {
     pub(crate) fn parse_statement(&mut self) -> Result<Stmt, SyntaxError> {
+        if let TokenKind::Ident(name) = self.peek().clone() {
+            if self.pos + 1 < self.tokens.len()
+                && self.tokens[self.pos + 1].kind == TokenKind::Colon
+            {
+                self.advance();
+                self.advance();
+                let body = Box::new(self.parse_statement()?);
+                return Ok(Stmt::Labeled { label: name, body });
+            }
+        }
         match self.peek() {
             TokenKind::Let | TokenKind::Const => self.parse_var_decl(),
             TokenKind::Async => self.parse_async_or_expr_stmt(),
@@ -14,6 +24,7 @@ impl Parser {
             TokenKind::For => self.parse_for(),
             TokenKind::Return => self.parse_return(),
             TokenKind::Break => self.parse_break(),
+            TokenKind::Continue => self.parse_continue(),
             TokenKind::Try => self.parse_try_catch(),
             TokenKind::Throw => self.parse_throw(),
             TokenKind::Switch => self.parse_switch(),
@@ -196,8 +207,26 @@ impl Parser {
     }
 
     fn parse_break(&mut self) -> Result<Stmt, SyntaxError> {
-        self.advance(); // consume 'break'
+        self.advance();
+        let label = if let TokenKind::Ident(name) = self.peek().clone() {
+            self.advance();
+            Some(name)
+        } else {
+            None
+        };
         self.consume_stmt_terminator()?;
-        Ok(Stmt::Break)
+        Ok(Stmt::Break { label })
+    }
+
+    fn parse_continue(&mut self) -> Result<Stmt, SyntaxError> {
+        self.advance();
+        let label = if let TokenKind::Ident(name) = self.peek().clone() {
+            self.advance();
+            Some(name)
+        } else {
+            None
+        };
+        self.consume_stmt_terminator()?;
+        Ok(Stmt::Continue { label })
     }
 }

@@ -60,6 +60,7 @@ impl<'src> Scanner<'src> {
             "case" => TokenKind::Case,
             "default" => TokenKind::Default,
             "break" => TokenKind::Break,
+            "continue" => TokenKind::Continue,
             "async" => TokenKind::Async,
             "await" => TokenKind::Await,
             "import" => TokenKind::Import,

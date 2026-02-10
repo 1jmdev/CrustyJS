@@ -65,6 +65,7 @@ pub enum TokenKind {
     Case,
     Default,
     Break,
+    Continue,
     Async,
     Await,
     Import,

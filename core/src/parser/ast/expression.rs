@@ -143,6 +143,10 @@ pub enum Expr {
         flags: String,
     },
     Delete(Box<Expr>),
+    TaggedTemplate {
+        tag: Box<Expr>,
+        parts: Vec<TemplatePart>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

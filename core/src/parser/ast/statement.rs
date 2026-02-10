@@ -31,7 +31,16 @@ pub enum Stmt {
         decl_offset: usize,
     },
     Return(Option<Expr>),
-    Break,
+    Break {
+        label: Option<String>,
+    },
+    Continue {
+        label: Option<String>,
+    },
+    Labeled {
+        label: String,
+        body: Box<Stmt>,
+    },
     ForLoop {
         init: Option<Box<Stmt>>,
         condition: Option<Expr>,
