@@ -60,7 +60,10 @@ fn main() {
     let tokens = match crustyjs::lexer::lex(&source) {
         Ok(tokens) => tokens,
         Err(err) => {
-            eprintln!("{err:?}");
+            eprintln!(
+                "{}",
+                format_syntax_error(&source, &source_path, "lex", &err)
+            );
             process::exit(1);
         }
     };
@@ -74,7 +77,10 @@ fn main() {
     let program = match crustyjs::parser::parse(tokens.clone()) {
         Ok(program) => program,
         Err(err) => {
-            eprintln!("{err:?}");
+            eprintln!(
+                "{}",
+                format_syntax_error(&source, &source_path, "parse", &err)
+            );
             process::exit(1);
         }
     };
@@ -103,4 +109,22 @@ fn main() {
         eprintln!("{err:?}");
         process::exit(1);
     }
+}
+
+fn format_syntax_error(
+    source: &str,
+    source_path: &std::path::Path,
+    phase: &str,
+    err: &crustyjs::errors::SyntaxError,
+) -> String {
+    let map = crustyjs::diagnostics::source_map::SourceMap::from_source(source);
+    let pos = map.byte_to_pos(err.span.offset());
+    format!(
+        "{} error at {}:{}:{}: {}",
+        phase,
+        source_path.display(),
+        pos.line,
+        pos.col,
+        err.message
+    )
 }
