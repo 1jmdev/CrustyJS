@@ -85,3 +85,54 @@ fn proxy_get_trap_default_value() {
     "#);
     assert_eq!(out, vec!["42", "42"]);
 }
+
+#[test]
+fn in_operator_object() {
+    let out = run(r#"
+        const obj = { x: 1, y: 2 };
+        console.log("x" in obj);
+        console.log("z" in obj);
+    "#);
+    assert_eq!(out, vec!["true", "false"]);
+}
+
+#[test]
+fn in_operator_array() {
+    let out = run(r#"
+        const arr = [10, 20, 30];
+        console.log(0 in arr);
+        console.log(2 in arr);
+        console.log(3 in arr);
+    "#);
+    assert_eq!(out, vec!["true", "true", "false"]);
+}
+
+#[test]
+fn proxy_has_trap() {
+    let out = run(r#"
+        const handler = {
+            has: (target, prop) => {
+                if (prop === "secret") {
+                    return false;
+                }
+                return prop in target;
+            }
+        };
+        const target = { secret: 42, visible: 1 };
+        const p = new Proxy(target, handler);
+        console.log("secret" in p);
+        console.log("visible" in p);
+    "#);
+    assert_eq!(out, vec!["false", "true"]);
+}
+
+#[test]
+fn proxy_has_trap_no_trap_fallback() {
+    let out = run(r#"
+        const target = { a: 1 };
+        const p = new Proxy(target, {});
+        console.log("a" in p);
+        console.log("b" in p);
+    "#);
+    assert_eq!(out, vec!["true", "false"]);
+}
