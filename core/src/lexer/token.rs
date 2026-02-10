@@ -76,6 +76,7 @@ pub enum TokenKind {
     Extends,
     Super,
     Instanceof,
+    Yield,
 
     // Operators
     Plus,

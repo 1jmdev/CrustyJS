@@ -27,6 +27,7 @@ pub enum Stmt {
         params: Vec<Param>,
         body: Vec<Stmt>,
         is_async: bool,
+        is_generator: bool,
         decl_offset: usize,
     },
     Return(Option<Expr>),

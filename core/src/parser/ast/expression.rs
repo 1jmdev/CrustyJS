@@ -121,6 +121,10 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     Await(Box<Expr>),
+    Yield {
+        value: Option<Box<Expr>>,
+        delegate: bool,
+    },
     SuperCall {
         args: Vec<Expr>,
     },
