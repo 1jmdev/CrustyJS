@@ -47,6 +47,7 @@ pub fn call_array_method(
             let len = borrowed.len() as i64;
             let start = normalize_index(args.first(), 0, len);
             let end = normalize_index(args.get(1), len, len);
+            let end = end.max(start);
             let sliced: Vec<JsValue> = borrowed.elements[start..end].to_vec();
             Ok(Some(JsValue::Array(heap.alloc_cell(JsArray::new(sliced)))))
         }
