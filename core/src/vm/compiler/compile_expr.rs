@@ -44,20 +44,8 @@ impl Compiler {
                 self.compile_expr(inner);
                 self.chunk.write(Opcode::Typeof, 0);
             }
-            Expr::ArrayLiteral { elements } => {
-                for elem in elements {
-                    self.compile_expr(elem);
-                }
-                self.chunk.write(Opcode::CreateArray, 0);
-            }
-            Expr::ObjectLiteral { properties } => {
-                for (key, value) in properties {
-                    let key_idx = self.chunk.add_constant(VmValue::String(key.clone()));
-                    self.chunk.write(Opcode::Constant(key_idx), 0);
-                    self.compile_expr(value);
-                }
-                self.chunk.write(Opcode::CreateObject, 0);
-            }
+            Expr::ArrayLiteral { .. } => self.chunk.write(Opcode::RunTreeWalk, 0),
+            Expr::ObjectLiteral { .. } => self.chunk.write(Opcode::RunTreeWalk, 0),
             _ => {
                 self.chunk.write(Opcode::RunTreeWalk, 0);
             }
