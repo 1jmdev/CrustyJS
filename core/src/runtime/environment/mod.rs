@@ -24,6 +24,11 @@ impl Environment {
         self.scopes.push(Rc::new(RefCell::new(Scope::new())));
     }
 
+    pub fn push_scope_with_this(&mut self, this_binding: Option<JsValue>) {
+        self.scopes
+            .push(Rc::new(RefCell::new(Scope::new_with_this(this_binding))));
+    }
+
     pub fn pop_scope(&mut self) {
         if self.scopes.len() > 1 {
             self.scopes.pop();
@@ -41,6 +46,16 @@ impl Environment {
 
     /// Look up a variable by walking the scope chain outward.
     pub fn get(&self, name: &str) -> Result<JsValue, RuntimeError> {
+        if name == "this" {
+            for scope in self.scopes.iter().rev() {
+                let borrowed = scope.borrow();
+                if let Some(this_value) = &borrowed.this_binding {
+                    return Ok(this_value.clone());
+                }
+            }
+            return Ok(JsValue::Undefined);
+        }
+
         for scope in self.scopes.iter().rev() {
             let borrowed = scope.borrow();
             if let Some(value) = borrowed.get(name) {

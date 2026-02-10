@@ -5,12 +5,18 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct Scope {
     pub(crate) bindings: HashMap<String, JsValue>,
+    pub(crate) this_binding: Option<JsValue>,
 }
 
 impl Scope {
     pub fn new() -> Self {
+        Self::new_with_this(None)
+    }
+
+    pub fn new_with_this(this_binding: Option<JsValue>) -> Self {
         Self {
             bindings: HashMap::new(),
+            this_binding,
         }
     }
 

@@ -2,6 +2,7 @@ mod builtins;
 mod error_handling;
 mod eval_expr;
 mod eval_stmt;
+mod global_builtins;
 
 use crate::errors::RuntimeError;
 use crate::parser::ast::Program;

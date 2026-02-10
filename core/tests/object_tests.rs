@@ -114,3 +114,40 @@ fn prototype_shadowing_prefers_own_property() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["own", "proto"]);
 }
+
+#[test]
+fn method_call_binds_this_to_receiver() {
+    let src = r#"
+        let obj = {
+            name: "Rex",
+            speak: () => this.name + " barks"
+        };
+        console.log(obj.speak());
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["Rex barks"]);
+}
+
+#[test]
+fn plain_function_has_undefined_this() {
+    let src = r#"
+        function showThisType() { return typeof this; }
+        console.log(showThisType());
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["undefined"]);
+}
+
+#[test]
+fn detached_method_loses_receiver_this() {
+    let src = r#"
+        let obj = {
+            name: "Rex",
+            speak: () => typeof this
+        };
+        let fnc = obj.speak;
+        console.log(fnc());
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["undefined"]);
+}
