@@ -8,7 +8,7 @@ impl Compiler {
         match stmt {
             Stmt::VarDecl { pattern, init, .. } => {
                 let Some(name) = pattern.as_identifier() else {
-                    self.chunk.write(Opcode::RunTreeWalk, 0);
+                    self.require_tree_walk();
                     return;
                 };
 
@@ -84,13 +84,17 @@ impl Compiler {
                 fn_compiler.scope_depth = 1;
                 for param in params {
                     let Some(param_name) = param.pattern.as_identifier() else {
-                        self.chunk.write(Opcode::RunTreeWalk, 0);
+                        self.require_tree_walk();
                         return;
                     };
                     fn_compiler.define_local(param_name.to_string());
                 }
                 for stmt in body {
                     fn_compiler.compile_stmt(stmt);
+                }
+                if fn_compiler.requires_tree_walk {
+                    self.require_tree_walk();
+                    return;
                 }
                 fn_compiler.chunk.write(Opcode::Nil, 0);
                 fn_compiler.chunk.write(Opcode::Return, 0);
@@ -124,7 +128,7 @@ impl Compiler {
             | Stmt::Class(_)
             | Stmt::Import(_)
             | Stmt::Export(_) => {
-                self.chunk.write(Opcode::RunTreeWalk, 0);
+                self.require_tree_walk();
             }
         }
     }

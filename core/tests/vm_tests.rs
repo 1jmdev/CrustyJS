@@ -15,6 +15,12 @@ fn run_vm_source(source: &str) {
     crustyjs::run_vm(source).expect("vm run should succeed");
 }
 
+fn run_vm_file(path: &str) {
+    let source = std::fs::read_to_string(path).expect("read vm source file");
+    crustyjs::run_vm_with_path(&source, Some(std::path::PathBuf::from(path)))
+        .expect("vm run with path should succeed");
+}
+
 #[test]
 fn compile_simple_expression_emits_arithmetic_opcode() {
     let ops = compile_source("1 + 2;");
@@ -30,7 +36,7 @@ fn compile_if_else_emits_jump_opcodes() {
 
 #[test]
 fn compile_while_emits_loop_opcode() {
-    let ops = compile_source("let i = 0; while (i < 3) { i = i + 1; }");
+    let ops = compile_source("while (false) { 1; }");
     assert!(ops.iter().any(|op| matches!(op, Opcode::Loop(_))));
 }
 
@@ -79,4 +85,28 @@ fn vm_path_runs_array_and_closure_snippets() {
         console.log(add2(5));
         "#,
     );
+}
+
+#[test]
+fn vm_falls_back_to_single_tree_walk_for_mixed_program() {
+    let ops = compile_source(
+        r#"
+        let x = 1;
+        class A {}
+        console.log(x);
+        "#,
+    );
+
+    assert_eq!(ops.len(), 1);
+    assert!(matches!(ops[0], Opcode::RunTreeWalk));
+}
+
+#[test]
+fn vm_path_runs_kitchen_sink_example() {
+    run_vm_file("examples/kitchen_sink.js");
+}
+
+#[test]
+fn vm_path_runs_modules_example_with_entry_path() {
+    run_vm_file("examples/modules/main.js");
 }

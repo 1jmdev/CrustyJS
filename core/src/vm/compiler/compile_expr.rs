@@ -44,11 +44,11 @@ impl Compiler {
                 self.compile_expr(inner);
                 self.chunk.write(Opcode::Typeof, 0);
             }
-            Expr::ArrayLiteral { .. } => self.chunk.write(Opcode::RunTreeWalk, 0),
-            Expr::ObjectLiteral { .. } => self.chunk.write(Opcode::RunTreeWalk, 0),
-            Expr::Spread(_) => self.chunk.write(Opcode::RunTreeWalk, 0),
+            Expr::ArrayLiteral { .. } => self.require_tree_walk(),
+            Expr::ObjectLiteral { .. } => self.require_tree_walk(),
+            Expr::Spread(_) => self.require_tree_walk(),
             _ => {
-                self.chunk.write(Opcode::RunTreeWalk, 0);
+                self.require_tree_walk();
             }
         }
     }
@@ -91,7 +91,7 @@ impl Compiler {
                 self.chunk.write(Opcode::Equal, 0);
                 self.chunk.write(Opcode::Not, 0);
             }
-            _ => self.chunk.write(Opcode::RunTreeWalk, 0),
+            _ => self.require_tree_walk(),
         }
     }
 }
