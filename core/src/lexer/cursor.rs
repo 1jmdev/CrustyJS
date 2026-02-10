@@ -34,6 +34,10 @@ impl<'src> Cursor<'src> {
         Some(ch)
     }
 
+    pub fn advance_by(&mut self, n: usize) {
+        self.pos = self.pos.saturating_add(n).min(self.source.len());
+    }
+
     /// Advance if the current character matches `expected`.
     pub fn match_char(&mut self, expected: u8) -> bool {
         if self.peek() == Some(expected) {
@@ -52,5 +56,48 @@ impl<'src> Cursor<'src> {
     /// Whether the cursor has reached the end.
     pub fn is_at_end(&self) -> bool {
         self.pos >= self.source.len()
+    }
+
+    pub fn whitespace_len(&self) -> Option<usize> {
+        let b0 = *self.source.get(self.pos)?;
+        match b0 {
+            b' ' | b'\t' | b'\r' | b'\n' | 0x0B | 0x0C => Some(1),
+            0xC2 => {
+                if self.source.get(self.pos + 1) == Some(&0xA0) {
+                    Some(2)
+                } else {
+                    None
+                }
+            }
+            0xE2 => {
+                if self.source.get(self.pos + 1) == Some(&0x80) {
+                    match self.source.get(self.pos + 2) {
+                        Some(0xA8) | Some(0xA9) => Some(3),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn line_terminator_len(&self) -> Option<usize> {
+        let b0 = *self.source.get(self.pos)?;
+        match b0 {
+            b'\r' | b'\n' => Some(1),
+            0xE2 => {
+                if self.source.get(self.pos + 1) == Some(&0x80) {
+                    match self.source.get(self.pos + 2) {
+                        Some(0xA8) | Some(0xA9) => Some(3),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 }

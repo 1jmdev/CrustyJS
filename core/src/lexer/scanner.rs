@@ -47,13 +47,15 @@ impl<'src> Scanner<'src> {
 
     fn skip_whitespace_and_comments(&mut self) {
         loop {
+            if let Some(len) = self.cursor.whitespace_len() {
+                self.cursor.advance_by(len);
+                continue;
+            }
+
             match self.cursor.peek() {
-                Some(b' ' | b'\t' | b'\r' | b'\n') => {
-                    self.cursor.advance();
-                }
                 Some(b'/') if self.cursor.peek_next() == Some(b'/') => {
-                    while let Some(ch) = self.cursor.peek() {
-                        if ch == b'\n' {
+                    while let Some(_) = self.cursor.peek() {
+                        if self.cursor.line_terminator_len().is_some() {
                             break;
                         }
                         self.cursor.advance();

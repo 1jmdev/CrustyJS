@@ -3,7 +3,7 @@ use std::path::Path;
 use crustyjs_core::Context;
 
 use crate::harness;
-use crate::metadata::TestMetadata;
+use crate::metadata::{strip_frontmatter, TestMetadata};
 
 #[derive(Debug, Clone)]
 pub enum TestResult {
@@ -21,25 +21,27 @@ pub fn run_test(path: &Path, source: &str, metadata: &TestMetadata) -> TestResul
         return run_module_test(path, metadata);
     }
 
+    let test_source = strip_frontmatter(source);
+
     if metadata.is_raw() {
-        return run_single(source, metadata);
+        return run_single(test_source, metadata);
     }
 
     if metadata.is_no_strict() {
-        return run_single(&compose(metadata, source), metadata);
+        return run_single(&compose(metadata, test_source), metadata);
     }
 
     if metadata.is_only_strict() {
-        let strict_source = format!("\"use strict\";\n{}", source);
+        let strict_source = format!("\"use strict\";\n{}", test_source);
         return run_single(&compose(metadata, &strict_source), metadata);
     }
 
-    let sloppy_result = run_single(&compose(metadata, source), metadata);
+    let sloppy_result = run_single(&compose(metadata, test_source), metadata);
     if matches!(sloppy_result, TestResult::Failed(_)) {
         return sloppy_result;
     }
 
-    let strict_source = format!("\"use strict\";\n{}", source);
+    let strict_source = format!("\"use strict\";\n{}", test_source);
     run_single(&compose(metadata, &strict_source), metadata)
 }
 

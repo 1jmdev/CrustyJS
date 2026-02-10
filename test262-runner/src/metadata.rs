@@ -55,6 +55,21 @@ pub fn parse_frontmatter(source: &str) -> Option<TestMetadata> {
     serde_yaml::from_str(yaml_str).ok()
 }
 
+pub fn strip_frontmatter(source: &str) -> &str {
+    let start_marker = "/*---";
+    let end_marker = "---*/";
+
+    let Some(start) = source.find(start_marker) else {
+        return source;
+    };
+    let yaml_start = start + start_marker.len();
+    let Some(end) = source[yaml_start..].find(end_marker) else {
+        return source;
+    };
+    let end_pos = yaml_start + end + end_marker.len();
+    &source[end_pos..]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
