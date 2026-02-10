@@ -50,9 +50,10 @@ impl Interpreter {
                             } else {
                                 source[idx..].to_vec()
                             };
+                            let rest_val = JsValue::Array(self.heap.alloc_cell(JsArray::new(rest)));
                             self.eval_pattern_binding_with_kind(
                                 inner,
-                                JsValue::Array(self.heap.alloc_cell(JsArray::new(rest))),
+                                rest_val,
                                 kind,
                             )?;
                             break;
@@ -127,9 +128,10 @@ impl Interpreter {
                         }
                     };
 
+                    let rest_val = JsValue::Object(self.heap.alloc_cell(rest_obj));
                     self.eval_pattern_binding_with_kind(
                         rest_target,
-                        JsValue::Object(self.heap.alloc_cell(rest_obj)),
+                        rest_val,
                         kind,
                     )?;
                 }

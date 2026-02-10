@@ -4,7 +4,6 @@ use crate::parser::ast::Expr;
 use crate::runtime::value::string_methods;
 use crate::runtime::value::symbol::JsSymbol;
 use crate::runtime::value::JsValue;
-use std::rc::Rc;
 
 impl Interpreter {
     pub(crate) fn get_property(
@@ -14,14 +13,11 @@ impl Interpreter {
     ) -> Result<JsValue, RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                let mut current = Some(Rc::clone(obj));
+                let mut current = Some(*obj);
                 while let Some(candidate) = current {
                     let (prop, next) = {
                         let borrowed = candidate.borrow();
-                        (
-                            borrowed.properties.get(key).cloned(),
-                            borrowed.prototype.clone(),
-                        )
+                        (borrowed.properties.get(key).cloned(), borrowed.prototype)
                     };
                     if let Some(prop) = prop {
                         if let Some(getter) = prop.getter {
@@ -89,14 +85,11 @@ impl Interpreter {
     ) -> Result<(), RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                let mut current = Some(Rc::clone(obj));
+                let mut current = Some(*obj);
                 while let Some(candidate) = current {
                     let (prop, next) = {
                         let borrowed = candidate.borrow();
-                        (
-                            borrowed.properties.get(key).cloned(),
-                            borrowed.prototype.clone(),
-                        )
+                        (borrowed.properties.get(key).cloned(), borrowed.prototype)
                     };
                     if let Some(prop) = prop {
                         if let Some(setter) = prop.setter {
@@ -155,11 +148,11 @@ impl Interpreter {
     ) -> Result<JsValue, RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                let mut current = Some(Rc::clone(obj));
+                let mut current = Some(*obj);
                 while let Some(candidate) = current {
                     let (val, next) = {
                         let borrowed = candidate.borrow();
-                        (borrowed.get_symbol(sym), borrowed.prototype.clone())
+                        (borrowed.get_symbol(sym), borrowed.prototype)
                     };
                     if let Some(v) = val {
                         return Ok(v);

@@ -1,4 +1,4 @@
-use crate::runtime::gc::{Gc, GcCell, Trace, Tracer};
+use crate::runtime::gc::{Gc, Trace, Tracer};
 use crate::runtime::value::JsValue;
 
 #[derive(Debug, Clone)]
