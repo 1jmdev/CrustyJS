@@ -13,6 +13,7 @@ use std::rc::Rc;
 use crate::embedding::callback::NativeFunctionBoxed;
 use crate::parser::ast::{Param, Stmt};
 use crate::runtime::environment::Scope;
+use crate::runtime::gc::{Trace, Tracer};
 use array::JsArray;
 use object::JsObject;
 use promise::JsPromise;
@@ -95,6 +96,42 @@ impl PartialEq for JsValue {
                 },
             ) => a.ptr_eq(b),
             _ => false,
+        }
+    }
+}
+
+impl Trace for NativeFunction {
+    fn trace(&self, tracer: &mut Tracer) {
+        match self {
+            NativeFunction::PromiseResolve(promise) | NativeFunction::PromiseReject(promise) => {
+                promise.borrow().trace(tracer);
+            }
+            NativeFunction::SetTimeout
+            | NativeFunction::SetInterval
+            | NativeFunction::ClearTimeout
+            | NativeFunction::ClearInterval
+            | NativeFunction::Host(_) => {}
+        }
+    }
+}
+
+impl Trace for JsValue {
+    fn trace(&self, tracer: &mut Tracer) {
+        match self {
+            JsValue::Function { closure_env, .. } => {
+                for scope in closure_env {
+                    scope.borrow().trace(tracer);
+                }
+            }
+            JsValue::NativeFunction { handler, .. } => handler.trace(tracer),
+            JsValue::Object(object) => object.borrow().trace(tracer),
+            JsValue::Array(array) => array.borrow().trace(tracer),
+            JsValue::Promise(promise) => promise.borrow().trace(tracer),
+            JsValue::Undefined
+            | JsValue::Null
+            | JsValue::Boolean(_)
+            | JsValue::Number(_)
+            | JsValue::String(_) => {}
         }
     }
 }

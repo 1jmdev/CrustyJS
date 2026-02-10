@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::JsValue;
+use crate::runtime::gc::{Trace, Tracer};
 
 #[derive(Debug, Clone)]
 pub struct JsArray {
@@ -35,5 +36,11 @@ impl JsArray {
 
     pub fn wrapped(self) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(self))
+    }
+}
+
+impl Trace for JsArray {
+    fn trace(&self, tracer: &mut Tracer) {
+        self.elements.trace(tracer);
     }
 }

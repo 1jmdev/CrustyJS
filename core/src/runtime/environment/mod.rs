@@ -1,6 +1,7 @@
 mod scope;
 
 use crate::errors::RuntimeError;
+use crate::runtime::gc::{Trace, Tracer};
 use crate::runtime::value::JsValue;
 pub(crate) use scope::Binding;
 pub(crate) use scope::{BindingKind, Scope};
@@ -106,5 +107,13 @@ impl Environment {
             .last()
             .map(|scope| scope.borrow().bindings.clone())
             .unwrap_or_default()
+    }
+}
+
+impl Trace for Environment {
+    fn trace(&self, tracer: &mut Tracer) {
+        for scope in &self.scopes {
+            scope.borrow().trace(tracer);
+        }
     }
 }

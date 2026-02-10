@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use super::JsValue;
+use crate::runtime::gc::{Trace, Tracer};
 
 #[derive(Debug, Clone)]
 pub struct JsObject {
@@ -33,5 +34,17 @@ impl JsObject {
 
     pub fn wrapped(self) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(self))
+    }
+}
+
+impl Trace for JsObject {
+    fn trace(&self, tracer: &mut Tracer) {
+        for property in self.properties.values() {
+            property.value.trace(tracer);
+        }
+
+        if let Some(prototype) = &self.prototype {
+            prototype.borrow().trace(tracer);
+        }
     }
 }

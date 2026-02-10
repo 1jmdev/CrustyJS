@@ -1,3 +1,4 @@
+use crate::runtime::gc::{Trace, Tracer};
 use crate::runtime::value::JsValue;
 use std::collections::HashMap;
 
@@ -56,5 +57,20 @@ impl Scope {
 
     pub fn define_with_kind(&mut self, name: String, value: JsValue, kind: BindingKind) {
         self.bindings.insert(name, Binding { value, kind });
+    }
+}
+
+impl Trace for Binding {
+    fn trace(&self, tracer: &mut Tracer) {
+        self.value.trace(tracer);
+    }
+}
+
+impl Trace for Scope {
+    fn trace(&self, tracer: &mut Tracer) {
+        for binding in self.bindings.values() {
+            binding.trace(tracer);
+        }
+        self.this_binding.trace(tracer);
     }
 }
