@@ -1,6 +1,6 @@
 use crate::errors::RuntimeError;
-use crate::runtime::value::array::JsArray;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::array::JsArray;
 use std::cell::RefCell;
 use std::rc::Rc;
 

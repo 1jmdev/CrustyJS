@@ -1,5 +1,5 @@
-use super::ast::{ExportDecl, ExportSpecifier, ImportDecl, ImportSpecifier, Stmt};
 use super::Parser;
+use super::ast::{ExportDecl, ExportSpecifier, ImportDecl, ImportSpecifier, Stmt};
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
@@ -47,7 +47,7 @@ impl Parser {
                     format!("expected import source string, found {other:?}"),
                     self.tokens[self.pos - 1].span.start,
                     self.tokens[self.pos - 1].span.len().max(1),
-                ))
+                ));
             }
         };
         self.consume_stmt_terminator()?;

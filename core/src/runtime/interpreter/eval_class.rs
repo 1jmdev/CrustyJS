@@ -4,8 +4,8 @@ use std::rc::Rc;
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{ClassDecl, ClassMethod, ClassMethodKind, Expr, Param, Pattern};
-use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::object::JsObject;
 
 #[derive(Clone)]
 pub(crate) struct RuntimeClass {

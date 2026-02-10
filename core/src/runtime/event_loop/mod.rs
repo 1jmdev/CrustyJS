@@ -4,8 +4,8 @@ mod task_queue;
 use std::collections::HashSet;
 use std::time::Duration;
 
-use crate::runtime::value::promise::PromiseReaction;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::promise::PromiseReaction;
 
 pub use microtask_queue::MicrotaskQueue;
 pub use task_queue::{TaskQueue, TimerTask};
@@ -13,7 +13,7 @@ pub use task_queue::{TaskQueue, TimerTask};
 #[derive(Clone)]
 pub enum Microtask {
     PromiseReaction {
-        reaction: PromiseReaction,
+        reaction: Box<PromiseReaction>,
         is_reject: bool,
         value: JsValue,
     },
@@ -33,6 +33,12 @@ pub struct EventLoop {
     canceled_timer_ids: HashSet<u64>,
     canceled_animation_ids: HashSet<u64>,
     animation_callbacks: Vec<(u64, JsValue)>,
+}
+
+impl Default for EventLoop {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EventLoop {

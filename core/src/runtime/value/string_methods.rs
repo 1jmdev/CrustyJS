@@ -1,6 +1,6 @@
 use crate::errors::RuntimeError;
-use crate::runtime::value::array::JsArray;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::array::JsArray;
 
 /// Resolve a property access on a string value (e.g. `s.length`).
 pub fn resolve_string_property(s: &str, property: &str) -> Result<JsValue, RuntimeError> {
@@ -62,9 +62,5 @@ pub fn call_string_method(
 /// Normalize a slice index: negative values count from end.
 fn normalize_index(arg: Option<&JsValue>, len: i64) -> i64 {
     let n = arg.map(|a| a.to_number() as i64).unwrap_or(0);
-    if n < 0 {
-        (len + n).max(0)
-    } else {
-        n.min(len)
-    }
+    if n < 0 { (len + n).max(0) } else { n.min(len) }
 }

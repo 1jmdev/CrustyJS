@@ -94,10 +94,10 @@ impl Interpreter {
                     self.eval_stmt(init_stmt)?;
                 }
                 loop {
-                    if let Some(cond) = condition {
-                        if !self.eval_expr(cond)?.to_boolean() {
-                            break;
-                        }
+                    if let Some(cond) = condition
+                        && !self.eval_expr(cond)?.to_boolean()
+                    {
+                        break;
                     }
                     match self.eval_stmt(body)? {
                         ControlFlow::Return(v) => {
@@ -125,7 +125,7 @@ impl Interpreter {
                     _ => {
                         return Err(RuntimeError::TypeError {
                             message: "for-of requires an iterable".to_string(),
-                        })
+                        });
                     }
                 };
                 self.env.push_scope();

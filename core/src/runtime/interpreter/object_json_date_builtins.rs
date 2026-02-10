@@ -1,8 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
+use crate::runtime::value::JsValue;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
-use crate::runtime::value::JsValue;
 use serde_json::Value as JsonValue;
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -84,7 +84,7 @@ impl Interpreter {
                     serde_json::from_str(&input).map_err(|e| RuntimeError::TypeError {
                         message: format!("JSON.parse failed: {e}"),
                     })?;
-                Ok(self.from_json_value(&parsed))
+                Ok(self.convert_json_value(&parsed))
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("JSON has no method '{property}'"),
@@ -191,19 +191,19 @@ impl Interpreter {
         })
     }
 
-    fn from_json_value(&self, value: &JsonValue) -> JsValue {
+    fn convert_json_value(&self, value: &JsonValue) -> JsValue {
         match value {
             JsonValue::Null => JsValue::Null,
             JsonValue::Bool(b) => JsValue::Boolean(*b),
             JsonValue::Number(n) => JsValue::Number(n.as_f64().unwrap_or(0.0)),
             JsonValue::String(s) => JsValue::String(s.clone()),
             JsonValue::Array(items) => JsValue::Array(
-                JsArray::new(items.iter().map(|v| self.from_json_value(v)).collect()).wrapped(),
+                JsArray::new(items.iter().map(|v| self.convert_json_value(v)).collect()).wrapped(),
             ),
             JsonValue::Object(map) => {
                 let mut obj = JsObject::new();
                 for (k, v) in map {
-                    obj.set(k.clone(), self.from_json_value(v));
+                    obj.set(k.clone(), self.convert_json_value(v));
                 }
                 JsValue::Object(obj.wrapped())
             }

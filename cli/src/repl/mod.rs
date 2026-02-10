@@ -2,8 +2,8 @@ mod completer;
 
 use crustyjs::errors::{CrustyError, RuntimeError};
 use crustyjs::runtime::interpreter::Interpreter;
-use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
 use std::fs;
 
 pub fn run() -> Result<(), CrustyError> {

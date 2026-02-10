@@ -1,5 +1,5 @@
-use super::ast::{ObjectPatternProp, Param, Pattern};
 use super::Parser;
+use super::ast::{ObjectPatternProp, Param, Pattern};
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 

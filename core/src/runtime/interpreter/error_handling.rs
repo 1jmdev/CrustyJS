@@ -1,6 +1,6 @@
 use crate::errors::RuntimeError;
-use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::object::JsObject;
 
 #[derive(Debug, Clone)]
 pub struct JsException {

@@ -19,6 +19,12 @@ pub struct JsObject {
     pub prototype: Option<Rc<RefCell<JsObject>>>,
 }
 
+impl Default for JsObject {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsObject {
     pub fn new() -> Self {
         Self {

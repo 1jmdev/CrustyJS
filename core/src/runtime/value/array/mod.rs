@@ -34,6 +34,10 @@ impl JsArray {
         self.elements.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.elements.is_empty()
+    }
+
     pub fn wrapped(self) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(self))
     }

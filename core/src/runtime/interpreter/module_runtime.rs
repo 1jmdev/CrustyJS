@@ -137,16 +137,16 @@ impl Interpreter {
     pub(crate) fn export_names_from_stmt(stmt: &Stmt) -> Vec<String> {
         match stmt {
             Stmt::FunctionDecl { name, .. } => vec![name.clone()],
-            Stmt::VarDecl { pattern, .. } => match pattern {
-                Pattern::Identifier(name) => vec![name.clone()],
-                _ => Vec::new(),
-            },
+            Stmt::VarDecl {
+                pattern: Pattern::Identifier(name),
+                ..
+            } => vec![name.clone()],
             _ => Vec::new(),
         }
     }
 
     fn format_syntax_error(
-        path: &PathBuf,
+        path: &std::path::Path,
         source: &str,
         phase: &str,
         err: &crate::errors::SyntaxError,

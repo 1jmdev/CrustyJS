@@ -8,11 +8,11 @@ impl Interpreter {
             self.drain_microtasks()?;
             if self.event_loop.has_tasks() {
                 self.event_loop.advance_to_next_task();
-                if let Some(task) = self.event_loop.pop_ready_task() {
-                    if task.active {
-                        self.call_function(&task.callback, &[])?;
-                        self.event_loop.reschedule_interval(task);
-                    }
+                if let Some(task) = self.event_loop.pop_ready_task()
+                    && task.active
+                {
+                    self.call_function(&task.callback, &[])?;
+                    self.event_loop.reschedule_interval(task);
                 }
             }
         }
@@ -31,11 +31,11 @@ impl Interpreter {
             self.drain_microtasks()?;
             if self.event_loop.has_tasks() {
                 self.event_loop.advance_to_next_task();
-                if let Some(task) = self.event_loop.pop_ready_task() {
-                    if task.active {
-                        self.call_function(&task.callback, &[])?;
-                        self.event_loop.reschedule_interval(task);
-                    }
+                if let Some(task) = self.event_loop.pop_ready_task()
+                    && task.active
+                {
+                    self.call_function(&task.callback, &[])?;
+                    self.event_loop.reschedule_interval(task);
                 }
             }
         }
@@ -53,11 +53,11 @@ impl Interpreter {
     pub(crate) fn run_pending_timers(&mut self) -> Result<(), RuntimeError> {
         while self.event_loop.has_tasks() {
             self.event_loop.advance_to_next_task();
-            if let Some(task) = self.event_loop.pop_ready_task() {
-                if task.active {
-                    self.call_function(&task.callback, &[])?;
-                    self.event_loop.reschedule_interval(task);
-                }
+            if let Some(task) = self.event_loop.pop_ready_task()
+                && task.active
+            {
+                self.call_function(&task.callback, &[])?;
+                self.event_loop.reschedule_interval(task);
             }
             self.drain_microtasks()?;
         }
@@ -86,7 +86,7 @@ impl Interpreter {
                     reaction,
                     is_reject,
                     value,
-                } => self.run_promise_reaction(reaction, is_reject, value)?,
+                } => self.run_promise_reaction(*reaction, is_reject, value)?,
                 Microtask::Callback { callback } => {
                     self.call_function(&callback, &[])?;
                 }

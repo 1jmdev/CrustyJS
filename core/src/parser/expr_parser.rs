@@ -1,8 +1,8 @@
+use super::Parser;
 use super::ast::{Expr, Literal, OptionalOp, UnaryOp, UpdateOp};
 use super::expr_ops::{
     infix_binding_power, prefix_binding_power, token_to_binop, token_to_logical_op,
 };
-use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
@@ -94,7 +94,7 @@ impl Parser {
                                 "invalid postfix increment target",
                                 self.tokens[self.pos - 1].span.start,
                                 2,
-                            ))
+                            ));
                         }
                     }
                 }
@@ -111,7 +111,7 @@ impl Parser {
                                 "invalid postfix decrement target",
                                 self.tokens[self.pos - 1].span.start,
                                 2,
-                            ))
+                            ));
                         }
                     }
                 }
@@ -119,10 +119,7 @@ impl Parser {
             };
         }
 
-        loop {
-            let Some((l_bp, r_bp)) = infix_binding_power(self.peek()) else {
-                break;
-            };
+        while let Some((l_bp, r_bp)) = infix_binding_power(self.peek()) {
             if l_bp < min_bp {
                 break;
             }
@@ -198,7 +195,7 @@ impl Parser {
                         "expected identifier after update operator",
                         ident_tok.span.start,
                         ident_tok.span.len().max(1),
-                    ))
+                    ));
                 }
             };
             let op = match op_tok.kind {

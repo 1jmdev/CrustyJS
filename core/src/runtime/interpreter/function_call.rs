@@ -1,8 +1,8 @@
 use super::Interpreter;
 use crate::diagnostics::stack_trace::CallFrame;
 use crate::errors::RuntimeError;
-use crate::runtime::value::array::JsArray;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::array::JsArray;
 
 impl Interpreter {
     pub(crate) fn eval_array_callback_method(
@@ -52,7 +52,7 @@ impl Interpreter {
             "sort" => {
                 let mut sorted = arr.borrow().elements.clone();
                 if matches!(callback, JsValue::Undefined) {
-                    sorted.sort_by(|a, b| a.to_js_string().cmp(&b.to_js_string()));
+                    sorted.sort_by_key(|a| a.to_js_string());
                 } else {
                     sorted.sort_by(|a, b| {
                         let res = self

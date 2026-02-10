@@ -1,12 +1,12 @@
-use super::eval_expr_helpers::{eval_binary, eval_compound, eval_literal, eval_unary};
 use super::Interpreter;
+use super::eval_expr_helpers::{eval_binary, eval_compound, eval_literal, eval_unary};
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
     ArrowBody, BinOp, Expr, LogicalOp, ObjectProperty, OptionalOp, Stmt, TemplatePart, UpdateOp,
 };
+use crate::runtime::value::JsValue;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
-use crate::runtime::value::JsValue;
 impl Interpreter {
     pub(crate) fn eval_expr(&mut self, expr: &Expr) -> Result<JsValue, RuntimeError> {
         match expr {
@@ -45,11 +45,7 @@ impl Interpreter {
                     UpdateOp::Dec => JsValue::Number(num - 1.0),
                 };
                 self.env.set(name, next.clone())?;
-                if *prefix {
-                    Ok(next)
-                } else {
-                    Ok(current)
-                }
+                if *prefix { Ok(next) } else { Ok(current) }
             }
             Expr::MemberAccess { object, property } => {
                 self.eval_member_call(object, property, &[], false)

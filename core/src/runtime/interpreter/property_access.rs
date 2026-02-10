@@ -1,7 +1,7 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::runtime::value::string_methods;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::string_methods;
 use std::rc::Rc;
 
 impl Interpreter {

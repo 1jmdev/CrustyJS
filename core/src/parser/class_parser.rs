@@ -1,5 +1,5 @@
-use super::ast::{ClassDecl, ClassMethod, ClassMethodKind, Stmt};
 use super::Parser;
+use super::ast::{ClassDecl, ClassMethod, ClassMethodKind, Stmt};
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 

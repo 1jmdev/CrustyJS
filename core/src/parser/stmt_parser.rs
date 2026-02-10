@@ -1,5 +1,5 @@
-use super::ast::{Stmt, VarDeclKind};
 use super::Parser;
+use super::ast::{Stmt, VarDeclKind};
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 

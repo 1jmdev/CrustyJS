@@ -1,8 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{AssignOp, BinOp, Literal, PropertyKey, UnaryOp};
-use crate::runtime::value::abstract_equals;
 use crate::runtime::value::JsValue;
+use crate::runtime::value::abstract_equals;
 
 impl Interpreter {
     pub(crate) fn eval_call_args(
@@ -51,12 +51,12 @@ pub(crate) fn eval_literal(lit: &Literal) -> JsValue {
 }
 
 pub(crate) fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsValue, RuntimeError> {
-    if matches!(op, BinOp::Add) {
-        if matches!(&lhs, JsValue::String(_)) || matches!(&rhs, JsValue::String(_)) {
-            let a = lhs.to_js_string();
-            let b = rhs.to_js_string();
-            return Ok(JsValue::String(format!("{a}{b}")));
-        }
+    if matches!(op, BinOp::Add)
+        && (matches!(&lhs, JsValue::String(_)) || matches!(&rhs, JsValue::String(_)))
+    {
+        let a = lhs.to_js_string();
+        let b = rhs.to_js_string();
+        return Ok(JsValue::String(format!("{a}{b}")));
     }
 
     let ln = lhs.to_number();

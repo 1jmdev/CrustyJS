@@ -1,8 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{Expr, Param, Stmt};
-use crate::runtime::value::promise::{JsPromise, PromiseState};
 use crate::runtime::value::JsValue;
+use crate::runtime::value::promise::{JsPromise, PromiseState};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -23,10 +23,10 @@ impl Interpreter {
         self.env.push_scope_with_this(this_binding);
         for (idx, param) in params.iter().enumerate() {
             let mut value = args.get(idx).cloned().unwrap_or(JsValue::Undefined);
-            if matches!(value, JsValue::Undefined) {
-                if let Some(default_expr) = &param.default {
-                    value = self.eval_expr(default_expr)?;
-                }
+            if matches!(value, JsValue::Undefined)
+                && let Some(default_expr) = &param.default
+            {
+                value = self.eval_expr(default_expr)?;
             }
             self.eval_pattern_binding(&param.pattern, value)?;
         }

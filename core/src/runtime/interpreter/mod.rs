@@ -48,6 +48,12 @@ pub struct Interpreter {
     pub(crate) start_time: Instant,
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         Self::new_with_realtime_timers(false)
@@ -111,7 +117,7 @@ impl Interpreter {
         self.call_stack.format_trace()
     }
 
-    pub(crate) fn register_source_map(&mut self, path: &PathBuf, source: &str) {
+    pub(crate) fn register_source_map(&mut self, path: &std::path::Path, source: &str) {
         self.source_maps
             .insert(path.display().to_string(), SourceMap::from_source(source));
     }
@@ -123,7 +129,7 @@ impl Interpreter {
             .unwrap_or(SourcePos { line: 1, col: 1 })
     }
 
-    pub(crate) fn ensure_source_map_for_path(&mut self, path: &PathBuf) {
+    pub(crate) fn ensure_source_map_for_path(&mut self, path: &std::path::Path) {
         let file = path.display().to_string();
         if self.source_maps.contains_key(&file) {
             return;

@@ -15,6 +15,12 @@ pub struct Environment {
     scopes: Vec<Rc<RefCell<Scope>>>,
 }
 
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Environment {
     pub fn new() -> Self {
         Self {

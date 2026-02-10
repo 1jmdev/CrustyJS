@@ -145,13 +145,13 @@ impl Interpreter {
                 self.promise_then(promise, None, on_rejected)
             }
             "finally" => {
-                if let Some(callback) = Self::normalize_handler(args.first().cloned()) {
-                    if let Err(err) = self.call_function(&callback, &[]) {
-                        let rejected = Rc::new(RefCell::new(JsPromise::pending()));
-                        let _ =
-                            self.settle_promise(&rejected, true, self.runtime_error_to_value(err))?;
-                        return Ok(JsValue::Promise(rejected));
-                    }
+                if let Some(callback) = Self::normalize_handler(args.first().cloned())
+                    && let Err(err) = self.call_function(&callback, &[])
+                {
+                    let rejected = Rc::new(RefCell::new(JsPromise::pending()));
+                    let _ =
+                        self.settle_promise(&rejected, true, self.runtime_error_to_value(err))?;
+                    return Ok(JsValue::Promise(rejected));
                 }
                 Ok(JsValue::Promise(promise.clone()))
             }
@@ -167,43 +167,41 @@ impl Interpreter {
         is_reject: bool,
         value: JsValue,
     ) -> Result<JsValue, RuntimeError> {
-        if !is_reject {
-            if let JsValue::Promise(inner) = &value {
-                if Rc::ptr_eq(promise, inner) {
-                    return self.settle_promise(
-                        promise,
-                        true,
-                        JsValue::String("Cannot resolve promise with itself".to_string()),
-                    );
-                }
-
-                let passthrough = PromiseReaction {
-                    on_fulfilled: None,
-                    on_rejected: None,
-                    next: promise.clone(),
-                };
-
-                let settled = {
-                    let borrowed = inner.borrow();
-                    match &borrowed.state {
-                        PromiseState::Pending => None,
-                        PromiseState::Fulfilled(v) => Some((false, v.clone())),
-                        PromiseState::Rejected(v) => Some((true, v.clone())),
-                    }
-                };
-
-                if let Some((inner_reject, inner_value)) = settled {
-                    self.event_loop
-                        .enqueue_microtask(Microtask::PromiseReaction {
-                            reaction: passthrough,
-                            is_reject: inner_reject,
-                            value: inner_value,
-                        });
-                } else {
-                    inner.borrow_mut().reactions.push(passthrough);
-                }
-                return Ok(JsValue::Undefined);
+        if !is_reject && let JsValue::Promise(inner) = &value {
+            if Rc::ptr_eq(promise, inner) {
+                return self.settle_promise(
+                    promise,
+                    true,
+                    JsValue::String("Cannot resolve promise with itself".to_string()),
+                );
             }
+
+            let passthrough = PromiseReaction {
+                on_fulfilled: None,
+                on_rejected: None,
+                next: promise.clone(),
+            };
+
+            let settled = {
+                let borrowed = inner.borrow();
+                match &borrowed.state {
+                    PromiseState::Pending => None,
+                    PromiseState::Fulfilled(v) => Some((false, v.clone())),
+                    PromiseState::Rejected(v) => Some((true, v.clone())),
+                }
+            };
+
+            if let Some((inner_reject, inner_value)) = settled {
+                self.event_loop
+                    .enqueue_microtask(Microtask::PromiseReaction {
+                        reaction: Box::new(passthrough),
+                        is_reject: inner_reject,
+                        value: inner_value,
+                    });
+            } else {
+                inner.borrow_mut().reactions.push(passthrough);
+            }
+            return Ok(JsValue::Undefined);
         }
 
         let reactions = {
@@ -222,7 +220,7 @@ impl Interpreter {
         for reaction in reactions {
             self.event_loop
                 .enqueue_microtask(Microtask::PromiseReaction {
-                    reaction,
+                    reaction: Box::new(reaction),
                     is_reject,
                     value: value.clone(),
                 });
@@ -256,7 +254,7 @@ impl Interpreter {
         if let Some((is_reject, settled_value)) = settled {
             self.event_loop
                 .enqueue_microtask(Microtask::PromiseReaction {
-                    reaction,
+                    reaction: Box::new(reaction),
                     is_reject,
                     value: settled_value,
                 });

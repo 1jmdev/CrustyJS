@@ -2,9 +2,9 @@ use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Pattern;
 use crate::runtime::environment::BindingKind;
+use crate::runtime::value::JsValue;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
-use crate::runtime::value::JsValue;
 use std::collections::HashSet;
 
 impl Interpreter {
@@ -87,10 +87,10 @@ impl Interpreter {
 
                     let mut prop_value =
                         object.borrow().get(&prop.key).unwrap_or(JsValue::Undefined);
-                    if matches!(prop_value, JsValue::Undefined) {
-                        if let Some(default) = &prop.default {
-                            prop_value = self.eval_expr(default)?;
-                        }
+                    if matches!(prop_value, JsValue::Undefined)
+                        && let Some(default) = &prop.default
+                    {
+                        prop_value = self.eval_expr(default)?;
                     }
 
                     let target = prop

@@ -18,6 +18,12 @@ pub struct Compiler {
     pub requires_tree_walk: bool,
 }
 
+impl Default for Compiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Compiler {
     pub fn new() -> Self {
         Self {

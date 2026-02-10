@@ -78,12 +78,12 @@ impl Context {
         let mut merged_getters = HashMap::new();
         let mut merged_setters = HashMap::new();
 
-        if let Some(parent_name) = &class_def.parent {
-            if let Some(parent) = self.native_classes.get(parent_name) {
-                merged_methods.extend(parent.methods.clone());
-                merged_getters.extend(parent.getters.clone());
-                merged_setters.extend(parent.setters.clone());
-            }
+        if let Some(parent_name) = &class_def.parent
+            && let Some(parent) = self.native_classes.get(parent_name)
+        {
+            merged_methods.extend(parent.methods.clone());
+            merged_getters.extend(parent.getters.clone());
+            merged_setters.extend(parent.setters.clone());
         }
 
         merged_methods.extend(class_def.methods.clone());

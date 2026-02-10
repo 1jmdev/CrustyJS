@@ -27,16 +27,16 @@ impl Compiler {
                 }
             }
             Stmt::ExprStmt(expr) => {
-                if let Expr::Call { callee, args } = expr {
-                    if let Expr::MemberAccess { object, property } = &**callee {
-                        if let Expr::Identifier(name) = &**object {
-                            if name == "console" && property == "log" && args.len() == 1 {
-                                self.compile_expr(&args[0]);
-                                self.chunk.write(Opcode::Print, 0);
-                                return;
-                            }
-                        }
-                    }
+                if let Expr::Call { callee, args } = expr
+                    && let Expr::MemberAccess { object, property } = &**callee
+                    && let Expr::Identifier(name) = &**object
+                    && name == "console"
+                    && property == "log"
+                    && args.len() == 1
+                {
+                    self.compile_expr(&args[0]);
+                    self.chunk.write(Opcode::Print, 0);
+                    return;
                 }
                 self.compile_expr(expr);
                 self.chunk.write(Opcode::Pop, 0);

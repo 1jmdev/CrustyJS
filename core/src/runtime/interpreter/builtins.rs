@@ -1,9 +1,9 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
+use crate::runtime::value::JsValue;
 use crate::runtime::value::array::methods::call_array_method;
 use crate::runtime::value::string_methods;
-use crate::runtime::value::JsValue;
 
 impl Interpreter {
     pub(crate) fn eval_member_call(
@@ -87,6 +87,6 @@ impl Interpreter {
 
         let arg_values = self.eval_call_args(args)?;
         let method = self.get_property(&obj_val, property)?;
-        return self.call_function_with_this(&method, &arg_values, Some(obj_val));
+        self.call_function_with_this(&method, &arg_values, Some(obj_val))
     }
 }
