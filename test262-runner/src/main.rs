@@ -44,10 +44,10 @@ fn main() {
     let cli = Cli::parse();
     let start = Instant::now();
 
-    // Use 8MB stack, single thread to control memory usage
+    // Use 32MB stack, 16 threads
     rayon::ThreadPoolBuilder::new()
-        .stack_size(8 * 1024 * 1024)
-        .num_threads(1)
+        .stack_size(32 * 1024 * 1024)
+        .num_threads(16)
         .build_global()
         .unwrap();
 
