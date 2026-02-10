@@ -1,16 +1,14 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
+use crate::runtime::gc::{Gc, GcCell};
 use crate::runtime::value::regexp::{JsRegExp, RegExpFlags};
 use crate::runtime::value::JsValue;
 
 impl Interpreter {
     pub(crate) fn call_regexp_method(
         &mut self,
-        re: &Rc<RefCell<JsRegExp>>,
+        re: &Gc<GcCell<JsRegExp>>,
         method: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -23,7 +21,10 @@ impl Interpreter {
             "exec" => {
                 let input = args.first().map(|v| v.to_js_string()).unwrap_or_default();
                 match re.borrow_mut().exec(&input) {
-                    Some(m) => Ok(exec_result_to_array(m)),
+                    Some(m) => {
+                        let arr = exec_result_to_array(m);
+                        Ok(JsValue::Array(self.heap.alloc_cell(arr)))
+                    }
                     None => Ok(JsValue::Null),
                 }
             }
@@ -39,7 +40,7 @@ impl Interpreter {
 
     pub(crate) fn get_regexp_property(
         &self,
-        re: &Rc<RefCell<JsRegExp>>,
+        re: &Gc<GcCell<JsRegExp>>,
         property: &str,
     ) -> Result<JsValue, RuntimeError> {
         let re = re.borrow();
@@ -92,13 +93,13 @@ impl Interpreter {
             RegExpFlags::from_str(&flags).map_err(|e| RuntimeError::TypeError { message: e })?;
         let re = JsRegExp::new(&pattern, re_flags)
             .map_err(|e| RuntimeError::TypeError { message: e })?;
-        Ok(JsValue::RegExp(Rc::new(RefCell::new(re))))
+        Ok(JsValue::RegExp(self.heap.alloc_cell(re)))
     }
 }
 
-fn exec_result_to_array(m: crate::runtime::value::regexp::MatchResult) -> JsValue {
-    use crate::runtime::value::array::JsArray;
-
+fn exec_result_to_array(
+    m: crate::runtime::value::regexp::MatchResult,
+) -> crate::runtime::value::array::JsArray {
     let mut items: Vec<JsValue> = m
         .captures
         .iter()
@@ -112,5 +113,5 @@ fn exec_result_to_array(m: crate::runtime::value::regexp::MatchResult) -> JsValu
         items.push(JsValue::String(m.full_match));
     }
 
-    JsValue::Array(Rc::new(RefCell::new(JsArray::new(items))))
+    crate::runtime::value::array::JsArray::new(items)
 }

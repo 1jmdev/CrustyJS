@@ -39,7 +39,7 @@ impl Interpreter {
                         obj.set(k.clone(), v.clone());
                     }
                     self.env
-                        .define(local.clone(), JsValue::Object(obj.wrapped()));
+                        .define(local.clone(), JsValue::Object(self.heap.alloc_cell(obj)));
                 }
             }
         }
@@ -110,7 +110,7 @@ impl Interpreter {
         })?;
 
         self.module_stack.push(path.clone());
-        self.env.push_scope();
+        self.env.push_scope(&mut self.heap);
         for stmt in &program.body {
             self.eval_stmt(stmt)?;
         }

@@ -43,7 +43,7 @@ impl Interpreter {
                 .collect()),
             JsValue::Map(map) => {
                 let borrowed = map.borrow();
-                let entries: Vec<JsValue> = borrowed
+                let entries: Vec<Vec<JsValue>> = borrowed
                     .entries
                     .iter()
                     .map(|(k, v)| vec![k.clone(), v.clone()])

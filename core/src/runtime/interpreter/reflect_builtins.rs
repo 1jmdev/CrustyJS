@@ -71,9 +71,8 @@ impl Interpreter {
     fn reflect_own_keys(&mut self, args: &[JsValue]) -> Result<JsValue, RuntimeError> {
         let target = args.first().cloned().unwrap_or(JsValue::Undefined);
         let keys = self.object_keys(target)?;
-        Ok(JsValue::Array(
-            JsArray::new(keys.into_iter().map(JsValue::String).collect()).wrapped(),
-        ))
+        let arr = JsArray::new(keys.into_iter().map(JsValue::String).collect());
+        Ok(JsValue::Array(self.heap.alloc_cell(arr)))
     }
 
     fn reflect_apply(&mut self, args: &[JsValue]) -> Result<JsValue, RuntimeError> {
@@ -99,8 +98,8 @@ impl Interpreter {
             if let Some(class_name) = name.strip_suffix("::constructor") {
                 if let Some(class) = self.classes.get(class_name).cloned() {
                     let mut instance = JsObject::new();
-                    instance.prototype = Some(class.prototype.clone());
-                    let instance_value = JsValue::Object(instance.wrapped());
+                    instance.prototype = Some(class.prototype);
+                    let instance_value = JsValue::Object(self.heap.alloc_cell(instance));
                     self.call_function_with_this(
                         &class.constructor,
                         &call_args,

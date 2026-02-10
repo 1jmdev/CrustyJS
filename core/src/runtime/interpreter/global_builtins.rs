@@ -107,7 +107,7 @@ impl Interpreter {
                 });
             }
         };
-        Ok(JsValue::Object(obj.wrapped()))
+        Ok(JsValue::Object(self.heap.alloc_cell(obj)))
     }
 
     pub(crate) fn builtin_math_constant(&self, property: &str) -> Result<JsValue, RuntimeError> {
