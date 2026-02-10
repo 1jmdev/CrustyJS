@@ -13,7 +13,7 @@ pub fn run() -> Result<(), CrustyError> {
             message: format!("failed to initialize REPL: {e}"),
         })
     })?;
-    let mut interp = Interpreter::new();
+    let mut interp = Interpreter::new_with_realtime_timers(true);
 
     let _ = completer::keywords();
     println!("CrustyJS v0.1.0");

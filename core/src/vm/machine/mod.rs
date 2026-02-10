@@ -167,7 +167,7 @@ impl VM {
                             parser::parse(tokens).map_err(|e| RuntimeError::TypeError {
                                 message: format!("VM bridge parse error: {e}"),
                             })?;
-                        let mut interp = Interpreter::new();
+                        let mut interp = Interpreter::new_with_realtime_timers(true);
                         interp.run(&program)?;
                         return Ok(());
                     }

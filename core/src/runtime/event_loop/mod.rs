@@ -2,6 +2,7 @@ mod microtask_queue;
 mod task_queue;
 
 use std::collections::HashSet;
+use std::time::Duration;
 
 use crate::runtime::value::promise::PromiseReaction;
 use crate::runtime::value::JsValue;
@@ -21,6 +22,8 @@ pub enum Microtask {
 pub struct EventLoop {
     now_ms: u64,
     next_timer_id: u64,
+    realtime: bool,
+    runtime: Option<tokio::runtime::Runtime>,
     microtasks: MicrotaskQueue,
     tasks: TaskQueue,
     canceled_timer_ids: HashSet<u64>,
@@ -28,9 +31,24 @@ pub struct EventLoop {
 
 impl EventLoop {
     pub fn new() -> Self {
+        Self::new_with_realtime(false)
+    }
+
+    pub fn new_with_realtime(realtime: bool) -> Self {
+        let runtime = if realtime {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+                .ok()
+        } else {
+            None
+        };
+
         Self {
             now_ms: 0,
             next_timer_id: 1,
+            realtime,
+            runtime,
             microtasks: MicrotaskQueue::default(),
             tasks: TaskQueue::default(),
             canceled_timer_ids: HashSet::new(),
@@ -74,6 +92,16 @@ impl EventLoop {
 
     pub fn advance_to_next_task(&mut self) {
         if let Some(next_due) = self.tasks.next_due_time() {
+            if self.realtime && next_due > self.now_ms {
+                let sleep_for = Duration::from_millis(next_due - self.now_ms);
+                if let Some(rt) = &self.runtime {
+                    rt.block_on(async {
+                        tokio::time::sleep(sleep_for).await;
+                    });
+                } else {
+                    std::thread::sleep(sleep_for);
+                }
+            }
             self.now_ms = next_due;
         }
     }

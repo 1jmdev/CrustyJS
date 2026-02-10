@@ -12,7 +12,7 @@ use runtime::interpreter::Interpreter;
 pub fn run(source: &str) -> Result<Interpreter, CrustyError> {
     let tokens = lexer::lex(source)?;
     let program = parser::parse(tokens)?;
-    let mut interp = Interpreter::new();
+    let mut interp = Interpreter::new_with_realtime_timers(true);
     interp.run(&program)?;
     Ok(interp)
 }

@@ -38,12 +38,16 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
+        Self::new_with_realtime_timers(false)
+    }
+
+    pub fn new_with_realtime_timers(realtime_timers: bool) -> Self {
         let mut interp = Self {
             env: Environment::new(),
             output: Vec::new(),
             classes: HashMap::new(),
             super_stack: Vec::new(),
-            event_loop: EventLoop::new(),
+            event_loop: EventLoop::new_with_realtime(realtime_timers),
             async_depth: 0,
         };
         interp.init_builtins();
