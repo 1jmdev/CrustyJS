@@ -15,7 +15,19 @@ impl fmt::Display for JsValue {
                 }
             }
             JsValue::String(s) => write!(f, "{s}"),
-            JsValue::Function { name, .. } => write!(f, "function {name}() {{ [native code] }}"),
+            JsValue::Function { name, .. } => {
+                write!(f, "function {name}() {{ [native code] }}")
+            }
+            JsValue::Object(obj) => {
+                let obj = obj.borrow();
+                let mut pairs: Vec<String> = obj
+                    .properties
+                    .iter()
+                    .map(|(k, p)| format!("{k}: {}", p.value))
+                    .collect();
+                pairs.sort();
+                write!(f, "{{ {} }}", pairs.join(", "))
+            }
         }
     }
 }

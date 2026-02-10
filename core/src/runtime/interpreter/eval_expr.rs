@@ -1,6 +1,7 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{BinOp, Expr, Literal, TemplatePart, UnaryOp};
+use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
 impl Interpreter {
@@ -38,6 +39,14 @@ impl Interpreter {
                     }
                 }
                 Ok(JsValue::String(result))
+            }
+            Expr::ObjectLiteral { properties } => {
+                let mut obj = JsObject::new();
+                for (key, val_expr) in properties {
+                    let val = self.eval_expr(val_expr)?;
+                    obj.set(key.clone(), val);
+                }
+                Ok(JsValue::Object(obj.wrapped()))
             }
         }
     }

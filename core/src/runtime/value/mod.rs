@@ -1,10 +1,14 @@
 mod coercion;
 mod display;
+pub mod object;
 pub mod string_methods;
 
-use crate::parser::ast::Stmt;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-/// A JavaScript runtime value.
+use crate::parser::ast::Stmt;
+use object::JsObject;
+
 #[derive(Debug, Clone)]
 pub enum JsValue {
     Undefined,
@@ -17,6 +21,7 @@ pub enum JsValue {
         params: Vec<String>,
         body: Vec<Stmt>,
     },
+    Object(Rc<RefCell<JsObject>>),
 }
 
 impl PartialEq for JsValue {
@@ -27,6 +32,7 @@ impl PartialEq for JsValue {
             (JsValue::Boolean(a), JsValue::Boolean(b)) => a == b,
             (JsValue::Number(a), JsValue::Number(b)) => a == b,
             (JsValue::String(a), JsValue::String(b)) => a == b,
+            (JsValue::Object(a), JsValue::Object(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }

@@ -69,9 +69,12 @@ pub enum TokenKind {
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
     Comma,
     Semicolon,
     Dot,
+    Colon,
 
     // Special
     Eof,

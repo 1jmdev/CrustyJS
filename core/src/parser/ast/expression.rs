@@ -51,6 +51,9 @@ pub enum Expr {
     TemplateLiteral {
         parts: Vec<TemplatePart>,
     },
+    ObjectLiteral {
+        properties: Vec<(String, Expr)>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

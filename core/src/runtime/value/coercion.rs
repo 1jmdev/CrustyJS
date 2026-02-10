@@ -11,6 +11,7 @@ impl JsValue {
             JsValue::Number(n) => *n,
             JsValue::String(s) => s.parse::<f64>().unwrap_or(f64::NAN),
             JsValue::Function { .. } => f64::NAN,
+            JsValue::Object(_) => f64::NAN,
         }
     }
 
@@ -22,6 +23,7 @@ impl JsValue {
             JsValue::Number(n) => *n != 0.0 && !n.is_nan(),
             JsValue::String(s) => !s.is_empty(),
             JsValue::Function { .. } => true,
+            JsValue::Object(_) => true,
         }
     }
 
@@ -42,6 +44,7 @@ impl JsValue {
             JsValue::Function { name, .. } => {
                 format!("function {name}() {{ [native code] }}")
             }
+            JsValue::Object(_) => "[object Object]".to_string(),
         }
     }
 }
