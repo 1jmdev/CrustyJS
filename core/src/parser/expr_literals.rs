@@ -171,12 +171,10 @@ impl Parser {
                         },
                     )
                 } else {
-                    let token = self.tokens[self.pos].clone();
-                    return Err(SyntaxError::new(
-                        "expected ':' or method parameter list",
-                        token.span.start,
-                        token.span.len().max(1),
-                    ));
+                    (
+                        PropertyKey::Identifier(key_name.clone()),
+                        Expr::Identifier(key_name),
+                    )
                 }
             };
             properties.push(ObjectProperty::KeyValue(key, value));
@@ -256,6 +254,10 @@ impl Parser {
     pub(crate) fn parse_async_expr(&mut self) -> Result<Expr, SyntaxError> {
         self.advance(); // consume async
 
+        if self.check(&TokenKind::Function) {
+            return self.parse_function_expr(true);
+        }
+
         if matches!(self.peek(), TokenKind::Ident(_)) {
             let name = self.expect_ident()?;
             if self.check(&TokenKind::Arrow) {
@@ -303,5 +305,29 @@ impl Parser {
             self.tokens[self.pos - 1].span.start,
             self.tokens[self.pos - 1].span.len().max(1),
         ))
+    }
+
+    pub(crate) fn parse_function_expr(&mut self, is_async: bool) -> Result<Expr, SyntaxError> {
+        self.advance(); // consume 'function'
+        let is_generator = self.check(&TokenKind::Star);
+        if is_generator {
+            self.advance();
+        }
+        let name = if matches!(self.peek(), TokenKind::Ident(_)) {
+            Some(self.expect_ident()?)
+        } else {
+            None
+        };
+        self.expect(&TokenKind::LeftParen)?;
+        let params = self.parse_params_list()?;
+        self.expect(&TokenKind::RightParen)?;
+        let body = self.parse_block()?;
+        Ok(Expr::FunctionExpr {
+            name,
+            params,
+            body,
+            is_async,
+            is_generator,
+        })
     }
 }

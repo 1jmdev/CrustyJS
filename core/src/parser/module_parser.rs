@@ -91,8 +91,15 @@ impl Parser {
                 token.span.len().max(1),
             ));
         }
-        if self.check(&TokenKind::Const) || self.check(&TokenKind::Let) {
+        if self.check(&TokenKind::Const)
+            || self.check(&TokenKind::Let)
+            || self.check(&TokenKind::Var)
+        {
             let stmt = self.parse_var_decl()?;
+            return Ok(Stmt::Export(ExportDecl::NamedStmt(Box::new(stmt))));
+        }
+        if self.check(&TokenKind::Class) {
+            let stmt = self.parse_class_decl()?;
             return Ok(Stmt::Export(ExportDecl::NamedStmt(Box::new(stmt))));
         }
         if self.check(&TokenKind::LeftBrace) {

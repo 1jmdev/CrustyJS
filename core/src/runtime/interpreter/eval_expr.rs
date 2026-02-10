@@ -216,7 +216,10 @@ impl Interpreter {
                 }
             }
             Expr::Typeof(expr) => {
-                let val = self.eval_expr(expr)?;
+                let val = match expr.as_ref() {
+                    Expr::Identifier(name) => self.env.get(name).unwrap_or(JsValue::Undefined),
+                    other => self.eval_expr(other)?,
+                };
                 let t = match val {
                     JsValue::Undefined => "undefined",
                     JsValue::Null => "object",
@@ -320,6 +323,22 @@ impl Interpreter {
                 Ok(JsValue::RegExp(self.heap.alloc_cell(re)))
             }
             Expr::Delete(operand) => self.eval_delete_expr(operand),
+            Expr::FunctionExpr {
+                name,
+                params,
+                body,
+                is_async,
+                is_generator,
+            } => Ok(JsValue::Function {
+                name: name.clone().unwrap_or_else(|| "<anonymous>".to_string()),
+                params: params.clone(),
+                body: body.clone(),
+                closure_env: self.env.capture(),
+                is_async: *is_async,
+                is_generator: *is_generator,
+                source_path: self.module_stack.last().map(|p| p.display().to_string()),
+                source_offset: 0,
+            }),
             Expr::TaggedTemplate { tag, parts } => {
                 let func = self.eval_expr(tag)?;
                 let mut strings = Vec::new();

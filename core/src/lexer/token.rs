@@ -77,6 +77,9 @@ pub enum TokenKind {
     Extends,
     Super,
     Instanceof,
+    Var,
+    Void,
+    Do,
     Yield,
     Delete,
 

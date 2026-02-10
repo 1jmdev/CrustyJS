@@ -7,6 +7,7 @@ use crate::runtime::value::JsValue;
 impl Interpreter {
     pub(crate) fn eval_stmt(&mut self, stmt: &Stmt) -> Result<ControlFlow, RuntimeError> {
         match stmt {
+            Stmt::Empty => Ok(ControlFlow::None),
             Stmt::ExprStmt(expr) => {
                 self.eval_expr(expr)?;
                 Ok(ControlFlow::None)
@@ -23,11 +24,27 @@ impl Interpreter {
                 let binding_kind = match kind {
                     VarDeclKind::Let => BindingKind::Let,
                     VarDeclKind::Const => BindingKind::Const,
+                    VarDeclKind::Var => BindingKind::Var,
                 };
                 self.eval_pattern_binding_with_kind(pattern, value, binding_kind)?;
                 Ok(ControlFlow::None)
             }
             Stmt::Block(stmts) => self.eval_block(stmts),
+            Stmt::VarDeclList { kind, declarations } => {
+                let binding_kind = match kind {
+                    VarDeclKind::Let => BindingKind::Let,
+                    VarDeclKind::Const => BindingKind::Const,
+                    VarDeclKind::Var => BindingKind::Var,
+                };
+                for (pattern, init) in declarations {
+                    let value = match init {
+                        Some(expr) => self.eval_expr(expr)?,
+                        None => JsValue::Undefined,
+                    };
+                    self.eval_pattern_binding_with_kind(pattern, value, binding_kind)?;
+                }
+                Ok(ControlFlow::None)
+            }
             Stmt::If {
                 condition,
                 then_branch,
@@ -205,6 +222,22 @@ impl Interpreter {
                     }
                 }
                 self.env.pop_scope();
+                Ok(ControlFlow::None)
+            }
+            Stmt::DoWhile { body, condition } => {
+                loop {
+                    match self.eval_stmt(body)? {
+                        ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
+                        ControlFlow::Break(None) => return Ok(ControlFlow::None),
+                        ControlFlow::Break(label) => return Ok(ControlFlow::Break(label)),
+                        ControlFlow::Continue(None) => {}
+                        ControlFlow::Continue(label) => return Ok(ControlFlow::Continue(label)),
+                        ControlFlow::None => {}
+                    }
+                    if !self.eval_expr(condition)?.to_boolean() {
+                        break;
+                    }
+                }
                 Ok(ControlFlow::None)
             }
             Stmt::Throw(expr) => self.eval_throw_expr(expr),

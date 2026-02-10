@@ -68,6 +68,15 @@ pub enum Stmt {
         discriminant: Expr,
         cases: Vec<SwitchCase>,
     },
+    DoWhile {
+        body: Box<Stmt>,
+        condition: Expr,
+    },
+    Empty,
+    VarDeclList {
+        kind: VarDeclKind,
+        declarations: Vec<(Pattern, Option<Expr>)>,
+    },
     Class(ClassDecl),
     Import(ImportDecl),
     Export(ExportDecl),
@@ -83,4 +92,5 @@ pub struct SwitchCase {
 pub enum VarDeclKind {
     Let,
     Const,
+    Var,
 }

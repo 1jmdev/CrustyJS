@@ -25,6 +25,10 @@ impl Compiler {
                 match op {
                     UnaryOp::Neg => self.chunk.write(Opcode::Negate, 0),
                     UnaryOp::Not => self.chunk.write(Opcode::Not, 0),
+                    UnaryOp::Void | UnaryOp::Pos => {
+                        self.require_tree_walk();
+                        return;
+                    }
                 }
             }
             Expr::Call { callee, args } => {

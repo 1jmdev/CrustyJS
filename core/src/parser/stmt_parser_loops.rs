@@ -8,7 +8,10 @@ impl Parser {
         self.advance(); // consume 'for'
         self.expect(&TokenKind::LeftParen)?;
 
-        if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
+        if matches!(
+            self.peek(),
+            TokenKind::Let | TokenKind::Const | TokenKind::Var
+        ) {
             let saved_pos = self.pos;
             self.advance();
             if let TokenKind::Ident(_) = self.peek() {
@@ -43,7 +46,10 @@ impl Parser {
             self.advance();
             None
         } else {
-            let stmt = if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
+            let stmt = if matches!(
+                self.peek(),
+                TokenKind::Let | TokenKind::Const | TokenKind::Var
+            ) {
                 self.parse_var_decl()?
             } else {
                 self.parse_expr_stmt()?

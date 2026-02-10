@@ -182,6 +182,15 @@ impl Parser {
             return Ok(Expr::Typeof(Box::new(operand)));
         }
 
+        if self.check(&TokenKind::Void) {
+            self.advance();
+            let operand = self.parse_expr(12)?;
+            return Ok(Expr::Unary {
+                op: UnaryOp::Void,
+                operand: Box::new(operand),
+            });
+        }
+
         if self.check(&TokenKind::Delete) {
             self.advance();
             let operand = self.parse_expr(12)?;
@@ -260,6 +269,7 @@ impl Parser {
             let op = match op_kind {
                 TokenKind::Minus => UnaryOp::Neg,
                 TokenKind::Bang => UnaryOp::Not,
+                TokenKind::Plus => UnaryOp::Pos,
                 _ => unreachable!(),
             };
             let operand = self.parse_expr(rbp)?;
@@ -296,6 +306,10 @@ impl Parser {
             TokenKind::Async => {
                 self.pos -= 1;
                 self.parse_async_expr()
+            }
+            TokenKind::Function => {
+                self.pos -= 1;
+                self.parse_function_expr(false)
             }
             TokenKind::RegexLiteral {
                 ref pattern,

@@ -129,9 +129,12 @@ impl Compiler {
             | Stmt::Switch { .. }
             | Stmt::Class(_)
             | Stmt::Import(_)
-            | Stmt::Export(_) => {
+            | Stmt::Export(_)
+            | Stmt::DoWhile { .. }
+            | Stmt::VarDeclList { .. } => {
                 self.require_tree_walk();
             }
+            Stmt::Empty => {}
         }
     }
 }

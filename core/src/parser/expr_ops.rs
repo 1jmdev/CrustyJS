@@ -19,7 +19,7 @@ pub(super) fn infix_binding_power(kind: &TokenKind) -> Option<(u8, u8)> {
 
 pub(super) fn prefix_binding_power(kind: &TokenKind) -> Option<u8> {
     match kind {
-        TokenKind::Minus | TokenKind::Bang => Some(12),
+        TokenKind::Minus | TokenKind::Bang | TokenKind::Plus => Some(12),
         _ => None,
     }
 }

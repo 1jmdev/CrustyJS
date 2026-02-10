@@ -5,6 +5,10 @@ use crate::lexer::token::TokenKind;
 
 impl Parser {
     pub(crate) fn parse_statement(&mut self) -> Result<Stmt, SyntaxError> {
+        if self.check(&TokenKind::Semicolon) {
+            self.advance();
+            return Ok(Stmt::Empty);
+        }
         if let TokenKind::Ident(name) = self.peek().clone() {
             if self.pos + 1 < self.tokens.len()
                 && self.tokens[self.pos + 1].kind == TokenKind::Colon
@@ -16,11 +20,12 @@ impl Parser {
             }
         }
         match self.peek() {
-            TokenKind::Let | TokenKind::Const => self.parse_var_decl(),
+            TokenKind::Let | TokenKind::Const | TokenKind::Var => self.parse_var_decl(),
             TokenKind::Async => self.parse_async_or_expr_stmt(),
             TokenKind::Function => self.parse_function_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
+            TokenKind::Do => self.parse_do_while(),
             TokenKind::For => self.parse_for(),
             TokenKind::Return => self.parse_return(),
             TokenKind::Break => self.parse_break(),
@@ -40,21 +45,38 @@ impl Parser {
         let kind = match self.advance().kind {
             TokenKind::Let => VarDeclKind::Let,
             TokenKind::Const => VarDeclKind::Const,
+            TokenKind::Var => VarDeclKind::Var,
             _ => unreachable!("parse_var_decl called on non-var token"),
         };
         let pattern = self.parse_pattern()?;
         let init = if self.check(&TokenKind::Assign) {
-            self.advance(); // consume '='
+            self.advance();
             Some(self.parse_expr(0)?)
         } else {
             None
         };
+        if !self.check(&TokenKind::Comma) {
+            self.consume_stmt_terminator()?;
+            return Ok(Stmt::VarDecl {
+                kind,
+                pattern,
+                init,
+            });
+        }
+        let mut declarations = vec![(pattern, init)];
+        while self.check(&TokenKind::Comma) {
+            self.advance();
+            let pat = self.parse_pattern()?;
+            let ini = if self.check(&TokenKind::Assign) {
+                self.advance();
+                Some(self.parse_expr(0)?)
+            } else {
+                None
+            };
+            declarations.push((pat, ini));
+        }
         self.consume_stmt_terminator()?;
-        Ok(Stmt::VarDecl {
-            kind,
-            pattern,
-            init,
-        })
+        Ok(Stmt::VarDeclList { kind, declarations })
     }
 
     pub(crate) fn parse_function_decl(&mut self) -> Result<Stmt, SyntaxError> {
@@ -126,6 +148,17 @@ impl Parser {
         self.expect(&TokenKind::RightParen)?;
         let body = Box::new(self.parse_statement()?);
         Ok(Stmt::While { condition, body })
+    }
+
+    fn parse_do_while(&mut self) -> Result<Stmt, SyntaxError> {
+        self.advance();
+        let body = Box::new(self.parse_statement()?);
+        self.expect(&TokenKind::While)?;
+        self.expect(&TokenKind::LeftParen)?;
+        let condition = self.parse_expr(0)?;
+        self.expect(&TokenKind::RightParen)?;
+        self.consume_stmt_terminator()?;
+        Ok(Stmt::DoWhile { body, condition })
     }
 
     fn parse_return(&mut self) -> Result<Stmt, SyntaxError> {

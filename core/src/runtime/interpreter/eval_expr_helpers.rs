@@ -157,5 +157,7 @@ pub(crate) fn eval_unary(op: &UnaryOp, val: JsValue) -> Result<JsValue, RuntimeE
     match op {
         UnaryOp::Neg => Ok(JsValue::Number(-val.to_number())),
         UnaryOp::Not => Ok(JsValue::Boolean(!val.to_boolean())),
+        UnaryOp::Void => Ok(JsValue::Undefined),
+        UnaryOp::Pos => Ok(JsValue::Number(val.to_number())),
     }
 }

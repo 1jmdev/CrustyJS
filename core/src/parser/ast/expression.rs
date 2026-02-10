@@ -27,6 +27,8 @@ pub enum BinOp {
 pub enum UnaryOp {
     Neg,
     Not,
+    Void,
+    Pos,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -143,6 +145,13 @@ pub enum Expr {
         flags: String,
     },
     Delete(Box<Expr>),
+    FunctionExpr {
+        name: Option<String>,
+        params: Vec<Param>,
+        body: Vec<Stmt>,
+        is_async: bool,
+        is_generator: bool,
+    },
     TaggedTemplate {
         tag: Box<Expr>,
         parts: Vec<TemplatePart>,
