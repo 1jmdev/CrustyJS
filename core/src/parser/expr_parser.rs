@@ -145,22 +145,9 @@ impl Parser {
             TokenKind::Undefined => Ok(Expr::Literal(Literal::Undefined)),
             TokenKind::Ident(ref name) => {
                 let name = name.clone();
-                if self.check(&TokenKind::Assign) {
-                    self.advance();
-                    let value = self.parse_expr(0)?;
-                    Ok(Expr::Assign {
-                        name,
-                        value: Box::new(value),
-                    })
-                } else {
-                    Ok(Expr::Identifier(name))
-                }
+                self.parse_ident_or_arrow(name)
             }
-            TokenKind::LeftParen => {
-                let expr = self.parse_expr(0)?;
-                self.expect(&TokenKind::RightParen)?;
-                Ok(expr)
-            }
+            TokenKind::LeftParen => self.parse_paren_or_arrow(),
             TokenKind::LeftBrace => self.parse_object_literal(),
             TokenKind::LeftBracket => self.parse_array_literal(),
             TokenKind::NoSubTemplate(ref s) => Ok(Expr::Literal(Literal::String(s.clone()))),

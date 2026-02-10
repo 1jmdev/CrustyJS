@@ -1,4 +1,5 @@
 use super::literal::Literal;
+use super::statement::Stmt;
 
 /// Binary operator kinds.
 #[derive(Debug, Clone, PartialEq)]
@@ -66,10 +67,20 @@ pub enum Expr {
         property: Box<Expr>,
         value: Box<Expr>,
     },
+    ArrowFunction {
+        params: Vec<String>,
+        body: ArrowBody,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TemplatePart {
     Str(String),
     Expression(Expr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArrowBody {
+    Expr(Box<Expr>),
+    Block(Vec<Stmt>),
 }

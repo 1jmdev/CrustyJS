@@ -2,7 +2,7 @@ mod expression;
 mod literal;
 mod statement;
 
-pub use expression::{BinOp, Expr, TemplatePart, UnaryOp};
+pub use expression::{ArrowBody, BinOp, Expr, TemplatePart, UnaryOp};
 pub use literal::Literal;
 pub use statement::Stmt;
 

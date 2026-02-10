@@ -117,7 +117,9 @@ impl<'src> Scanner<'src> {
                 }
             }
             b'=' => {
-                if self.cursor.match_char(b'=') && self.cursor.match_char(b'=') {
+                if self.cursor.match_char(b'>') {
+                    TokenKind::Arrow
+                } else if self.cursor.match_char(b'=') && self.cursor.match_char(b'=') {
                     TokenKind::EqEqEq
                 } else {
                     TokenKind::Assign

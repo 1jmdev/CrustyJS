@@ -58,6 +58,7 @@ pub enum TokenKind {
     Star,
     Slash,
     Assign,
+    Arrow,
     EqEqEq,
     NotEqEq,
     LessEq,

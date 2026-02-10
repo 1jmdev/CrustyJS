@@ -181,3 +181,19 @@ fn lex_member_access() {
         ]
     );
 }
+
+#[test]
+fn lex_arrow_function_tokens() {
+    let kinds = token_kinds("x => x + 1");
+    assert_eq!(
+        kinds,
+        vec![
+            TokenKind::Ident("x".into()),
+            TokenKind::Arrow,
+            TokenKind::Ident("x".into()),
+            TokenKind::Plus,
+            TokenKind::Number(1.0),
+            TokenKind::Eof,
+        ]
+    );
+}
