@@ -8,6 +8,9 @@ use clap::Parser;
 struct Cli {
     /// Path to a .js file to execute
     file: Option<String>,
+    /// Execute via bytecode VM path
+    #[arg(long)]
+    vm: bool,
 }
 
 fn main() {
@@ -29,7 +32,13 @@ fn main() {
         }
     };
 
-    if let Err(err) = crustyjs::run(&source) {
+    let result = if cli.vm {
+        crustyjs::run_vm(&source).map(|_| ())
+    } else {
+        crustyjs::run(&source).map(|_| ())
+    };
+
+    if let Err(err) = result {
         eprintln!("{err:?}");
         process::exit(1);
     }
