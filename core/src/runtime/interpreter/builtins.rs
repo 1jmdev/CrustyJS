@@ -1,6 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
+use crate::runtime::value::array::methods::call_array_method;
+use crate::runtime::value::array::JsArray;
 use crate::runtime::value::string_methods;
 use crate::runtime::value::JsValue;
 
@@ -31,6 +33,20 @@ impl Interpreter {
             return string_methods::resolve_string_property(s, property);
         }
 
+        if let JsValue::Array(ref arr) = obj_val {
+            if is_call {
+                let arg_values: Vec<JsValue> = args
+                    .iter()
+                    .map(|a| self.eval_expr(a))
+                    .collect::<Result<_, _>>()?;
+                if let Some(result) = call_array_method(arr, property, &arg_values)? {
+                    return Ok(result);
+                }
+                return self.eval_array_callback_method(arr, property, &arg_values);
+            }
+            return self.get_property(&obj_val, property);
+        }
+
         if !is_call {
             return self.get_property(&obj_val, property);
         }
@@ -38,6 +54,82 @@ impl Interpreter {
         Err(RuntimeError::TypeError {
             message: format!("cannot access property '{property}' on this value"),
         })
+    }
+
+    fn eval_array_callback_method(
+        &mut self,
+        arr: &std::rc::Rc<std::cell::RefCell<JsArray>>,
+        method: &str,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        let callback = args.first().ok_or_else(|| RuntimeError::TypeError {
+            message: format!("{method} requires a callback argument"),
+        })?;
+        let elements = arr.borrow().elements.clone();
+
+        match method {
+            "map" => {
+                let mut result = Vec::new();
+                for (i, elem) in elements.iter().enumerate() {
+                    let val =
+                        self.call_function(callback, &[elem.clone(), JsValue::Number(i as f64)])?;
+                    result.push(val);
+                }
+                Ok(JsValue::Array(JsArray::new(result).wrapped()))
+            }
+            "filter" => {
+                let mut result = Vec::new();
+                for (i, elem) in elements.iter().enumerate() {
+                    let val =
+                        self.call_function(callback, &[elem.clone(), JsValue::Number(i as f64)])?;
+                    if val.to_boolean() {
+                        result.push(elem.clone());
+                    }
+                }
+                Ok(JsValue::Array(JsArray::new(result).wrapped()))
+            }
+            "forEach" => {
+                for (i, elem) in elements.iter().enumerate() {
+                    self.call_function(callback, &[elem.clone(), JsValue::Number(i as f64)])?;
+                }
+                Ok(JsValue::Undefined)
+            }
+            _ => Err(RuntimeError::TypeError {
+                message: format!("array has no method '{method}'"),
+            }),
+        }
+    }
+
+    pub(crate) fn call_function(
+        &mut self,
+        func: &JsValue,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        match func {
+            JsValue::Function { params, body, .. } => {
+                let params = params.clone();
+                let body = body.clone();
+                self.env.push_scope();
+                for (param, value) in params.iter().zip(args) {
+                    self.env.define(param.clone(), value.clone());
+                }
+                let mut result = JsValue::Undefined;
+                for stmt in &body {
+                    match self.eval_stmt(stmt)? {
+                        super::ControlFlow::Return(val) => {
+                            result = val;
+                            break;
+                        }
+                        super::ControlFlow::None => {}
+                    }
+                }
+                self.env.pop_scope();
+                Ok(result)
+            }
+            other => Err(RuntimeError::NotAFunction {
+                name: format!("{other}"),
+            }),
+        }
     }
 
     pub(crate) fn get_property(

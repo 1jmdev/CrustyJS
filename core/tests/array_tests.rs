@@ -81,3 +81,87 @@ fn array_grow_via_assignment() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["4", "undefined", "99"]);
 }
+
+#[test]
+fn array_push() {
+    let src = "let arr = [1, 2]; arr.push(3); console.log(arr); console.log(arr.length);";
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["[1, 2, 3]", "3"]);
+}
+
+#[test]
+fn array_pop() {
+    let src = "let arr = [1, 2, 3]; let last = arr.pop(); console.log(last); console.log(arr);";
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["3", "[1, 2]"]);
+}
+
+#[test]
+fn array_includes() {
+    let src = "let arr = [1, 2, 3]; console.log(arr.includes(2)); console.log(arr.includes(5));";
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["true", "false"]);
+}
+
+#[test]
+fn array_index_of() {
+    let src = r#"let arr = ["a", "b", "c"]; console.log(arr.indexOf("b")); console.log(arr.indexOf("z"));"#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["1", "-1"]);
+}
+
+#[test]
+fn array_join() {
+    let src = r#"let arr = [1, 2, 3]; console.log(arr.join("-")); console.log(arr.join());"#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["1-2-3", "1,2,3"]);
+}
+
+#[test]
+fn array_slice() {
+    let src = "let arr = [1, 2, 3, 4, 5]; let s = arr.slice(1, 3); console.log(s);";
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["[2, 3]"]);
+}
+
+#[test]
+fn array_concat() {
+    let src = "let a = [1, 2]; let b = [3, 4]; let c = a.concat(b); console.log(c);";
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["[1, 2, 3, 4]"]);
+}
+
+#[test]
+fn array_map_with_function() {
+    let src = r#"
+        function double(x) { return x * 2; }
+        let arr = [1, 2, 3];
+        let result = arr.map(double);
+        console.log(result);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["[2, 4, 6]"]);
+}
+
+#[test]
+fn array_filter_with_function() {
+    let src = r#"
+        function greaterThanTwo(x) { return x > 2; }
+        let arr = [1, 2, 3, 4, 5];
+        let result = arr.filter(greaterThanTwo);
+        console.log(result);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["[3, 4, 5]"]);
+}
+
+#[test]
+fn array_for_each_with_function() {
+    let src = r#"
+        function print(x) { console.log(x); }
+        let arr = [10, 20, 30];
+        arr.forEach(print);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["10", "20", "30"]);
+}
