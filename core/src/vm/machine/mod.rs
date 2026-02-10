@@ -4,6 +4,7 @@ mod stack;
 use std::collections::HashMap;
 
 use crate::errors::RuntimeError;
+use crate::vm::bytecode::nan_boxing::{Decoded, NanBoxedValue};
 use crate::vm::bytecode::{Chunk, Opcode, VmValue};
 
 use call_frame::CallFrame;
@@ -12,7 +13,7 @@ use stack::Stack;
 pub struct VM {
     stack: Stack,
     frames: Vec<CallFrame>,
-    globals: HashMap<String, VmValue>,
+    globals: HashMap<String, NanBoxedValue>,
 }
 
 impl Default for VM {
@@ -42,7 +43,7 @@ impl VM {
             let op = {
                 let frame = self.frames.last_mut().expect("frame should exist");
                 if frame.ip >= frame.chunk.instructions.len() {
-                    self.handle_return(VmValue::Undefined)?;
+                    self.handle_return(NanBoxedValue::undefined())?;
                     continue;
                 }
                 let op = frame.chunk.instructions[frame.ip].clone();
@@ -53,40 +54,43 @@ impl VM {
             match op {
                 Opcode::Constant(idx) => {
                     let val = self.current_chunk()?.constants[idx as usize].clone();
-                    self.stack.push(val)?;
+                    self.stack.push_vm(val)?;
                 }
-                Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod => {
-                    self.exec_arithmetic(&op)?;
+                Opcode::Add => self.exec_add()?,
+                Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod => {
+                    self.exec_numeric_binary(&op)?;
                 }
                 Opcode::Negate => {
-                    let val = self.stack.pop()?;
-                    self.stack.push(VmValue::Number(-val.to_number()))?;
+                    let val = self.stack.pop_boxed()?;
+                    let result = NanBoxedValue::from_f64(-val.to_f64());
+                    self.stack.push_boxed(result)?;
                 }
                 Opcode::Not => {
-                    let val = self.stack.pop()?;
-                    self.stack.push(VmValue::Boolean(!val.to_boolean()))?;
+                    let val = self.stack.pop_boxed()?;
+                    self.stack
+                        .push_boxed(NanBoxedValue::from_bool(!val.to_bool()))?;
                 }
                 Opcode::Equal | Opcode::StrictEqual => {
-                    let rhs = self.stack.pop()?;
-                    let lhs = self.stack.pop()?;
+                    let rhs = self.stack.pop_vm()?;
+                    let lhs = self.stack.pop_vm()?;
                     let equal = lhs.to_output() == rhs.to_output();
-                    self.stack.push(VmValue::Boolean(equal))?;
+                    self.stack.push_boxed(NanBoxedValue::from_bool(equal))?;
                 }
                 Opcode::LessThan => {
-                    let rhs = self.stack.pop()?;
-                    let lhs = self.stack.pop()?;
-                    self.stack
-                        .push(VmValue::Boolean(lhs.to_number() < rhs.to_number()))?;
+                    let rhs = self.stack.pop_boxed()?;
+                    let lhs = self.stack.pop_boxed()?;
+                    let result = lhs.to_f64() < rhs.to_f64();
+                    self.stack.push_boxed(NanBoxedValue::from_bool(result))?;
                 }
                 Opcode::GreaterThan => {
-                    let rhs = self.stack.pop()?;
-                    let lhs = self.stack.pop()?;
-                    self.stack
-                        .push(VmValue::Boolean(lhs.to_number() > rhs.to_number()))?;
+                    let rhs = self.stack.pop_boxed()?;
+                    let lhs = self.stack.pop_boxed()?;
+                    let result = lhs.to_f64() > rhs.to_f64();
+                    self.stack.push_boxed(NanBoxedValue::from_bool(result))?;
                 }
                 Opcode::SetGlobal(name_idx) => {
                     let key = self.constant_name(name_idx)?;
-                    let val = self.stack.pop()?;
+                    let val = self.stack.pop_boxed()?;
                     self.globals.insert(key, val);
                 }
                 Opcode::GetGlobal(name_idx) => {
@@ -94,69 +98,40 @@ impl VM {
                     let val = self
                         .globals
                         .get(&key)
-                        .cloned()
-                        .unwrap_or(VmValue::Undefined);
-                    self.stack.push(val)?;
+                        .copied()
+                        .unwrap_or(NanBoxedValue::undefined());
+                    self.stack.push_boxed(val)?;
                 }
                 Opcode::SetLocal(slot) => {
-                    let val = self.stack.pop()?;
+                    let val = self.stack.pop_boxed()?;
                     let base = self.current_slot();
-                    self.stack.set(base + slot as usize, val)?;
+                    self.stack.set_boxed(base + slot as usize, val)?;
                 }
                 Opcode::GetLocal(slot) => {
                     let base = self.current_slot();
-                    let val = self.stack.get(base + slot as usize)?;
-                    self.stack.push(val)?;
+                    let val = self.stack.get_boxed(base + slot as usize)?;
+                    self.stack.push_boxed(val)?;
                 }
                 Opcode::Call(arg_count) => {
-                    let mut args = Vec::new();
-                    for _ in 0..arg_count {
-                        args.push(self.stack.pop()?);
-                    }
-                    args.reverse();
-                    let callee = self.stack.pop()?;
-                    match callee {
-                        VmValue::Function(func) => {
-                            if func.arity != arg_count as usize {
-                                return Err(RuntimeError::ArityMismatch {
-                                    expected: func.arity,
-                                    got: arg_count as usize,
-                                });
-                            }
-                            let slot = self.stack.len();
-                            for arg in args {
-                                self.stack.push(arg)?;
-                            }
-                            self.frames.push(CallFrame {
-                                chunk: (*func.chunk).clone(),
-                                ip: 0,
-                                slot,
-                            });
-                        }
-                        _ => {
-                            return Err(RuntimeError::NotAFunction {
-                                name: callee.to_output(),
-                            });
-                        }
-                    }
+                    self.exec_call(arg_count)?;
                 }
                 Opcode::Return => {
-                    let result = self.stack.pop().unwrap_or(VmValue::Undefined);
+                    let result = self.stack.pop_boxed().unwrap_or(NanBoxedValue::undefined());
                     self.handle_return(result)?;
                 }
                 Opcode::Pop => {
-                    let _ = self.stack.pop()?;
+                    let _ = self.stack.pop_boxed()?;
                 }
                 Opcode::Print => {
-                    let value = self.stack.pop()?;
+                    let value = self.stack.pop_vm()?;
                     println!("{}", value.to_output());
                 }
-                Opcode::Nil => self.stack.push(VmValue::Null)?,
-                Opcode::True => self.stack.push(VmValue::Boolean(true))?,
-                Opcode::False => self.stack.push(VmValue::Boolean(false))?,
+                Opcode::Nil => self.stack.push_boxed(NanBoxedValue::null())?,
+                Opcode::True => self.stack.push_boxed(NanBoxedValue::from_bool(true))?,
+                Opcode::False => self.stack.push_boxed(NanBoxedValue::from_bool(false))?,
                 Opcode::JumpIfFalse(target) => {
-                    let cond = self.stack.pop()?;
-                    if !cond.to_boolean() {
+                    let cond = self.stack.pop_boxed()?;
+                    if !cond.to_bool() {
                         self.current_frame_mut()?.ip = target as usize;
                     }
                 }
@@ -176,7 +151,73 @@ impl VM {
         Ok(())
     }
 
-    fn handle_return(&mut self, value: VmValue) -> Result<(), RuntimeError> {
+    fn exec_add(&mut self) -> Result<(), RuntimeError> {
+        let rhs_b = self.stack.pop_boxed()?;
+        let lhs_b = self.stack.pop_boxed()?;
+        let lhs_is_str = matches!(lhs_b.decode(), Decoded::Pointer(_))
+            && matches!(lhs_b.decode_to_vm(&self.stack.heap), VmValue::String(_));
+        let rhs_is_str = matches!(rhs_b.decode(), Decoded::Pointer(_))
+            && matches!(rhs_b.decode_to_vm(&self.stack.heap), VmValue::String(_));
+        if lhs_is_str || rhs_is_str {
+            let lhs = lhs_b.decode_to_vm(&self.stack.heap);
+            let rhs = rhs_b.decode_to_vm(&self.stack.heap);
+            let s = format!("{}{}", lhs.to_output(), rhs.to_output());
+            self.stack.push_vm(VmValue::String(s))?;
+        } else {
+            let result = NanBoxedValue::from_f64(lhs_b.to_f64() + rhs_b.to_f64());
+            self.stack.push_boxed(result)?;
+        }
+        Ok(())
+    }
+
+    fn exec_numeric_binary(&mut self, op: &Opcode) -> Result<(), RuntimeError> {
+        let rhs = self.stack.pop_boxed()?.to_f64();
+        let lhs = self.stack.pop_boxed()?.to_f64();
+        let result = match op {
+            Opcode::Sub => lhs - rhs,
+            Opcode::Mul => lhs * rhs,
+            Opcode::Div => lhs / rhs,
+            Opcode::Mod => lhs % rhs,
+            _ => unreachable!(),
+        };
+        self.stack.push_boxed(NanBoxedValue::from_f64(result))
+    }
+
+    fn exec_call(&mut self, arg_count: u8) -> Result<(), RuntimeError> {
+        let mut args = Vec::new();
+        for _ in 0..arg_count {
+            args.push(self.stack.pop_boxed()?);
+        }
+        args.reverse();
+        let callee = self.stack.pop_vm()?;
+        match callee {
+            VmValue::Function(func) => {
+                if func.arity != arg_count as usize {
+                    return Err(RuntimeError::ArityMismatch {
+                        expected: func.arity,
+                        got: arg_count as usize,
+                    });
+                }
+                let slot = self.stack.len();
+                for arg in args {
+                    self.stack.push_boxed(arg)?;
+                }
+                self.frames.push(CallFrame {
+                    chunk: (*func.chunk).clone(),
+                    ip: 0,
+                    slot,
+                });
+            }
+            _ => {
+                return Err(RuntimeError::NotAFunction {
+                    name: callee.to_output(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_return(&mut self, value: NanBoxedValue) -> Result<(), RuntimeError> {
         let frame = self.frames.pop().ok_or_else(|| RuntimeError::TypeError {
             message: "return with empty frame stack".to_string(),
         })?;
@@ -184,7 +225,7 @@ impl VM {
         if self.frames.is_empty() {
             return Ok(());
         }
-        self.stack.push(value)?;
+        self.stack.push_boxed(value)?;
         Ok(())
     }
 
@@ -216,25 +257,5 @@ impl VM {
                 message: "global name constant must be a string".to_string(),
             }),
         }
-    }
-
-    fn exec_arithmetic(&mut self, op: &Opcode) -> Result<(), RuntimeError> {
-        let rhs = self.stack.pop()?;
-        let lhs = self.stack.pop()?;
-        let out = match op {
-            Opcode::Add => {
-                if matches!(lhs, VmValue::String(_)) || matches!(rhs, VmValue::String(_)) {
-                    VmValue::String(format!("{}{}", lhs.to_output(), rhs.to_output()))
-                } else {
-                    VmValue::Number(lhs.to_number() + rhs.to_number())
-                }
-            }
-            Opcode::Sub => VmValue::Number(lhs.to_number() - rhs.to_number()),
-            Opcode::Mul => VmValue::Number(lhs.to_number() * rhs.to_number()),
-            Opcode::Div => VmValue::Number(lhs.to_number() / rhs.to_number()),
-            Opcode::Mod => VmValue::Number(lhs.to_number() % rhs.to_number()),
-            _ => unreachable!(),
-        };
-        self.stack.push(out)
     }
 }
