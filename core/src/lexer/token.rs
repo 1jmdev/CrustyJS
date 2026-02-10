@@ -51,6 +51,7 @@ pub enum TokenKind {
     While,
     For,
     Of,
+    In,
     Typeof,
     Try,
     Catch,

@@ -65,3 +65,17 @@ fn lex_switch_keywords() {
         ]
     );
 }
+
+#[test]
+fn lex_for_in_keyword() {
+    let kinds: Vec<TokenKind> = lex("for in of")
+        .expect("lexing should succeed")
+        .into_iter()
+        .map(|t| t.kind)
+        .collect();
+
+    assert_eq!(
+        kinds,
+        vec![TokenKind::For, TokenKind::In, TokenKind::Of, TokenKind::Eof]
+    );
+}

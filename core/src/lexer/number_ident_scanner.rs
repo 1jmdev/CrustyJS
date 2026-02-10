@@ -49,6 +49,7 @@ impl<'src> Scanner<'src> {
             "while" => TokenKind::While,
             "for" => TokenKind::For,
             "of" => TokenKind::Of,
+            "in" => TokenKind::In,
             "typeof" => TokenKind::Typeof,
             "try" => TokenKind::Try,
             "catch" => TokenKind::Catch,
