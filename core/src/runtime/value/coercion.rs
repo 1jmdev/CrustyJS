@@ -19,6 +19,7 @@ impl JsValue {
             }
             JsValue::Function { .. } => f64::NAN,
             JsValue::NativeFunction { .. } => f64::NAN,
+            JsValue::Symbol(_) => f64::NAN,
             JsValue::Object(_) => f64::NAN,
             JsValue::Array(_) => f64::NAN,
             JsValue::Promise(_) => f64::NAN,
@@ -34,6 +35,7 @@ impl JsValue {
             JsValue::String(s) => !s.is_empty(),
             JsValue::Function { .. } => true,
             JsValue::NativeFunction { .. } => true,
+            JsValue::Symbol(_) => true,
             JsValue::Object(_) => true,
             JsValue::Array(_) => true,
             JsValue::Promise(_) => true,
@@ -60,6 +62,7 @@ impl JsValue {
             JsValue::NativeFunction { name, .. } => {
                 format!("function {name}() {{ [native code] }}")
             }
+            JsValue::Symbol(sym) => sym.to_string(),
             JsValue::Object(_) => "[object Object]".to_string(),
             JsValue::Array(arr) => {
                 let arr = arr.borrow();

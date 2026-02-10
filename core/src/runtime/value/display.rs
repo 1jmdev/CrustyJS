@@ -21,6 +21,7 @@ impl fmt::Display for JsValue {
             JsValue::NativeFunction { name, .. } => {
                 write!(f, "function {name}() {{ [native code] }}")
             }
+            JsValue::Symbol(sym) => write!(f, "{sym}"),
             JsValue::Object(obj) => {
                 let obj = obj.borrow();
                 let mut pairs: Vec<String> = obj

@@ -4,6 +4,7 @@ mod display;
 pub mod object;
 pub mod promise;
 pub mod string_methods;
+pub mod symbol;
 
 pub use coercion::abstract_equals;
 
@@ -17,6 +18,7 @@ use crate::runtime::gc::{Trace, Tracer};
 use array::JsArray;
 use object::JsObject;
 use promise::JsPromise;
+use symbol::JsSymbol;
 
 #[derive(Debug, Clone)]
 pub enum NativeFunction {
@@ -29,6 +31,7 @@ pub enum NativeFunction {
     RequestAnimationFrame,
     CancelAnimationFrame,
     QueueMicrotask,
+    SymbolConstructor,
     Host(NativeFunctionBoxed),
 }
 
@@ -52,6 +55,7 @@ pub enum JsValue {
         name: String,
         handler: NativeFunction,
     },
+    Symbol(JsSymbol),
     Object(Rc<RefCell<JsObject>>),
     Array(Rc<RefCell<JsArray>>),
     Promise(Rc<RefCell<JsPromise>>),
@@ -85,6 +89,7 @@ impl PartialEq for JsValue {
                     ..
                 },
             ) => Rc::ptr_eq(a, b),
+            (JsValue::Symbol(a), JsValue::Symbol(b)) => a == b,
             (JsValue::Object(a), JsValue::Object(b)) => Rc::ptr_eq(a, b),
             (JsValue::Array(a), JsValue::Array(b)) => Rc::ptr_eq(a, b),
             (JsValue::Promise(a), JsValue::Promise(b)) => Rc::ptr_eq(a, b),
@@ -116,6 +121,7 @@ impl Trace for NativeFunction {
             | NativeFunction::RequestAnimationFrame
             | NativeFunction::CancelAnimationFrame
             | NativeFunction::QueueMicrotask
+            | NativeFunction::SymbolConstructor
             | NativeFunction::Host(_) => {}
         }
     }
@@ -137,7 +143,8 @@ impl Trace for JsValue {
             | JsValue::Null
             | JsValue::Boolean(_)
             | JsValue::Number(_)
-            | JsValue::String(_) => {}
+            | JsValue::String(_)
+            | JsValue::Symbol(_) => {}
         }
     }
 }
