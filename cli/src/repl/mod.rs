@@ -1,16 +1,14 @@
 mod completer;
 
-use crate::errors::CrustyError;
-use crate::lexer;
-use crate::parser;
-use crate::runtime::interpreter::Interpreter;
+use crustyjs::errors::{CrustyError, RuntimeError};
+use crustyjs::runtime::interpreter::Interpreter;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use std::fs;
 
 pub fn run() -> Result<(), CrustyError> {
     let mut rl = DefaultEditor::new().map_err(|e| {
-        CrustyError::Runtime(crate::errors::RuntimeError::TypeError {
+        CrustyError::Runtime(RuntimeError::TypeError {
             message: format!("failed to initialize REPL: {e}"),
         })
     })?;
@@ -84,9 +82,9 @@ pub fn run() -> Result<(), CrustyError> {
 }
 
 fn run_snippet(interp: &mut Interpreter, source: &str) -> Result<(), CrustyError> {
-    lexer::lex(source)
+    crustyjs::lexer::lex(source)
         .map_err(CrustyError::from)
-        .and_then(|tokens| parser::parse(tokens).map_err(CrustyError::from))
+        .and_then(|tokens| crustyjs::parser::parse(tokens).map_err(CrustyError::from))
         .and_then(|program| {
             interp
                 .run_with_path(&program, std::path::PathBuf::from("."))
