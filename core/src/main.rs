@@ -2,7 +2,7 @@ use std::fs;
 use std::process;
 
 use clap::Parser;
-use miette::{IntoDiagnostic, NamedSource};
+use miette::NamedSource;
 
 #[derive(Parser)]
 #[command(name = "crustyjs", about = "A minimal JavaScript interpreter in Rust")]
@@ -11,18 +11,19 @@ struct Cli {
     file: String,
 }
 
-fn main() -> miette::Result<()> {
+fn main() {
     let cli = Cli::parse();
-    let source = fs::read_to_string(&cli.file)
-        .into_diagnostic()
-        .map_err(|e| {
-            eprintln!("Error reading file '{}': {e}", cli.file);
+    let source = match fs::read_to_string(&cli.file) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: could not read '{}': {e}", cli.file);
             process::exit(1);
-        })
-        .unwrap();
+        }
+    };
 
-    let _named = NamedSource::new(&cli.file, source.clone());
-    let _tokens = crustyjs::lexer::lex(&source)?;
-
-    Ok(())
+    if let Err(err) = crustyjs::run(&source) {
+        let report = miette::Report::new(err).with_source_code(NamedSource::new(&cli.file, source));
+        eprintln!("{report:?}");
+        process::exit(1);
+    }
 }
