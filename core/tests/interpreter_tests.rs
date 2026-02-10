@@ -294,3 +294,9 @@ fn optional_chaining_short_circuits_on_nullish() {
     );
     assert_eq!(output, vec!["undefined"]);
 }
+
+#[test]
+fn performance_now_is_available() {
+    let output = run_and_capture("console.log(performance.now() >= 0);");
+    assert_eq!(output, vec!["true"]);
+}

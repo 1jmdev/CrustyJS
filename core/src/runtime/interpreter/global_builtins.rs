@@ -161,4 +161,15 @@ impl Interpreter {
 
         Ok(JsValue::Number(value))
     }
+
+    pub(crate) fn builtin_performance_call(&self, property: &str) -> Result<JsValue, RuntimeError> {
+        match property {
+            "now" => Ok(JsValue::Number(
+                self.start_time.elapsed().as_secs_f64() * 1000.0,
+            )),
+            _ => Err(RuntimeError::TypeError {
+                message: format!("performance has no method '{property}'"),
+            }),
+        }
+    }
 }

@@ -24,6 +24,7 @@ use crate::runtime::event_loop::EventLoop;
 use crate::runtime::modules::cache::ModuleCache;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Instant;
 
 /// Control flow signal from statement evaluation.
 pub(crate) enum ControlFlow {
@@ -44,6 +45,7 @@ pub struct Interpreter {
     pub(crate) module_stack: Vec<PathBuf>,
     pub(crate) call_stack: CallStack,
     pub(crate) source_maps: HashMap<String, SourceMap>,
+    pub(crate) start_time: Instant,
 }
 
 impl Interpreter {
@@ -63,6 +65,7 @@ impl Interpreter {
             module_stack: Vec::new(),
             call_stack: CallStack::default(),
             source_maps: HashMap::new(),
+            start_time: Instant::now(),
         };
         interp.init_builtins();
         interp

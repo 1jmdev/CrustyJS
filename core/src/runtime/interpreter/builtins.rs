@@ -14,7 +14,8 @@ impl Interpreter {
         is_call: bool,
     ) -> Result<JsValue, RuntimeError> {
         if let Expr::Identifier(name) = object {
-            if name == "console" && property == "log" {
+            if name == "console" && matches!(property, "log" | "info" | "warn" | "error" | "debug")
+            {
                 let arg_values = self.eval_call_args(args)?;
                 return self.builtin_console_log_values(&arg_values);
             }
@@ -45,6 +46,9 @@ impl Interpreter {
             if name == "Promise" && is_call {
                 let arg_values = self.eval_call_args(args)?;
                 return self.builtin_promise_static_call(property, &arg_values);
+            }
+            if name == "performance" && is_call {
+                return self.builtin_performance_call(property);
             }
         }
 

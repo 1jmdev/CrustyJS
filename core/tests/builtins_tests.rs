@@ -105,3 +105,24 @@ fn queue_microtask_builtin_works() {
 
     assert_eq!(output, vec!["1"]);
 }
+
+#[test]
+fn console_alias_methods_and_performance_now() {
+    let output = run_and_capture(
+        r#"
+        console.info("i");
+        console.warn("w");
+        console.error("e");
+        console.debug("d");
+        const t1 = performance.now();
+        const t2 = performance.now();
+        console.log(t2 >= t1);
+        "#,
+    );
+
+    assert_eq!(output[0], "i");
+    assert_eq!(output[1], "w");
+    assert_eq!(output[2], "e");
+    assert_eq!(output[3], "d");
+    assert_eq!(output[4], "true");
+}
