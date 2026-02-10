@@ -26,6 +26,8 @@ pub enum NativeFunction {
     SetInterval,
     ClearTimeout,
     ClearInterval,
+    RequestAnimationFrame,
+    CancelAnimationFrame,
     Host(NativeFunctionBoxed),
 }
 
@@ -110,6 +112,8 @@ impl Trace for NativeFunction {
             | NativeFunction::SetInterval
             | NativeFunction::ClearTimeout
             | NativeFunction::ClearInterval
+            | NativeFunction::RequestAnimationFrame
+            | NativeFunction::CancelAnimationFrame
             | NativeFunction::Host(_) => {}
         }
     }

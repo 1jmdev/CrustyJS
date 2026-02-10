@@ -37,6 +37,27 @@ impl Interpreter {
                 }
                 Ok(JsValue::Undefined)
             }
+            NativeFunction::RequestAnimationFrame => {
+                let callback = args
+                    .first()
+                    .cloned()
+                    .ok_or_else(|| RuntimeError::TypeError {
+                        message: "requestAnimationFrame requires callback".to_string(),
+                    })?;
+                let id = self.event_loop.schedule_animation_frame(callback);
+                Ok(JsValue::Number(id as f64))
+            }
+            NativeFunction::CancelAnimationFrame => {
+                let id = args
+                    .first()
+                    .cloned()
+                    .unwrap_or(JsValue::Undefined)
+                    .to_number();
+                if id.is_finite() && id >= 0.0 {
+                    self.event_loop.cancel_animation_frame(id as u64);
+                }
+                Ok(JsValue::Undefined)
+            }
             NativeFunction::Host(callback) => {
                 let this = _this_binding.unwrap_or(JsValue::Undefined);
                 let args = FunctionArgs::new(this, args.to_vec());

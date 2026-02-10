@@ -148,6 +148,11 @@ impl Context {
         Ok(())
     }
 
+    pub fn run_animation_callbacks(&mut self, timestamp_ms: f64) -> Result<(), CrustyError> {
+        self.interpreter.run_animation_callbacks(timestamp_ms)?;
+        Ok(())
+    }
+
     pub fn output(&self) -> &[String] {
         self.interpreter.output()
     }

@@ -22,11 +22,14 @@ pub enum Microtask {
 pub struct EventLoop {
     now_ms: u64,
     next_timer_id: u64,
+    next_animation_id: u64,
     realtime: bool,
     runtime: Option<tokio::runtime::Runtime>,
     microtasks: MicrotaskQueue,
     tasks: TaskQueue,
     canceled_timer_ids: HashSet<u64>,
+    canceled_animation_ids: HashSet<u64>,
+    animation_callbacks: Vec<(u64, JsValue)>,
 }
 
 impl EventLoop {
@@ -47,11 +50,14 @@ impl EventLoop {
         Self {
             now_ms: 0,
             next_timer_id: 1,
+            next_animation_id: 1,
             realtime,
             runtime,
             microtasks: MicrotaskQueue::default(),
             tasks: TaskQueue::default(),
             canceled_timer_ids: HashSet::new(),
+            canceled_animation_ids: HashSet::new(),
+            animation_callbacks: Vec::new(),
         }
     }
 
@@ -128,5 +134,27 @@ impl EventLoop {
             task.active = true;
             self.tasks.add(task);
         }
+    }
+
+    pub fn schedule_animation_frame(&mut self, callback: JsValue) -> u64 {
+        let id = self.next_animation_id;
+        self.next_animation_id += 1;
+        self.animation_callbacks.push((id, callback));
+        id
+    }
+
+    pub fn cancel_animation_frame(&mut self, id: u64) {
+        self.canceled_animation_ids.insert(id);
+    }
+
+    pub fn take_animation_callbacks(&mut self) -> Vec<JsValue> {
+        let mut callbacks = Vec::new();
+        for (id, callback) in self.animation_callbacks.drain(..) {
+            if self.canceled_animation_ids.remove(&id) {
+                continue;
+            }
+            callbacks.push(callback);
+        }
+        callbacks
     }
 }

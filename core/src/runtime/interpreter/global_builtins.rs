@@ -49,6 +49,20 @@ impl Interpreter {
                 handler: NativeFunction::ClearInterval,
             },
         );
+        self.env.define(
+            "requestAnimationFrame".to_string(),
+            JsValue::NativeFunction {
+                name: "requestAnimationFrame".to_string(),
+                handler: NativeFunction::RequestAnimationFrame,
+            },
+        );
+        self.env.define(
+            "cancelAnimationFrame".to_string(),
+            JsValue::NativeFunction {
+                name: "cancelAnimationFrame".to_string(),
+                handler: NativeFunction::CancelAnimationFrame,
+            },
+        );
     }
 
     pub(crate) fn builtin_console_log_values(

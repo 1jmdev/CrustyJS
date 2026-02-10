@@ -64,6 +64,21 @@ impl Interpreter {
         Ok(())
     }
 
+    pub(crate) fn run_animation_callbacks(
+        &mut self,
+        timestamp_ms: f64,
+    ) -> Result<(), RuntimeError> {
+        let callbacks = self.event_loop.take_animation_callbacks();
+        for callback in callbacks {
+            self.call_function(
+                &callback,
+                &[crate::runtime::value::JsValue::Number(timestamp_ms)],
+            )?;
+        }
+        self.drain_microtasks()?;
+        Ok(())
+    }
+
     fn drain_microtasks(&mut self) -> Result<(), RuntimeError> {
         while let Some(task) = self.event_loop.pop_microtask() {
             match task {
