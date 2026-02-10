@@ -1,6 +1,7 @@
 use crate::errors::RuntimeError;
-use crate::runtime::value::JsValue;
+use crate::runtime::gc::Heap;
 use crate::runtime::value::object::JsObject;
+use crate::runtime::value::JsValue;
 
 #[derive(Debug, Clone)]
 pub struct JsException {
@@ -17,12 +18,12 @@ impl JsException {
     }
 }
 
-pub fn create_error_object(message: JsValue) -> JsValue {
+pub fn create_error_object(message: JsValue, heap: &mut Heap) -> JsValue {
     let mut obj = JsObject::new();
     obj.set("name".to_string(), JsValue::String("Error".to_string()));
     obj.set(
         "message".to_string(),
         JsValue::String(message.to_js_string()),
     );
-    JsValue::Object(obj.wrapped())
+    JsValue::Object(heap.alloc_cell(obj))
 }

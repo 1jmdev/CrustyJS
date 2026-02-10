@@ -19,6 +19,7 @@ mod proxy_builtins;
 mod reflect_builtins;
 mod regexp_builtins;
 
+use crate::embedding::class_builder::NativeClassDef;
 use crate::diagnostics::source_map::{SourceMap, SourcePos};
 use crate::diagnostics::stack_trace::CallStack;
 use crate::errors::RuntimeError;
@@ -44,6 +45,7 @@ pub struct Interpreter {
     pub(crate) heap: Heap,
     pub(crate) output: Vec<String>,
     pub(crate) classes: HashMap<String, eval_class::RuntimeClass>,
+    pub(crate) native_classes: HashMap<String, NativeClassDef>,
     pub(crate) super_stack: Vec<Option<String>>,
     pub(crate) event_loop: EventLoop,
     pub(crate) async_depth: usize,
@@ -76,6 +78,7 @@ impl Interpreter {
             heap,
             output: Vec::new(),
             classes: HashMap::new(),
+            native_classes: HashMap::new(),
             super_stack: Vec::new(),
             event_loop: EventLoop::new_with_realtime(realtime_timers),
             async_depth: 0,

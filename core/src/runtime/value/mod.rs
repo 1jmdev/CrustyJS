@@ -47,6 +47,7 @@ pub enum NativeFunction {
     GeneratorIterator,
     ProxyRevoke(Gc<GcCell<JsProxy>>),
     Host(NativeFunctionBoxed),
+    NativeClassConstructor(String),
 }
 
 #[derive(Debug, Clone)]
@@ -151,7 +152,8 @@ impl Trace for NativeFunction {
             | NativeFunction::SymbolConstructor
             | NativeFunction::GeneratorThrow
             | NativeFunction::GeneratorIterator
-            | NativeFunction::Host(_) => {}
+            | NativeFunction::Host(_)
+            | NativeFunction::NativeClassConstructor(_) => {}
             NativeFunction::GeneratorNext(g) | NativeFunction::GeneratorReturn(g) => {
                 tracer.mark(*g);
             }

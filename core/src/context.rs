@@ -9,20 +9,16 @@ use crate::embedding::function_args::FunctionArgs;
 use crate::errors::CrustyError;
 use crate::runtime::environment::BindingKind;
 use crate::runtime::interpreter::Interpreter;
-use crate::runtime::value::object::JsObject;
 use crate::runtime::value::{JsValue, NativeFunction};
 
-/// A single JavaScript execution context.
 pub struct Context {
     interpreter: Interpreter,
-    native_classes: HashMap<String, NativeClassDef>,
 }
 
 impl Context {
     pub fn new() -> Self {
         Self {
             interpreter: Interpreter::new_with_realtime_timers(true),
-            native_classes: HashMap::new(),
         }
     }
 
@@ -79,7 +75,7 @@ impl Context {
         let mut merged_setters = HashMap::new();
 
         if let Some(parent_name) = &class_def.parent
-            && let Some(parent) = self.native_classes.get(parent_name)
+            && let Some(parent) = self.interpreter.native_classes.get(parent_name)
         {
             merged_methods.extend(parent.methods.clone());
             merged_getters.extend(parent.getters.clone());
@@ -90,53 +86,25 @@ impl Context {
         merged_getters.extend(class_def.getters.clone());
         merged_setters.extend(class_def.setters.clone());
 
-        let constructor = class_def.constructor.clone();
-        let methods = merged_methods;
-        let getters = merged_getters;
-        let setters = merged_setters;
-        self.set_global_function(class_name, move |args| {
-            let mut instance = if let Some(constructor) = &constructor {
-                constructor.call(args)?
-            } else {
-                JsValue::Object(JsObject::new().wrapped())
-            };
+        let stored_def = NativeClassDef {
+            name: class_def.name.clone(),
+            constructor: class_def.constructor.clone(),
+            methods: merged_methods,
+            static_methods: class_def.static_methods.clone(),
+            getters: merged_getters,
+            setters: merged_setters,
+            parent: class_def.parent.clone(),
+        };
 
-            if let JsValue::Object(object) = &mut instance {
-                let mut object = object.borrow_mut();
-                for (name, callback) in &methods {
-                    object.set(
-                        name.clone(),
-                        JsValue::NativeFunction {
-                            name: name.clone(),
-                            handler: NativeFunction::Host(callback.clone()),
-                        },
-                    );
-                }
-                for (name, callback) in &getters {
-                    object.set_getter(
-                        name.clone(),
-                        JsValue::NativeFunction {
-                            name: format!("get {name}"),
-                            handler: NativeFunction::Host(callback.clone()),
-                        },
-                    );
-                }
-                for (name, callback) in &setters {
-                    object.set_setter(
-                        name.clone(),
-                        JsValue::NativeFunction {
-                            name: format!("set {name}"),
-                            handler: NativeFunction::Host(callback.clone()),
-                        },
-                    );
-                }
-            }
+        self.interpreter
+            .native_classes
+            .insert(class_name.clone(), stored_def);
 
-            Ok(instance)
-        });
-
-        self.native_classes
-            .insert(class_def.name.clone(), class_def);
+        let function = JsValue::NativeFunction {
+            name: class_name.clone(),
+            handler: NativeFunction::NativeClassConstructor(class_name),
+        };
+        self.set_global(class_def.name, function);
     }
 
     pub fn run_microtasks(&mut self) -> Result<(), CrustyError> {

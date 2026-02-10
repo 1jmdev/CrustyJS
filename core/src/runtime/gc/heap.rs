@@ -56,6 +56,10 @@ impl<T> Gc<T> {
     pub fn ptr_eq(a: Gc<T>, b: Gc<T>) -> bool {
         a.ptr == b.ptr
     }
+
+    pub fn as_usize(gc: Gc<T>) -> usize {
+        gc.ptr.as_ptr() as usize
+    }
 }
 
 impl<T: Any> Gc<GcCell<T>> {
@@ -156,6 +160,18 @@ impl Heap {
 
     pub fn live_count(&self) -> usize {
         self.live_count
+    }
+
+    pub fn contains<T>(&self, gc: Gc<T>) -> bool {
+        let ptr = gc.ptr.as_ptr();
+        self.objects
+            .iter()
+            .any(|header| std::ptr::eq(header.as_ref() as *const GcHeader, ptr))
+    }
+
+    pub fn get_mut<T: Any>(&mut self, gc: Gc<GcCell<T>>) -> Option<&GcCell<T>> {
+        let header = unsafe { gc.ptr.as_ref() };
+        header.value.as_any().downcast_ref::<GcCell<T>>()
     }
 
     pub fn should_collect(&self) -> bool {

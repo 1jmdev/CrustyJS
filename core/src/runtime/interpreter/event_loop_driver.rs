@@ -21,7 +21,7 @@ impl Interpreter {
 
     pub(crate) fn run_event_loop_until_promise_settled(
         &mut self,
-        promise: &std::rc::Rc<std::cell::RefCell<crate::runtime::value::promise::JsPromise>>,
+        promise: &crate::runtime::gc::Gc<crate::runtime::gc::GcCell<crate::runtime::value::promise::JsPromise>>,
     ) -> Result<(), RuntimeError> {
         while matches!(
             promise.borrow().state,
