@@ -6,6 +6,7 @@ pub mod generator;
 pub mod iterator;
 pub mod object;
 pub mod promise;
+pub mod regexp;
 pub mod string_methods;
 pub mod symbol;
 
@@ -26,6 +27,7 @@ use collections::weak_set::JsWeakSet;
 use generator::JsGenerator;
 use object::JsObject;
 use promise::JsPromise;
+use regexp::JsRegExp;
 use symbol::JsSymbol;
 
 #[derive(Debug, Clone)]
@@ -76,6 +78,7 @@ pub enum JsValue {
     Set(Rc<RefCell<JsSet>>),
     WeakMap(Rc<RefCell<JsWeakMap>>),
     WeakSet(Rc<RefCell<JsWeakSet>>),
+    RegExp(Rc<RefCell<JsRegExp>>),
 }
 
 impl PartialEq for JsValue {
@@ -114,6 +117,7 @@ impl PartialEq for JsValue {
             (JsValue::Set(a), JsValue::Set(b)) => Rc::ptr_eq(a, b),
             (JsValue::WeakMap(a), JsValue::WeakMap(b)) => Rc::ptr_eq(a, b),
             (JsValue::WeakSet(a), JsValue::WeakSet(b)) => Rc::ptr_eq(a, b),
+            (JsValue::RegExp(a), JsValue::RegExp(b)) => Rc::ptr_eq(a, b),
             (
                 JsValue::NativeFunction {
                     handler: NativeFunction::Host(a),
@@ -196,7 +200,8 @@ impl Trace for JsValue {
             | JsValue::Boolean(_)
             | JsValue::Number(_)
             | JsValue::String(_)
-            | JsValue::Symbol(_) => {}
+            | JsValue::Symbol(_)
+            | JsValue::RegExp(_) => {}
         }
     }
 }

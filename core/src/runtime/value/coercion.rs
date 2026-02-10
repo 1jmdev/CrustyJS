@@ -27,6 +27,7 @@ impl JsValue {
             JsValue::Set(_) => f64::NAN,
             JsValue::WeakMap(_) => f64::NAN,
             JsValue::WeakSet(_) => f64::NAN,
+            JsValue::RegExp(_) => f64::NAN,
         }
     }
 
@@ -47,6 +48,7 @@ impl JsValue {
             JsValue::Set(_) => true,
             JsValue::WeakMap(_) => true,
             JsValue::WeakSet(_) => true,
+            JsValue::RegExp(_) => true,
         }
     }
 
@@ -82,6 +84,7 @@ impl JsValue {
             JsValue::Set(_) => "[object Set]".to_string(),
             JsValue::WeakMap(_) => "[object WeakMap]".to_string(),
             JsValue::WeakSet(_) => "[object WeakSet]".to_string(),
+            JsValue::RegExp(re) => re.borrow().to_string(),
         }
     }
 }

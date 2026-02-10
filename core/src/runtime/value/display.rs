@@ -59,6 +59,7 @@ impl fmt::Display for JsValue {
             }
             JsValue::WeakMap(_) => write!(f, "WeakMap {{}}"),
             JsValue::WeakSet(_) => write!(f, "WeakSet {{}}"),
+            JsValue::RegExp(re) => write!(f, "{}", re.borrow()),
         }
     }
 }

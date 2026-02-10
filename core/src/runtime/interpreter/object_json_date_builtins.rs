@@ -193,6 +193,13 @@ impl Interpreter {
             JsValue::Set(_) => JsonValue::Null,
             JsValue::WeakMap(_) => JsonValue::Null,
             JsValue::WeakSet(_) => JsonValue::Null,
+            JsValue::RegExp(re) => JsonValue::Object({
+                let mut map = serde_json::Map::new();
+                let re = re.borrow();
+                map.insert("source".to_string(), JsonValue::String(re.pattern.clone()));
+                map.insert("flags".to_string(), JsonValue::String(re.flag_string()));
+                map
+            }),
         })
     }
 
