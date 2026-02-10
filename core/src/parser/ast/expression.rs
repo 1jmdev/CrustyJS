@@ -137,6 +137,10 @@ pub enum Expr {
         base: Box<Expr>,
         chain: Vec<OptionalOp>,
     },
+    RegexLiteral {
+        pattern: String,
+        flags: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

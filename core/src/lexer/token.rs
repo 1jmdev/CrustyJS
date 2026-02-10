@@ -121,6 +121,9 @@ pub enum TokenKind {
     DotDotDot,
     Colon,
 
+    // Regex
+    RegexLiteral { pattern: String, flags: String },
+
     // Special
     Eof,
 }
