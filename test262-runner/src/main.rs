@@ -1,3 +1,4 @@
+mod harness;
 mod metadata;
 
 fn main() {
