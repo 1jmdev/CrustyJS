@@ -1,5 +1,5 @@
-use super::Parser;
 use super::ast::{Stmt, VarDeclKind};
+use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
@@ -54,7 +54,11 @@ impl Parser {
         &mut self,
         is_async: bool,
     ) -> Result<Stmt, SyntaxError> {
-        let function_token = self.advance().clone(); // consume 'function'
+        let function_token = self.advance().clone();
+        let is_generator = self.check(&TokenKind::Star);
+        if is_generator {
+            self.advance();
+        }
         let name = self.expect_ident()?;
         self.expect(&TokenKind::LeftParen)?;
 
@@ -67,6 +71,7 @@ impl Parser {
             params,
             body,
             is_async,
+            is_generator,
             decl_offset: function_token.span.start,
         })
     }

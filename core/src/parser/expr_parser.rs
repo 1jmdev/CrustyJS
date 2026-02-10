@@ -1,8 +1,8 @@
-use super::Parser;
 use super::ast::{Expr, Literal, OptionalOp, UnaryOp, UpdateOp};
 use super::expr_ops::{
     infix_binding_power, prefix_binding_power, token_to_binop, token_to_logical_op,
 };
+use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
@@ -169,6 +169,28 @@ impl Parser {
             self.advance();
             let operand = self.parse_expr(12)?;
             return Ok(Expr::Await(Box::new(operand)));
+        }
+
+        if self.check(&TokenKind::Yield) {
+            self.advance();
+            let delegate = self.check(&TokenKind::Star);
+            if delegate {
+                self.advance();
+            }
+            // yield with no value: next token is }, ;, ), or EOF
+            let has_value = !matches!(
+                self.peek(),
+                TokenKind::RightBrace
+                    | TokenKind::Semicolon
+                    | TokenKind::RightParen
+                    | TokenKind::Eof
+            );
+            let value = if has_value {
+                Some(Box::new(self.parse_expr(2)?))
+            } else {
+                None
+            };
+            return Ok(Expr::Yield { value, delegate });
         }
 
         if self.check(&TokenKind::DotDotDot) {
