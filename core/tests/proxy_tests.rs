@@ -136,3 +136,59 @@ fn proxy_has_trap_no_trap_fallback() {
     "#);
     assert_eq!(out, vec!["true", "false"]);
 }
+
+#[test]
+fn proxy_revocable_basic() {
+    let out = run(r#"
+        const { proxy, revoke } = Proxy.revocable({ x: 10 }, {});
+        console.log(proxy.x);
+        revoke();
+        console.log(typeof proxy);
+    "#);
+    assert_eq!(out, vec!["10", "object"]);
+}
+
+#[test]
+fn proxy_revocable_access_after_revoke() {
+    let err = run_err(
+        r#"
+        const { proxy, revoke } = Proxy.revocable({ x: 10 }, {});
+        revoke();
+        proxy.x;
+    "#,
+    );
+    assert!(
+        err.contains("revoked"),
+        "expected revoked error, got: {err}"
+    );
+}
+
+#[test]
+fn proxy_revocable_set_after_revoke() {
+    let err = run_err(
+        r#"
+        const { proxy, revoke } = Proxy.revocable({}, {});
+        revoke();
+        proxy.y = 5;
+    "#,
+    );
+    assert!(
+        err.contains("revoked"),
+        "expected revoked error, got: {err}"
+    );
+}
+
+#[test]
+fn proxy_revocable_with_traps() {
+    let out = run(r#"
+        const handler = {
+            get: (target, prop) => {
+                return "trapped:" + prop;
+            }
+        };
+        const { proxy, revoke } = Proxy.revocable({ a: 1 }, handler);
+        console.log(proxy.a);
+        console.log(proxy.b);
+    "#);
+    assert_eq!(out, vec!["trapped:a", "trapped:b"]);
+}
