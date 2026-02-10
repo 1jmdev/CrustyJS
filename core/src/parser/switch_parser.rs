@@ -1,5 +1,5 @@
-use super::Parser;
 use super::ast::{Stmt, SwitchCase};
+use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 

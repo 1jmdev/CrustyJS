@@ -1,7 +1,7 @@
-use super::Parser;
 use super::ast::{
     ArrowBody, AssignOp, Expr, ObjectProperty, Param, Pattern, PropertyKey, TemplatePart,
 };
+use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 

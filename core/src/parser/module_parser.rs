@@ -1,5 +1,5 @@
-use super::Parser;
 use super::ast::{ExportDecl, ExportSpecifier, ImportDecl, ImportSpecifier, Stmt};
+use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
