@@ -120,12 +120,14 @@ pub enum Expr {
         callee: Box<Expr>,
         args: Vec<Expr>,
     },
+    Await(Box<Expr>),
     SuperCall {
         args: Vec<Expr>,
     },
     ArrowFunction {
         params: Vec<Param>,
         body: ArrowBody,
+        is_async: bool,
     },
 }
 

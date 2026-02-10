@@ -145,6 +145,12 @@ impl Parser {
             return Ok(Expr::Typeof(Box::new(operand)));
         }
 
+        if self.check(&TokenKind::Await) {
+            self.advance();
+            let operand = self.parse_expr(12)?;
+            return Ok(Expr::Await(Box::new(operand)));
+        }
+
         if self.check(&TokenKind::DotDotDot) {
             self.advance();
             let inner = self.parse_expr(12)?;
@@ -221,6 +227,10 @@ impl Parser {
             TokenKind::TemplateHead(ref s) => {
                 let head = s.clone();
                 self.parse_template_parts(head)
+            }
+            TokenKind::Async => {
+                self.pos -= 1;
+                self.parse_async_expr()
             }
             _ => Err(SyntaxError::new(
                 format!("unexpected token {:?} in expression", token.kind),

@@ -7,6 +7,7 @@ impl Parser {
     pub(crate) fn parse_statement(&mut self) -> Result<Stmt, SyntaxError> {
         match self.peek() {
             TokenKind::Let | TokenKind::Const => self.parse_var_decl(),
+            TokenKind::Async => self.parse_async_or_expr_stmt(),
             TokenKind::Function => self.parse_function_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
@@ -44,6 +45,10 @@ impl Parser {
     }
 
     fn parse_function_decl(&mut self) -> Result<Stmt, SyntaxError> {
+        self.parse_function_decl_with_async(false)
+    }
+
+    fn parse_function_decl_with_async(&mut self, is_async: bool) -> Result<Stmt, SyntaxError> {
         self.advance(); // consume 'function'
         let name = self.expect_ident()?;
         self.expect(&TokenKind::LeftParen)?;
@@ -52,7 +57,22 @@ impl Parser {
         self.expect(&TokenKind::RightParen)?;
 
         let body = self.parse_block()?;
-        Ok(Stmt::FunctionDecl { name, params, body })
+        Ok(Stmt::FunctionDecl {
+            name,
+            params,
+            body,
+            is_async,
+        })
+    }
+
+    fn parse_async_or_expr_stmt(&mut self) -> Result<Stmt, SyntaxError> {
+        let saved = self.pos;
+        self.advance(); // async
+        if self.check(&TokenKind::Function) {
+            return self.parse_function_decl_with_async(true);
+        }
+        self.pos = saved;
+        self.parse_expr_stmt()
     }
 
     fn parse_if(&mut self) -> Result<Stmt, SyntaxError> {

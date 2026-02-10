@@ -25,6 +25,7 @@ pub enum Stmt {
         name: String,
         params: Vec<Param>,
         body: Vec<Stmt>,
+        is_async: bool,
     },
     Return(Option<Expr>),
     Break,

@@ -36,6 +36,7 @@ impl Parser {
                     default: None,
                 }],
                 body,
+                is_async: false,
             })
         } else if self.check(&TokenKind::PlusEquals)
             || self.check(&TokenKind::MinusEquals)
@@ -77,7 +78,11 @@ impl Parser {
             self.expect(&TokenKind::RightParen)?;
             self.expect(&TokenKind::Arrow)?;
             let body = self.parse_arrow_body()?;
-            return Ok(Expr::ArrowFunction { params, body });
+            return Ok(Expr::ArrowFunction {
+                params,
+                body,
+                is_async: false,
+            });
         }
 
         self.pos = after_lparen;
@@ -126,6 +131,7 @@ impl Parser {
                         Expr::ArrowFunction {
                             params,
                             body: ArrowBody::Block(body),
+                            is_async: false,
                         },
                     )
                 } else {
@@ -209,5 +215,57 @@ impl Parser {
             }
         }
         Ok(params)
+    }
+
+    pub(crate) fn parse_async_expr(&mut self) -> Result<Expr, SyntaxError> {
+        self.advance(); // consume async
+
+        if matches!(self.peek(), TokenKind::Ident(_)) {
+            let name = self.expect_ident()?;
+            if self.check(&TokenKind::Arrow) {
+                self.advance();
+                let body = self.parse_arrow_body()?;
+                return Ok(Expr::ArrowFunction {
+                    params: vec![Param {
+                        pattern: Pattern::Identifier(name),
+                        default: None,
+                    }],
+                    body,
+                    is_async: true,
+                });
+            }
+            return Err(SyntaxError::new(
+                "unexpected identifier after async",
+                self.tokens[self.pos - 1].span.start,
+                self.tokens[self.pos - 1].span.len().max(1),
+            ));
+        }
+
+        if self.check(&TokenKind::LeftParen) {
+            self.advance();
+            let after_lparen = self.pos;
+            if self.scan_arrow_signature(after_lparen) {
+                let params = self.parse_params_list()?;
+                self.expect(&TokenKind::RightParen)?;
+                self.expect(&TokenKind::Arrow)?;
+                let body = self.parse_arrow_body()?;
+                return Ok(Expr::ArrowFunction {
+                    params,
+                    body,
+                    is_async: true,
+                });
+            }
+            return Err(SyntaxError::new(
+                "async expression must be an async arrow function",
+                self.tokens[self.pos - 1].span.start,
+                self.tokens[self.pos - 1].span.len().max(1),
+            ));
+        }
+
+        Err(SyntaxError::new(
+            "unexpected token after async",
+            self.tokens[self.pos - 1].span.start,
+            self.tokens[self.pos - 1].span.len().max(1),
+        ))
     }
 }
