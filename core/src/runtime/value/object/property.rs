@@ -1,3 +1,4 @@
+use crate::runtime::gc::{Trace, Tracer};
 use crate::runtime::value::JsValue;
 
 #[derive(Debug, Clone)]
@@ -30,5 +31,13 @@ impl Property {
             getter: None,
             setter: Some(setter),
         }
+    }
+}
+
+impl Trace for Property {
+    fn trace(&self, tracer: &mut Tracer) {
+        self.value.trace(tracer);
+        self.getter.trace(tracer);
+        self.setter.trace(tracer);
     }
 }

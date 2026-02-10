@@ -6,19 +6,17 @@ pub mod slots;
 
 pub use property::Property;
 
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use super::symbol::JsSymbol;
 use super::JsValue;
-use crate::runtime::gc::{Trace, Tracer};
+use crate::runtime::gc::{Gc, GcCell, Trace, Tracer};
 
 #[derive(Debug, Clone)]
 pub struct JsObject {
     pub properties: HashMap<String, Property>,
     pub symbol_properties: HashMap<u64, (JsSymbol, Property)>,
-    pub prototype: Option<Rc<RefCell<JsObject>>>,
+    pub prototype: Option<Gc<GcCell<JsObject>>>,
 }
 
 impl Default for JsObject {
@@ -74,23 +72,21 @@ impl JsObject {
         }
         self.properties.insert(key, Property::with_setter(setter));
     }
-
-    pub fn wrapped(self) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(self))
-    }
 }
 
 impl Trace for JsObject {
     fn trace(&self, tracer: &mut Tracer) {
         for property in self.properties.values() {
             property.value.trace(tracer);
+            property.getter.trace(tracer);
+            property.setter.trace(tracer);
         }
         for (_, property) in self.symbol_properties.values() {
             property.value.trace(tracer);
         }
 
-        if let Some(prototype) = &self.prototype {
-            prototype.borrow().trace(tracer);
+        if let Some(proto) = &self.prototype {
+            tracer.mark(*proto);
         }
     }
 }

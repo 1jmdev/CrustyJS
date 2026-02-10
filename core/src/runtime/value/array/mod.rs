@@ -1,8 +1,5 @@
 pub mod methods;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use super::JsValue;
 use crate::runtime::gc::{Trace, Tracer};
 
@@ -36,10 +33,6 @@ impl JsArray {
 
     pub fn is_empty(&self) -> bool {
         self.elements.is_empty()
-    }
-
-    pub fn wrapped(self) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(self))
     }
 }
 
