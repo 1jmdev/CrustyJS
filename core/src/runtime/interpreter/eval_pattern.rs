@@ -52,7 +52,7 @@ impl Interpreter {
                             };
                             self.eval_pattern_binding_with_kind(
                                 inner,
-                                JsValue::Array(JsArray::new(rest).wrapped()),
+                                JsValue::Array(self.heap.alloc_cell(JsArray::new(rest))),
                                 kind,
                             )?;
                             break;
@@ -75,7 +75,7 @@ impl Interpreter {
                             message: "cannot destructure object from nullish value".to_string(),
                         });
                     }
-                    _ => JsObject::new().wrapped(),
+                    _ => self.heap.alloc_cell(JsObject::new()),
                 };
 
                 let mut used = HashSet::new();
@@ -129,7 +129,7 @@ impl Interpreter {
 
                     self.eval_pattern_binding_with_kind(
                         rest_target,
-                        JsValue::Object(rest_obj.wrapped()),
+                        JsValue::Object(self.heap.alloc_cell(rest_obj)),
                         kind,
                     )?;
                 }

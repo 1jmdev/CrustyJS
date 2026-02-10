@@ -138,7 +138,7 @@ impl Interpreter {
                         }
                     }
                 }
-                Ok(JsValue::Object(obj.wrapped()))
+                Ok(JsValue::Object(self.heap.alloc_cell(obj)))
             }
             Expr::ArrayLiteral { elements } => {
                 let mut vals: Vec<JsValue> = Vec::new();
@@ -151,7 +151,7 @@ impl Interpreter {
                         other => vals.push(self.eval_expr(other)?),
                     }
                 }
-                Ok(JsValue::Array(JsArray::new(vals).wrapped()))
+                Ok(JsValue::Array(self.heap.alloc_cell(JsArray::new(vals))))
             }
             Expr::ComputedMemberAccess { object, property } => {
                 let obj_val = self.eval_expr(object)?;
@@ -317,9 +317,7 @@ impl Interpreter {
                     .map_err(|msg| RuntimeError::TypeError { message: msg })?;
                 let re = JsRegExp::new(pattern, fl)
                     .map_err(|msg| RuntimeError::TypeError { message: msg })?;
-                Ok(JsValue::RegExp(std::rc::Rc::new(std::cell::RefCell::new(
-                    re,
-                ))))
+                Ok(JsValue::RegExp(self.heap.alloc_cell(re)))
             }
             Expr::Delete(operand) => self.eval_delete_expr(operand),
         }

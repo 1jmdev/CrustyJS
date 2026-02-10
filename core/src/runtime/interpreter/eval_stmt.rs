@@ -92,7 +92,7 @@ impl Interpreter {
                 update,
                 body,
             } => {
-                self.env.push_scope();
+                self.env.push_scope(&mut self.heap);
                 if let Some(init_stmt) = init {
                     self.eval_stmt(init_stmt)?;
                 }
@@ -128,7 +128,7 @@ impl Interpreter {
             } => {
                 let iter_val = self.eval_expr(iterable)?;
                 let elements = self.collect_iterable(&iter_val)?;
-                self.env.push_scope();
+                self.env.push_scope(&mut self.heap);
                 self.env.define(variable.clone(), JsValue::Undefined);
                 for elem in &elements {
                     self.env.set(variable, elem.clone())?;
@@ -161,7 +161,7 @@ impl Interpreter {
                     _ => Vec::new(),
                 };
 
-                self.env.push_scope();
+                self.env.push_scope(&mut self.heap);
                 self.env
                     .define(variable.clone(), JsValue::String(String::new()));
                 for key in keys {
@@ -213,7 +213,7 @@ impl Interpreter {
     }
 
     pub(crate) fn eval_block(&mut self, stmts: &[Stmt]) -> Result<ControlFlow, RuntimeError> {
-        self.env.push_scope();
+        self.env.push_scope(&mut self.heap);
         let mut result = ControlFlow::None;
         for s in stmts {
             result = self.eval_stmt(s)?;

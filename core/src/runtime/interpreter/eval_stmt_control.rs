@@ -19,7 +19,7 @@ impl Interpreter {
             Err(err) => {
                 if let RuntimeError::Thrown { value } = err {
                     if let Some(catch_stmts) = catch_block {
-                        self.env.push_scope();
+                        self.env.push_scope(&mut self.heap);
                         if let Some(name) = catch_param {
                             self.env.define(name.clone(), value);
                         }

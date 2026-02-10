@@ -42,14 +42,19 @@ impl Interpreter {
                 .map(|ch| JsValue::String(ch.to_string()))
                 .collect()),
             JsValue::Map(map) => {
-                let entries: Vec<JsValue> = map
-                    .borrow()
+                let borrowed = map.borrow();
+                let entries: Vec<JsValue> = borrowed
                     .entries
                     .iter()
-                    .map(|(k, v)| {
+                    .map(|(k, v)| vec![k.clone(), v.clone()])
+                    .collect::<Vec<_>>();
+                drop(borrowed);
+                let entries: Vec<JsValue> = entries
+                    .into_iter()
+                    .map(|pair| {
                         JsValue::Array(
-                            crate::runtime::value::array::JsArray::new(vec![k.clone(), v.clone()])
-                                .wrapped(),
+                            self.heap
+                                .alloc_cell(crate::runtime::value::array::JsArray::new(pair)),
                         )
                     })
                     .collect();

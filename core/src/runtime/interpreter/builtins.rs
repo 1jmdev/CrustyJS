@@ -85,7 +85,12 @@ impl Interpreter {
         if let JsValue::String(ref s) = obj_val {
             if is_call {
                 let arg_values = self.eval_call_args(args)?;
-                return string_methods::call_string_method(s, property, &arg_values);
+                return string_methods::call_string_method(
+                    s,
+                    property,
+                    &arg_values,
+                    &mut self.heap,
+                );
             }
             return string_methods::resolve_string_property(s, property);
         }
@@ -93,7 +98,8 @@ impl Interpreter {
         if let JsValue::Array(ref arr) = obj_val {
             if is_call {
                 let arg_values = self.eval_call_args(args)?;
-                if let Some(result) = call_array_method(arr, property, &arg_values)? {
+                if let Some(result) = call_array_method(arr, property, &arg_values, &mut self.heap)?
+                {
                     return Ok(result);
                 }
                 return self.eval_array_callback_method(arr, property, &arg_values);
