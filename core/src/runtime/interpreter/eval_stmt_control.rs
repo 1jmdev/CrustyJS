@@ -31,7 +31,6 @@ impl Interpreter {
                                 ControlFlow::Return(_)
                                     | ControlFlow::Break(_)
                                     | ControlFlow::Continue(_)
-                                    | ControlFlow::Yield(_)
                             ) {
                                 break;
                             }
@@ -90,7 +89,6 @@ impl Interpreter {
                     ControlFlow::Break(_) => return Ok(ControlFlow::None),
                     ControlFlow::Continue(label) => return Ok(ControlFlow::Continue(label)),
                     ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
-                    ControlFlow::Yield(v) => return Ok(ControlFlow::Yield(v)),
                 }
             }
             idx = if i + 1 < cases.len() {

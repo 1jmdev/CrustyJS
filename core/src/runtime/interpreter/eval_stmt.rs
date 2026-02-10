@@ -50,7 +50,6 @@ impl Interpreter {
                     }
                     match self.eval_stmt(body)? {
                         ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
-                        ControlFlow::Yield(v) => return Ok(ControlFlow::Yield(v)),
                         ControlFlow::Break(None) => break,
                         ControlFlow::Break(label) => return Ok(ControlFlow::Break(label)),
                         ControlFlow::Continue(None) => {}
@@ -118,10 +117,6 @@ impl Interpreter {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Return(v));
                         }
-                        ControlFlow::Yield(v) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Yield(v));
-                        }
                         ControlFlow::Break(None) => break,
                         ControlFlow::Break(label) => {
                             self.env.pop_scope();
@@ -156,10 +151,6 @@ impl Interpreter {
                         ControlFlow::Return(v) => {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Return(v));
-                        }
-                        ControlFlow::Yield(v) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Yield(v));
                         }
                         ControlFlow::Break(None) => break,
                         ControlFlow::Break(label) => {
@@ -199,10 +190,6 @@ impl Interpreter {
                         ControlFlow::Return(v) => {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Return(v));
-                        }
-                        ControlFlow::Yield(v) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Yield(v));
                         }
                         ControlFlow::Break(None) => break,
                         ControlFlow::Break(label) => {
@@ -257,10 +244,7 @@ impl Interpreter {
             result = self.eval_stmt(s)?;
             if matches!(
                 result,
-                ControlFlow::Return(_)
-                    | ControlFlow::Break(_)
-                    | ControlFlow::Continue(_)
-                    | ControlFlow::Yield(_)
+                ControlFlow::Return(_) | ControlFlow::Break(_) | ControlFlow::Continue(_)
             ) {
                 break;
             }

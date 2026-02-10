@@ -48,7 +48,7 @@ impl Interpreter {
                             message: "illegal continue statement".to_string(),
                         });
                     }
-                    super::ControlFlow::Yield(_) | super::ControlFlow::None => {}
+                    super::ControlFlow::None => {}
                 }
             }
             Ok(())

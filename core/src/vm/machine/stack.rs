@@ -77,11 +77,13 @@ impl Stack {
             })
     }
 
+    #[allow(dead_code)]
     pub fn get_vm(&self, index: usize) -> Result<VmValue, RuntimeError> {
         let boxed = self.get_boxed(index)?;
         Ok(boxed.decode_to_vm(&self.heap))
     }
 
+    #[allow(dead_code)]
     pub fn set_vm(&mut self, index: usize, value: VmValue) -> Result<(), RuntimeError> {
         if index >= self.values.len() {
             return Err(RuntimeError::TypeError {

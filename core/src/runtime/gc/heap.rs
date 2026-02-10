@@ -123,14 +123,10 @@ impl ErasedGc {
 
 trait TraceAny: Trace + Any {
     fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T: Trace + Any> TraceAny for T {
     fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }

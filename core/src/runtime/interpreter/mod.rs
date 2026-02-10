@@ -38,7 +38,6 @@ pub(crate) enum ControlFlow {
     Return(crate::runtime::value::JsValue),
     Break(Option<String>),
     Continue(Option<String>),
-    Yield(crate::runtime::value::JsValue),
 }
 
 pub struct Interpreter {
