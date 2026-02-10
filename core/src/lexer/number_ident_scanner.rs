@@ -49,6 +49,7 @@ impl<'src> Scanner<'src> {
             "while" => TokenKind::While,
             "for" => TokenKind::For,
             "of" => TokenKind::Of,
+            "typeof" => TokenKind::Typeof,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
             "null" => TokenKind::Null,

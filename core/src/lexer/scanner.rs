@@ -176,15 +176,25 @@ impl<'src> Scanner<'src> {
             b'=' => {
                 if self.cursor.match_char(b'>') {
                     TokenKind::Arrow
-                } else if self.cursor.match_char(b'=') && self.cursor.match_char(b'=') {
-                    TokenKind::EqEqEq
                 } else {
-                    TokenKind::Assign
+                    if self.cursor.match_char(b'=') {
+                        if self.cursor.match_char(b'=') {
+                            TokenKind::EqEqEq
+                        } else {
+                            TokenKind::EqEq
+                        }
+                    } else {
+                        TokenKind::Assign
+                    }
                 }
             }
             b'!' => {
-                if self.cursor.match_char(b'=') && self.cursor.match_char(b'=') {
-                    TokenKind::NotEqEq
+                if self.cursor.match_char(b'=') {
+                    if self.cursor.match_char(b'=') {
+                        TokenKind::NotEqEq
+                    } else {
+                        TokenKind::NotEq
+                    }
                 } else {
                     TokenKind::Bang
                 }

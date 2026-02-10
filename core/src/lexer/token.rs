@@ -51,6 +51,7 @@ pub enum TokenKind {
     While,
     For,
     Of,
+    Typeof,
 
     // Operators
     Plus,
@@ -73,6 +74,8 @@ pub enum TokenKind {
     Question,
     EqEqEq,
     NotEqEq,
+    EqEq,
+    NotEq,
     LessEq,
     GreaterEq,
     Less,

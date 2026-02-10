@@ -11,6 +11,8 @@ pub enum BinOp {
     Mod,
     EqEqEq,
     NotEqEq,
+    EqEq,
+    NotEq,
     Less,
     LessEq,
     Greater,
@@ -110,6 +112,7 @@ pub enum Expr {
         then_expr: Box<Expr>,
         else_expr: Box<Expr>,
     },
+    Typeof(Box<Expr>),
     ArrowFunction {
         params: Vec<String>,
         body: ArrowBody,

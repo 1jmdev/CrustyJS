@@ -9,7 +9,14 @@ impl JsValue {
             JsValue::Boolean(true) => 1.0,
             JsValue::Boolean(false) => 0.0,
             JsValue::Number(n) => *n,
-            JsValue::String(s) => s.parse::<f64>().unwrap_or(f64::NAN),
+            JsValue::String(s) => {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    0.0
+                } else {
+                    trimmed.parse::<f64>().unwrap_or(f64::NAN)
+                }
+            }
             JsValue::Function { .. } => f64::NAN,
             JsValue::Object(_) => f64::NAN,
             JsValue::Array(_) => f64::NAN,
@@ -53,5 +60,18 @@ impl JsValue {
                 items.join(",")
             }
         }
+    }
+}
+
+pub fn abstract_equals(a: &JsValue, b: &JsValue) -> bool {
+    use JsValue::*;
+    match (a, b) {
+        (Undefined, Undefined) | (Null, Null) => true,
+        (Undefined, Null) | (Null, Undefined) => true,
+        (Boolean(_), _) => abstract_equals(&Number(a.to_number()), b),
+        (_, Boolean(_)) => abstract_equals(a, &Number(b.to_number())),
+        (Number(_), String(_)) => abstract_equals(a, &Number(b.to_number())),
+        (String(_), Number(_)) => abstract_equals(&Number(a.to_number()), b),
+        _ => a == b,
     }
 }

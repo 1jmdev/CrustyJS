@@ -227,3 +227,20 @@ fn lex_logical_and_update_tokens() {
         ]
     );
 }
+
+#[test]
+fn lex_typeof_and_loose_equality_tokens() {
+    let kinds = token_kinds("typeof x == \"1\" != false");
+    assert_eq!(
+        kinds,
+        vec![
+            TokenKind::Typeof,
+            TokenKind::Ident("x".into()),
+            TokenKind::EqEq,
+            TokenKind::String("1".into()),
+            TokenKind::NotEq,
+            TokenKind::False,
+            TokenKind::Eof,
+        ]
+    );
+}

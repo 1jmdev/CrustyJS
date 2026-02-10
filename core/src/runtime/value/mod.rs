@@ -4,6 +4,8 @@ mod display;
 pub mod object;
 pub mod string_methods;
 
+pub use coercion::abstract_equals;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 

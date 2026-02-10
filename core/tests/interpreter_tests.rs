@@ -173,3 +173,44 @@ fn prefix_and_postfix_updates() {
     );
     assert_eq!(output, vec!["11", "11", "12", "11", "11", "10"]);
 }
+
+#[test]
+fn typeof_operator() {
+    let output = run_and_capture(
+        r#"
+        console.log(typeof 42);
+        console.log(typeof "hello");
+        console.log(typeof true);
+        console.log(typeof undefined);
+        console.log(typeof null);
+        console.log(typeof {});
+        console.log(typeof (x => x));
+        "#,
+    );
+    assert_eq!(
+        output,
+        vec![
+            "number",
+            "string",
+            "boolean",
+            "undefined",
+            "object",
+            "object",
+            "function"
+        ]
+    );
+}
+
+#[test]
+fn loose_equality_with_coercion() {
+    let output = run_and_capture(
+        r#"
+        console.log(1 == "1");
+        console.log(0 == false);
+        console.log(null == undefined);
+        console.log("" == false);
+        console.log(1 != "1");
+        "#,
+    );
+    assert_eq!(output, vec!["true", "true", "true", "true", "false"]);
+}

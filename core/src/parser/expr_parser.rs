@@ -139,6 +139,12 @@ impl Parser {
     }
 
     fn parse_prefix(&mut self) -> Result<Expr, SyntaxError> {
+        if self.check(&TokenKind::Typeof) {
+            self.advance();
+            let operand = self.parse_expr(12)?;
+            return Ok(Expr::Typeof(Box::new(operand)));
+        }
+
         if matches!(self.peek(), TokenKind::PlusPlus | TokenKind::MinusMinus) {
             let op_tok = self.advance().clone();
             let ident_tok = self.advance().clone();

@@ -3,6 +3,7 @@ use crate::errors::RuntimeError;
 use crate::parser::ast::{
     ArrowBody, AssignOp, BinOp, Expr, Literal, LogicalOp, Stmt, TemplatePart, UnaryOp, UpdateOp,
 };
+use crate::runtime::value::abstract_equals;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
@@ -131,6 +132,19 @@ impl Interpreter {
                     self.eval_expr(else_expr)
                 }
             }
+            Expr::Typeof(expr) => {
+                let val = self.eval_expr(expr)?;
+                let t = match val {
+                    JsValue::Undefined => "undefined",
+                    JsValue::Null => "object",
+                    JsValue::Boolean(_) => "boolean",
+                    JsValue::Number(_) => "number",
+                    JsValue::String(_) => "string",
+                    JsValue::Function { .. } => "function",
+                    JsValue::Object(_) | JsValue::Array(_) => "object",
+                };
+                Ok(JsValue::String(t.to_string()))
+            }
             Expr::ArrowFunction { params, body } => {
                 let body = match body {
                     ArrowBody::Block(stmts) => stmts.clone(),
@@ -195,6 +209,8 @@ fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsValue, Runtim
         BinOp::GreaterEq => Ok(JsValue::Boolean(ln >= rn)),
         BinOp::EqEqEq => Ok(JsValue::Boolean(lhs == rhs)),
         BinOp::NotEqEq => Ok(JsValue::Boolean(lhs != rhs)),
+        BinOp::EqEq => Ok(JsValue::Boolean(abstract_equals(&lhs, &rhs))),
+        BinOp::NotEq => Ok(JsValue::Boolean(!abstract_equals(&lhs, &rhs))),
     }
 }
 
