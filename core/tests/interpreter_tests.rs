@@ -141,3 +141,35 @@ fn ternary_expression() {
     );
     assert_eq!(output, vec!["big", "0"]);
 }
+
+#[test]
+fn compound_assignment_and_modulo() {
+    let output = run_and_capture(
+        r#"
+        let x = 10;
+        x += 5;
+        x -= 2;
+        x *= 3;
+        x /= 2;
+        console.log(x);
+        console.log(x % 4);
+        "#,
+    );
+    assert_eq!(output, vec!["19.5", "3.5"]);
+}
+
+#[test]
+fn prefix_and_postfix_updates() {
+    let output = run_and_capture(
+        r#"
+        let x = 10;
+        console.log(++x);
+        console.log(x++);
+        console.log(x);
+        console.log(--x);
+        console.log(x--);
+        console.log(x);
+        "#,
+    );
+    assert_eq!(output, vec!["11", "11", "12", "11", "11", "10"]);
+}

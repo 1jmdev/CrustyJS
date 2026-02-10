@@ -1,10 +1,11 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{ArrowBody, BinOp, Expr, Literal, LogicalOp, Stmt, TemplatePart, UnaryOp};
+use crate::parser::ast::{
+    ArrowBody, AssignOp, BinOp, Expr, Literal, LogicalOp, Stmt, TemplatePart, UnaryOp, UpdateOp,
+};
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
-
 impl Interpreter {
     pub(crate) fn eval_expr(&mut self, expr: &Expr) -> Result<JsValue, RuntimeError> {
         match expr {
@@ -24,6 +25,27 @@ impl Interpreter {
                 let val = self.eval_expr(value)?;
                 self.env.set(name, val.clone())?;
                 Ok(val)
+            }
+            Expr::CompoundAssign { name, op, value } => {
+                let current = self.env.get(name)?;
+                let rhs = self.eval_expr(value)?;
+                let next = eval_compound(current, op, rhs)?;
+                self.env.set(name, next.clone())?;
+                Ok(next)
+            }
+            Expr::UpdateExpr { name, op, prefix } => {
+                let current = self.env.get(name)?;
+                let num = current.to_number();
+                let next = match op {
+                    UpdateOp::Inc => JsValue::Number(num + 1.0),
+                    UpdateOp::Dec => JsValue::Number(num - 1.0),
+                };
+                self.env.set(name, next.clone())?;
+                if *prefix {
+                    Ok(next)
+                } else {
+                    Ok(current)
+                }
             }
             Expr::MemberAccess { object, property } => {
                 self.eval_member_call(object, property, &[], false)
@@ -124,7 +146,6 @@ impl Interpreter {
     }
 
     fn eval_call(&mut self, callee: &Expr, args: &[Expr]) -> Result<JsValue, RuntimeError> {
-        // Special case: member method call (e.g. console.log(...), str.toUpperCase())
         if let Expr::MemberAccess { object, property } = callee {
             return self.eval_member_call(object, property, args, true);
         }
@@ -185,7 +206,6 @@ fn eval_literal(lit: &Literal) -> JsValue {
 }
 
 fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsValue, RuntimeError> {
-    // String concatenation: if either side is a string, coerce the other
     if matches!(op, BinOp::Add) {
         if matches!(&lhs, JsValue::String(_)) || matches!(&rhs, JsValue::String(_)) {
             let a = lhs.to_js_string();
@@ -202,6 +222,7 @@ fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsValue, Runtim
         BinOp::Sub => Ok(JsValue::Number(ln - rn)),
         BinOp::Mul => Ok(JsValue::Number(ln * rn)),
         BinOp::Div => Ok(JsValue::Number(ln / rn)),
+        BinOp::Mod => Ok(JsValue::Number(ln % rn)),
         BinOp::Less => Ok(JsValue::Boolean(ln < rn)),
         BinOp::LessEq => Ok(JsValue::Boolean(ln <= rn)),
         BinOp::Greater => Ok(JsValue::Boolean(ln > rn)),
@@ -211,6 +232,16 @@ fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsValue, Runtim
     }
 }
 
+fn eval_compound(lhs: JsValue, op: &AssignOp, rhs: JsValue) -> Result<JsValue, RuntimeError> {
+    let bin = match op {
+        AssignOp::Add => BinOp::Add,
+        AssignOp::Sub => BinOp::Sub,
+        AssignOp::Mul => BinOp::Mul,
+        AssignOp::Div => BinOp::Div,
+        AssignOp::Mod => BinOp::Mod,
+    };
+    eval_binary(lhs, &bin, rhs)
+}
 fn eval_unary(op: &UnaryOp, val: JsValue) -> Result<JsValue, RuntimeError> {
     match op {
         UnaryOp::Neg => Ok(JsValue::Number(-val.to_number())),

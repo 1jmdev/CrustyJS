@@ -1,4 +1,5 @@
 pub mod cursor;
+mod number_ident_scanner;
 pub mod scanner;
 mod string_scanner;
 pub mod token;

@@ -197,3 +197,33 @@ fn lex_arrow_function_tokens() {
         ]
     );
 }
+
+#[test]
+fn lex_logical_and_update_tokens() {
+    let kinds = token_kinds("a && b || c ?? d; x += 1; y++; z %= 2;");
+    assert_eq!(
+        kinds,
+        vec![
+            TokenKind::Ident("a".into()),
+            TokenKind::AmpAmp,
+            TokenKind::Ident("b".into()),
+            TokenKind::PipePipe,
+            TokenKind::Ident("c".into()),
+            TokenKind::NullishCoalescing,
+            TokenKind::Ident("d".into()),
+            TokenKind::Semicolon,
+            TokenKind::Ident("x".into()),
+            TokenKind::PlusEquals,
+            TokenKind::Number(1.0),
+            TokenKind::Semicolon,
+            TokenKind::Ident("y".into()),
+            TokenKind::PlusPlus,
+            TokenKind::Semicolon,
+            TokenKind::Ident("z".into()),
+            TokenKind::PercentEquals,
+            TokenKind::Number(2.0),
+            TokenKind::Semicolon,
+            TokenKind::Eof,
+        ]
+    );
+}

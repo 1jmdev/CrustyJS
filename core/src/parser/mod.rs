@@ -1,6 +1,7 @@
 pub mod ast;
-mod expr_parser;
 mod expr_literals;
+mod expr_ops;
+mod expr_parser;
 mod stmt_parser;
 
 use crate::errors::SyntaxError;

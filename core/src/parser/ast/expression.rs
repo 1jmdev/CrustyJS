@@ -8,6 +8,7 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
+    Mod,
     EqEqEq,
     NotEqEq,
     Less,
@@ -28,6 +29,21 @@ pub enum LogicalOp {
     And,
     Or,
     Nullish,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AssignOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum UpdateOp {
+    Inc,
+    Dec,
 }
 
 /// Expression AST nodes.
@@ -51,6 +67,16 @@ pub enum Expr {
     Assign {
         name: String,
         value: Box<Expr>,
+    },
+    CompoundAssign {
+        name: String,
+        op: AssignOp,
+        value: Box<Expr>,
+    },
+    UpdateExpr {
+        name: String,
+        op: UpdateOp,
+        prefix: bool,
     },
     MemberAccess {
         object: Box<Expr>,

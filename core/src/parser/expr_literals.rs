@@ -1,4 +1,4 @@
-use super::ast::{ArrowBody, Expr, TemplatePart};
+use super::ast::{ArrowBody, AssignOp, Expr, TemplatePart};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
@@ -11,6 +11,27 @@ impl Parser {
             Ok(Expr::ArrowFunction {
                 params: vec![name],
                 body,
+            })
+        } else if self.check(&TokenKind::PlusEquals)
+            || self.check(&TokenKind::MinusEquals)
+            || self.check(&TokenKind::StarEquals)
+            || self.check(&TokenKind::SlashEquals)
+            || self.check(&TokenKind::PercentEquals)
+        {
+            let op_token = self.advance().kind.clone();
+            let op = match op_token {
+                TokenKind::PlusEquals => AssignOp::Add,
+                TokenKind::MinusEquals => AssignOp::Sub,
+                TokenKind::StarEquals => AssignOp::Mul,
+                TokenKind::SlashEquals => AssignOp::Div,
+                TokenKind::PercentEquals => AssignOp::Mod,
+                _ => unreachable!(),
+            };
+            let value = self.parse_expr(0)?;
+            Ok(Expr::CompoundAssign {
+                name,
+                op,
+                value: Box::new(value),
             })
         } else if self.check(&TokenKind::Assign) {
             self.advance();

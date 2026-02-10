@@ -1,53 +1,10 @@
-use super::ast::{BinOp, Expr, Literal, LogicalOp, UnaryOp};
+use super::ast::{Expr, Literal, UnaryOp, UpdateOp};
+use super::expr_ops::{
+    infix_binding_power, prefix_binding_power, token_to_binop, token_to_logical_op,
+};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
-
-fn infix_binding_power(kind: &TokenKind) -> Option<(u8, u8)> {
-    match kind {
-        TokenKind::PipePipe | TokenKind::NullishCoalescing => Some((1, 2)),
-        TokenKind::AmpAmp => Some((2, 3)),
-        TokenKind::EqEqEq | TokenKind::NotEqEq => Some((4, 5)),
-        TokenKind::Less | TokenKind::LessEq | TokenKind::Greater | TokenKind::GreaterEq => {
-            Some((6, 7))
-        }
-        TokenKind::Plus | TokenKind::Minus => Some((8, 9)),
-        TokenKind::Star | TokenKind::Slash => Some((10, 11)),
-        _ => None,
-    }
-}
-
-fn prefix_binding_power(kind: &TokenKind) -> Option<u8> {
-    match kind {
-        TokenKind::Minus | TokenKind::Bang => Some(12),
-        _ => None,
-    }
-}
-
-fn token_to_logical_op(kind: &TokenKind) -> LogicalOp {
-    match kind {
-        TokenKind::AmpAmp => LogicalOp::And,
-        TokenKind::PipePipe => LogicalOp::Or,
-        TokenKind::NullishCoalescing => LogicalOp::Nullish,
-        _ => unreachable!("not a logical operator: {:?}", kind),
-    }
-}
-
-fn token_to_binop(kind: &TokenKind) -> BinOp {
-    match kind {
-        TokenKind::Plus => BinOp::Add,
-        TokenKind::Minus => BinOp::Sub,
-        TokenKind::Star => BinOp::Mul,
-        TokenKind::Slash => BinOp::Div,
-        TokenKind::EqEqEq => BinOp::EqEqEq,
-        TokenKind::NotEqEq => BinOp::NotEqEq,
-        TokenKind::Less => BinOp::Less,
-        TokenKind::LessEq => BinOp::LessEq,
-        TokenKind::Greater => BinOp::Greater,
-        TokenKind::GreaterEq => BinOp::GreaterEq,
-        _ => unreachable!("not a binary operator: {:?}", kind),
-    }
-}
 
 impl Parser {
     pub(crate) fn parse_expr(&mut self, min_bp: u8) -> Result<Expr, SyntaxError> {
@@ -101,6 +58,40 @@ impl Parser {
                         }
                     }
                 }
+                TokenKind::PlusPlus => {
+                    self.advance();
+                    match lhs {
+                        Expr::Identifier(name) => Expr::UpdateExpr {
+                            name,
+                            op: UpdateOp::Inc,
+                            prefix: false,
+                        },
+                        _ => {
+                            return Err(SyntaxError::new(
+                                "invalid postfix increment target",
+                                self.tokens[self.pos - 1].span.start,
+                                2,
+                            ))
+                        }
+                    }
+                }
+                TokenKind::MinusMinus => {
+                    self.advance();
+                    match lhs {
+                        Expr::Identifier(name) => Expr::UpdateExpr {
+                            name,
+                            op: UpdateOp::Dec,
+                            prefix: false,
+                        },
+                        _ => {
+                            return Err(SyntaxError::new(
+                                "invalid postfix decrement target",
+                                self.tokens[self.pos - 1].span.start,
+                                2,
+                            ))
+                        }
+                    }
+                }
                 _ => break,
             };
         }
@@ -148,6 +139,31 @@ impl Parser {
     }
 
     fn parse_prefix(&mut self) -> Result<Expr, SyntaxError> {
+        if matches!(self.peek(), TokenKind::PlusPlus | TokenKind::MinusMinus) {
+            let op_tok = self.advance().clone();
+            let ident_tok = self.advance().clone();
+            let name = match ident_tok.kind {
+                TokenKind::Ident(name) => name,
+                _ => {
+                    return Err(SyntaxError::new(
+                        "expected identifier after update operator",
+                        ident_tok.span.start,
+                        ident_tok.span.len().max(1),
+                    ))
+                }
+            };
+            let op = match op_tok.kind {
+                TokenKind::PlusPlus => UpdateOp::Inc,
+                TokenKind::MinusMinus => UpdateOp::Dec,
+                _ => unreachable!(),
+            };
+            return Ok(Expr::UpdateExpr {
+                name,
+                op,
+                prefix: true,
+            });
+        }
+
         if let Some(rbp) = prefix_binding_power(self.peek()) {
             let op_kind = self.advance().kind.clone();
             let op = match op_kind {
