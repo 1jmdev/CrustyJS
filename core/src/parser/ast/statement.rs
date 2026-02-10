@@ -1,3 +1,4 @@
+use super::class::ClassDecl;
 use super::expression::Expr;
 
 /// Statement AST nodes.
@@ -42,4 +43,5 @@ pub enum Stmt {
         finally_block: Option<Vec<Stmt>>,
     },
     Throw(Expr),
+    Class(ClassDecl),
 }

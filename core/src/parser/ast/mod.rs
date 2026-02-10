@@ -1,7 +1,9 @@
+mod class;
 mod expression;
 mod literal;
 mod statement;
 
+pub use class::{ClassDecl, ClassMethod};
 pub use expression::{
     ArrowBody, AssignOp, BinOp, Expr, LogicalOp, TemplatePart, UnaryOp, UpdateOp,
 };

@@ -57,6 +57,9 @@ pub enum TokenKind {
     Finally,
     Throw,
     New,
+    Class,
+    Extends,
+    Super,
 
     // Operators
     Plus,

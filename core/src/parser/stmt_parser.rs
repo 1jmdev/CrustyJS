@@ -14,6 +14,7 @@ impl Parser {
             TokenKind::Return => self.parse_return(),
             TokenKind::Try => self.parse_try_catch(),
             TokenKind::Throw => self.parse_throw(),
+            TokenKind::Class => self.parse_class_decl(),
             TokenKind::LeftBrace => self.parse_block_stmt(),
             _ => self.parse_expr_stmt(),
         }
