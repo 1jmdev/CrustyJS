@@ -15,6 +15,7 @@ mod module_runtime;
 mod object_json_date_builtins;
 mod promise_runtime;
 mod property_access;
+mod proxy_builtins;
 mod regexp_builtins;
 
 use crate::diagnostics::source_map::{SourceMap, SourcePos};

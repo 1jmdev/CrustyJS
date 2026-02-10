@@ -118,6 +118,10 @@ impl Interpreter {
             return self.eval_new_regexp(args);
         }
 
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Proxy") {
+            return self.eval_new_proxy(args);
+        }
+
         let class_name = if let crate::parser::ast::Expr::Identifier(name) = callee {
             name
         } else {
