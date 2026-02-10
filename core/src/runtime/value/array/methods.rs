@@ -1,13 +1,13 @@
 use crate::errors::RuntimeError;
+use crate::runtime::gc::{Gc, GcCell, Heap};
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::JsValue;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 pub fn call_array_method(
-    arr: &Rc<RefCell<JsArray>>,
+    arr: &Gc<GcCell<JsArray>>,
     method: &str,
     args: &[JsValue],
+    heap: &mut Heap,
 ) -> Result<Option<JsValue>, RuntimeError> {
     match method {
         "push" => {
@@ -48,7 +48,7 @@ pub fn call_array_method(
             let start = normalize_index(args.first(), 0, len);
             let end = normalize_index(args.get(1), len, len);
             let sliced: Vec<JsValue> = borrowed.elements[start..end].to_vec();
-            Ok(Some(JsValue::Array(JsArray::new(sliced).wrapped())))
+            Ok(Some(JsValue::Array(heap.alloc_cell(JsArray::new(sliced)))))
         }
         "concat" => {
             let borrowed = arr.borrow();
@@ -60,7 +60,7 @@ pub fn call_array_method(
                     result.push(arg.clone());
                 }
             }
-            Ok(Some(JsValue::Array(JsArray::new(result).wrapped())))
+            Ok(Some(JsValue::Array(heap.alloc_cell(JsArray::new(result)))))
         }
         _ => Ok(None),
     }

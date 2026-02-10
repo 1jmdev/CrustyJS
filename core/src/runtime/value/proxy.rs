@@ -1,6 +1,6 @@
 use super::object::JsObject;
 use super::JsValue;
-use crate::runtime::gc::{Gc, GcCell, Heap, Trace, Tracer};
+use crate::runtime::gc::{Gc, GcCell, Trace, Tracer};
 
 #[derive(Debug, Clone)]
 pub struct JsProxy {
@@ -26,8 +26,8 @@ impl JsProxy {
         }
     }
 
-    pub fn get_trap(&self, trap_name: &str, heap: &Heap) -> Option<JsValue> {
-        let handler = heap.borrow(self.handler);
+    pub fn get_trap(&self, trap_name: &str) -> Option<JsValue> {
+        let handler = self.handler.borrow();
         handler
             .get(trap_name)
             .filter(|v| !matches!(v, JsValue::Undefined))

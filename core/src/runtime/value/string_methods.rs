@@ -1,5 +1,7 @@
 use crate::errors::RuntimeError;
+use crate::runtime::gc::{Gc, GcCell, Heap};
 use crate::runtime::value::array::JsArray;
+use crate::runtime::value::regexp::JsRegExp;
 use crate::runtime::value::JsValue;
 
 pub fn resolve_string_property(s: &str, property: &str) -> Result<JsValue, RuntimeError> {
@@ -15,6 +17,7 @@ pub fn call_string_method(
     s: &str,
     method: &str,
     args: &[JsValue],
+    heap: &mut Heap,
 ) -> Result<JsValue, RuntimeError> {
     match method {
         "toUpperCase" => Ok(JsValue::String(s.to_uppercase())),
@@ -45,23 +48,23 @@ pub fn call_string_method(
         }
         "split" => {
             if let Some(JsValue::RegExp(re)) = args.first() {
-                return split_with_regex(s, re);
+                return split_with_regex(s, re, heap);
             }
             let sep = args.first().map(|a| a.to_js_string()).unwrap_or_default();
             let parts: Vec<JsValue> = s
                 .split(&sep)
                 .map(|part| JsValue::String(part.to_string()))
                 .collect();
-            Ok(JsValue::Array(JsArray::new(parts).wrapped()))
+            Ok(JsValue::Array(heap.alloc_cell(JsArray::new(parts))))
         }
         "match" => {
             if let Some(JsValue::RegExp(re)) = args.first() {
-                return match_with_regex(s, re);
+                return match_with_regex(s, re, heap);
             }
             let pattern = args.first().map(|a| a.to_js_string()).unwrap_or_default();
             match s.find(&pattern) {
                 Some(_) => {
-                    let arr = JsArray::new(vec![JsValue::String(pattern)]).wrapped();
+                    let arr = heap.alloc_cell(JsArray::new(vec![JsValue::String(pattern)]));
                     Ok(JsValue::Array(arr))
                 }
                 None => Ok(JsValue::Null),
@@ -110,7 +113,8 @@ fn normalize_index(arg: Option<&JsValue>, len: i64) -> i64 {
 
 fn match_with_regex(
     s: &str,
-    re: &std::rc::Rc<std::cell::RefCell<super::regexp::JsRegExp>>,
+    re: &Gc<GcCell<JsRegExp>>,
+    heap: &mut Heap,
 ) -> Result<JsValue, RuntimeError> {
     let mut re = re.borrow_mut();
     if re.flags.global {
@@ -119,7 +123,7 @@ fn match_with_regex(
             return Ok(JsValue::Null);
         }
         let vals: Vec<JsValue> = matches.into_iter().map(JsValue::String).collect();
-        Ok(JsValue::Array(JsArray::new(vals).wrapped()))
+        Ok(JsValue::Array(heap.alloc_cell(JsArray::new(vals))))
     } else {
         match re.exec(s) {
             Some(m) => {
@@ -131,7 +135,7 @@ fn match_with_regex(
                         None => JsValue::Undefined,
                     })
                     .collect();
-                Ok(JsValue::Array(JsArray::new(vals).wrapped()))
+                Ok(JsValue::Array(heap.alloc_cell(JsArray::new(vals))))
             }
             None => Ok(JsValue::Null),
         }
@@ -140,7 +144,7 @@ fn match_with_regex(
 
 fn replace_with_regex(
     s: &str,
-    re: &std::rc::Rc<std::cell::RefCell<super::regexp::JsRegExp>>,
+    re: &Gc<GcCell<JsRegExp>>,
     replacement: &str,
     replace_all: bool,
 ) -> Result<JsValue, RuntimeError> {
@@ -157,10 +161,7 @@ fn replace_with_regex(
     }
 }
 
-fn search_with_regex(
-    s: &str,
-    re: &std::rc::Rc<std::cell::RefCell<super::regexp::JsRegExp>>,
-) -> Result<JsValue, RuntimeError> {
+fn search_with_regex(s: &str, re: &Gc<GcCell<JsRegExp>>) -> Result<JsValue, RuntimeError> {
     let re = re.borrow();
     match re.compiled().find(s) {
         Some(m) => Ok(JsValue::Number(m.start() as f64)),
@@ -170,7 +171,8 @@ fn search_with_regex(
 
 fn split_with_regex(
     s: &str,
-    re: &std::rc::Rc<std::cell::RefCell<super::regexp::JsRegExp>>,
+    re: &Gc<GcCell<JsRegExp>>,
+    heap: &mut Heap,
 ) -> Result<JsValue, RuntimeError> {
     let re = re.borrow();
     let parts: Vec<JsValue> = re
@@ -178,5 +180,5 @@ fn split_with_regex(
         .split(s)
         .map(|part| JsValue::String(part.to_string()))
         .collect();
-    Ok(JsValue::Array(JsArray::new(parts).wrapped()))
+    Ok(JsValue::Array(heap.alloc_cell(JsArray::new(parts))))
 }
