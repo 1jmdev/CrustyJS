@@ -81,4 +81,30 @@ impl Parser {
             )),
         }
     }
+
+    pub(crate) fn expect_property_name(&mut self) -> Result<String, SyntaxError> {
+        let token = self.advance().clone();
+        match token.kind {
+            TokenKind::Ident(name) => Ok(name),
+            TokenKind::Catch => Ok("catch".to_string()),
+            TokenKind::Finally => Ok("finally".to_string()),
+            TokenKind::Default => Ok("default".to_string()),
+            TokenKind::Case => Ok("case".to_string()),
+            TokenKind::Switch => Ok("switch".to_string()),
+            TokenKind::Break => Ok("break".to_string()),
+            TokenKind::Return => Ok("return".to_string()),
+            TokenKind::Class => Ok("class".to_string()),
+            TokenKind::Function => Ok("function".to_string()),
+            TokenKind::New => Ok("new".to_string()),
+            TokenKind::For => Ok("for".to_string()),
+            TokenKind::If => Ok("if".to_string()),
+            TokenKind::Else => Ok("else".to_string()),
+            TokenKind::Try => Ok("try".to_string()),
+            _ => Err(SyntaxError::new(
+                format!("expected property name, found {:?}", token.kind),
+                token.span.start,
+                token.span.len().max(1),
+            )),
+        }
+    }
 }

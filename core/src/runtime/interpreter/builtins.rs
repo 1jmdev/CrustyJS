@@ -42,6 +42,10 @@ impl Interpreter {
                     self.builtin_math_constant(property)
                 };
             }
+            if name == "Promise" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_promise_static_call(property, &arg_values);
+            }
         }
 
         let obj_val = self.eval_expr(object)?;
@@ -63,6 +67,14 @@ impl Interpreter {
                 return self.eval_array_callback_method(arr, property, &arg_values);
             }
             return self.get_property(&obj_val, property);
+        }
+
+        if let JsValue::Promise(ref promise) = obj_val {
+            if is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_promise_instance_call(promise, property, &arg_values);
+            }
+            return Ok(JsValue::Undefined);
         }
 
         if !is_call {

@@ -71,6 +71,10 @@ impl Interpreter {
         callee: &crate::parser::ast::Expr,
         args: &[crate::parser::ast::Expr],
     ) -> Result<JsValue, RuntimeError> {
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Promise") {
+            return self.eval_new_promise(args);
+        }
+
         if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Error") {
             let message = args
                 .first()

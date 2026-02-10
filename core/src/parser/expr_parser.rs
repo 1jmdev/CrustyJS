@@ -23,7 +23,7 @@ impl Parser {
                 }
                 TokenKind::Dot => {
                     self.advance();
-                    let property = self.expect_ident()?;
+                    let property = self.expect_property_name()?;
                     if self.check(&TokenKind::Assign) {
                         self.advance();
                         let value = self.parse_expr(0)?;
