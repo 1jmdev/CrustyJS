@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::embedding::callback::NativeFunctionBoxed;
 use crate::embedding::class_builder::NativeClassDef;
+use crate::embedding::event_target::EventTarget;
 use crate::embedding::function_args::FunctionArgs;
 use crate::errors::CrustyError;
 use crate::runtime::environment::BindingKind;
@@ -150,6 +151,22 @@ impl Context {
 
     pub fn run_animation_callbacks(&mut self, timestamp_ms: f64) -> Result<(), CrustyError> {
         self.interpreter.run_animation_callbacks(timestamp_ms)?;
+        Ok(())
+    }
+
+    pub fn dispatch_event(
+        &mut self,
+        target: &EventTarget,
+        event_name: &str,
+        event_obj: JsValue,
+    ) -> Result<(), CrustyError> {
+        for listener in target.listeners_for(event_name) {
+            self.interpreter.call_function_with_this(
+                &listener,
+                std::slice::from_ref(&event_obj),
+                None,
+            )?;
+        }
         Ok(())
     }
 

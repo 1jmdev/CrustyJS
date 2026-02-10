@@ -1,7 +1,7 @@
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crustyjs::{ClassBuilder, Engine, Value};
+use crustyjs::{ClassBuilder, Engine, EventTarget, Value};
 
 #[test]
 fn engine_context_eval_and_globals() {
@@ -200,4 +200,30 @@ fn context_drives_animation_callbacks() {
 
     let calls_after = ctx.get_global("calls").expect("calls should exist");
     assert_eq!(calls_after, Value::Number(1.0));
+}
+
+#[test]
+fn context_dispatches_event_target_listeners() {
+    let engine = Engine::new();
+    let mut ctx = engine.new_context();
+
+    ctx.eval("let seen = 0; function onEvent(ev) { seen = ev; }")
+        .expect("script should evaluate");
+    let callback = ctx
+        .get_global("onEvent")
+        .expect("onEvent should be available");
+
+    let mut target = EventTarget::new();
+    target.add_event_listener("click", callback.clone());
+    ctx.dispatch_event(&target, "click", Value::Number(7.0))
+        .expect("dispatch should succeed");
+
+    let seen = ctx.get_global("seen").expect("seen should exist");
+    assert_eq!(seen, Value::Number(7.0));
+
+    target.remove_event_listener("click", &callback);
+    ctx.dispatch_event(&target, "click", Value::Number(9.0))
+        .expect("dispatch should succeed");
+    let seen_after = ctx.get_global("seen").expect("seen should exist");
+    assert_eq!(seen_after, Value::Number(7.0));
 }

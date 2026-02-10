@@ -9,7 +9,7 @@ pub mod runtime;
 pub mod vm;
 
 pub use context::Context;
-pub use embedding::{ClassBuilder, NativeClassDef};
+pub use embedding::{ClassBuilder, EventTarget, NativeClassDef};
 pub use engine::Engine;
 pub use runtime::value::JsValue as Value;
 
