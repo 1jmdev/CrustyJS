@@ -84,6 +84,39 @@ fn register_class_constructor() {
 }
 
 #[test]
+fn register_class_method_on_instances() {
+    let engine = Engine::new();
+    let mut ctx = engine.new_context();
+
+    let class_def = ClassBuilder::new("Element")
+        .constructor(|args| {
+            let mut object = crustyjs::runtime::value::object::JsObject::new();
+            object.set(
+                "tag".to_string(),
+                args.get(0)
+                    .cloned()
+                    .unwrap_or(Value::String("div".to_string())),
+            );
+            Ok(Value::Object(object.wrapped()))
+        })
+        .method("tagName", |args| {
+            let this = args.this();
+            if let Value::Object(object) = this {
+                return Ok(object.borrow().get("tag").unwrap_or(Value::Undefined));
+            }
+            Ok(Value::Undefined)
+        })
+        .build();
+
+    ctx.register_class(class_def);
+    ctx.eval("let el = Element('article'); let tag = el.tagName();")
+        .expect("class method invocation should succeed");
+
+    let tag = ctx.get_global("tag").expect("tag should be set");
+    assert_eq!(tag, Value::String("article".to_string()));
+}
+
+#[test]
 fn context_exposes_event_loop_drivers() {
     let engine = Engine::new();
     let mut ctx = engine.new_context();

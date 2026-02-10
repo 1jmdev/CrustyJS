@@ -70,11 +70,28 @@ impl Context {
     pub fn register_class(&mut self, class_def: NativeClassDef) {
         let class_name = class_def.name.clone();
         let constructor = class_def.constructor;
+        let methods = class_def.methods;
         self.set_global_function(class_name, move |args| {
-            if let Some(constructor) = &constructor {
-                return constructor.call(args);
+            let mut instance = if let Some(constructor) = &constructor {
+                constructor.call(args)?
+            } else {
+                JsValue::Object(JsObject::new().wrapped())
+            };
+
+            if let JsValue::Object(object) = &mut instance {
+                let mut object = object.borrow_mut();
+                for (name, callback) in &methods {
+                    object.set(
+                        name.clone(),
+                        JsValue::NativeFunction {
+                            name: name.clone(),
+                            handler: NativeFunction::Host(callback.clone()),
+                        },
+                    );
+                }
             }
-            Ok(JsValue::Object(JsObject::new().wrapped()))
+
+            Ok(instance)
         });
     }
 

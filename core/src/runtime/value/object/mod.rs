@@ -1,5 +1,8 @@
+pub mod exotic;
 mod property;
+pub mod property_descriptor;
 pub mod prototype;
+pub mod slots;
 
 pub use property::Property;
 
