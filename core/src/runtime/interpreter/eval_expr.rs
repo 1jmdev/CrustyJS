@@ -136,23 +136,7 @@ impl Interpreter {
                     match element {
                         Expr::Spread(inner) => {
                             let spread_val = self.eval_expr(inner)?;
-                            match spread_val {
-                                JsValue::Array(arr) => {
-                                    vals.extend(arr.borrow().elements.clone());
-                                }
-                                JsValue::String(s) => {
-                                    vals.extend(
-                                        s.chars().map(|ch| JsValue::String(ch.to_string())),
-                                    );
-                                }
-                                other => {
-                                    return Err(RuntimeError::TypeError {
-                                        message: format!(
-                                            "cannot spread non-iterable value {other}"
-                                        ),
-                                    });
-                                }
-                            }
+                            vals.extend(self.collect_iterable(&spread_val)?);
                         }
                         other => vals.push(self.eval_expr(other)?),
                     }

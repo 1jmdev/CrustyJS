@@ -120,14 +120,7 @@ impl Interpreter {
                 body,
             } => {
                 let iter_val = self.eval_expr(iterable)?;
-                let elements = match &iter_val {
-                    JsValue::Array(arr) => arr.borrow().elements.clone(),
-                    _ => {
-                        return Err(RuntimeError::TypeError {
-                            message: "for-of requires an iterable".to_string(),
-                        });
-                    }
-                };
+                let elements = self.collect_iterable(&iter_val)?;
                 self.env.push_scope();
                 self.env.define(variable.clone(), JsValue::Undefined);
                 for elem in &elements {
