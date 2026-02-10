@@ -66,6 +66,7 @@ pub enum JsValue {
         is_generator: bool,
         source_path: Option<String>,
         source_offset: usize,
+        properties: Option<Gc<GcCell<JsObject>>>,
     },
     NativeFunction {
         name: String,
@@ -167,9 +168,16 @@ impl Trace for NativeFunction {
 impl Trace for JsValue {
     fn trace(&self, tracer: &mut Tracer) {
         match self {
-            JsValue::Function { closure_env, .. } => {
+            JsValue::Function {
+                closure_env,
+                properties,
+                ..
+            } => {
                 for scope in closure_env {
                     tracer.mark(*scope);
+                }
+                if let Some(props) = properties {
+                    tracer.mark(*props);
                 }
             }
             JsValue::NativeFunction { handler, .. } => handler.trace(tracer),

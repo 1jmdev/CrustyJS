@@ -94,6 +94,7 @@ impl Interpreter {
                                     .last()
                                     .map(|p| p.display().to_string()),
                                 source_offset: 0,
+                                properties: None,
                             };
                             obj.set_getter(key, getter);
                         }
@@ -114,6 +115,7 @@ impl Interpreter {
                                     .last()
                                     .map(|p| p.display().to_string()),
                                 source_offset: 0,
+                                properties: None,
                             };
                             obj.set_setter(key, setter);
                         }
@@ -288,6 +290,7 @@ impl Interpreter {
                     is_generator: false,
                     source_path: self.module_stack.last().map(|p| p.display().to_string()),
                     source_offset: 0,
+                    properties: None,
                 })
             }
             Expr::OptionalChain { base, chain } => {
@@ -329,16 +332,23 @@ impl Interpreter {
                 body,
                 is_async,
                 is_generator,
-            } => Ok(JsValue::Function {
-                name: name.clone().unwrap_or_else(|| "<anonymous>".to_string()),
-                params: params.clone(),
-                body: body.clone(),
-                closure_env: self.env.capture(),
-                is_async: *is_async,
-                is_generator: *is_generator,
-                source_path: self.module_stack.last().map(|p| p.display().to_string()),
-                source_offset: 0,
-            }),
+            } => {
+                let proto = crate::runtime::value::object::JsObject::new();
+                let proto_gc = self.heap.alloc_cell(proto);
+                let mut fn_props = crate::runtime::value::object::JsObject::new();
+                fn_props.set("prototype".to_string(), JsValue::Object(proto_gc));
+                Ok(JsValue::Function {
+                    name: name.clone().unwrap_or_else(|| "<anonymous>".to_string()),
+                    params: params.clone(),
+                    body: body.clone(),
+                    closure_env: self.env.capture(),
+                    is_async: *is_async,
+                    is_generator: *is_generator,
+                    source_path: self.module_stack.last().map(|p| p.display().to_string()),
+                    source_offset: 0,
+                    properties: Some(self.heap.alloc_cell(fn_props)),
+                })
+            }
             Expr::TaggedTemplate { tag, parts } => {
                 let func = self.eval_expr(tag)?;
                 let mut strings = Vec::new();

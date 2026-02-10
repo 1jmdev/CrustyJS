@@ -71,6 +71,32 @@ impl Interpreter {
                     self.get_property(&target, key)
                 }
             }
+            JsValue::Function {
+                properties,
+                name,
+                params,
+                ..
+            } => {
+                if key == "name" {
+                    return Ok(JsValue::String(name.clone()));
+                }
+                if key == "length" {
+                    return Ok(JsValue::Number(params.len() as f64));
+                }
+                if let Some(props) = properties {
+                    let borrowed = props.borrow();
+                    if let Some(prop) = borrowed.properties.get(key) {
+                        return Ok(prop.value.clone());
+                    }
+                }
+                Ok(JsValue::Undefined)
+            }
+            JsValue::NativeFunction { name, .. } => {
+                if key == "name" {
+                    return Ok(JsValue::String(name.clone()));
+                }
+                Ok(JsValue::Undefined)
+            }
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot access property '{key}' on {obj_val}"),
             }),
@@ -134,6 +160,12 @@ impl Interpreter {
                 } else {
                     self.set_property(&target, key, value)
                 }
+            }
+            JsValue::Function { properties, .. } => {
+                if let Some(props) = properties {
+                    props.borrow_mut().set(key.to_string(), value);
+                }
+                Ok(())
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot set property '{key}' on {obj_val}"),

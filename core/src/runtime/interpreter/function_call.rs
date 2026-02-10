@@ -106,6 +106,7 @@ impl Interpreter {
                 is_generator,
                 source_path,
                 source_offset,
+                ..
             } => {
                 if *is_generator {
                     return self.create_generator_object(

@@ -84,6 +84,10 @@ impl Interpreter {
                 is_generator,
                 decl_offset,
             } => {
+                let proto = crate::runtime::value::object::JsObject::new();
+                let proto_gc = self.heap.alloc_cell(proto);
+                let mut fn_props = crate::runtime::value::object::JsObject::new();
+                fn_props.set("prototype".to_string(), JsValue::Object(proto_gc));
                 let func = JsValue::Function {
                     name: name.clone(),
                     params: params.clone(),
@@ -93,6 +97,7 @@ impl Interpreter {
                     is_generator: *is_generator,
                     source_path: self.module_stack.last().map(|p| p.display().to_string()),
                     source_offset: *decl_offset,
+                    properties: Some(self.heap.alloc_cell(fn_props)),
                 };
                 self.env.define(name.clone(), func);
                 Ok(ControlFlow::None)
