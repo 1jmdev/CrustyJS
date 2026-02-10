@@ -23,6 +23,13 @@ pub enum UnaryOp {
     Not,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum LogicalOp {
+    And,
+    Or,
+    Nullish,
+}
+
 /// Expression AST nodes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -66,6 +73,16 @@ pub enum Expr {
         object: Box<Expr>,
         property: Box<Expr>,
         value: Box<Expr>,
+    },
+    Logical {
+        left: Box<Expr>,
+        op: LogicalOp,
+        right: Box<Expr>,
+    },
+    Ternary {
+        condition: Box<Expr>,
+        then_expr: Box<Expr>,
+        else_expr: Box<Expr>,
     },
     ArrowFunction {
         params: Vec<String>,

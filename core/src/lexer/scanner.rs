@@ -102,6 +102,27 @@ impl<'src> Scanner<'src> {
             b'-' => TokenKind::Minus,
             b'*' => TokenKind::Star,
             b'/' => TokenKind::Slash,
+            b'&' => {
+                if self.cursor.match_char(b'&') {
+                    TokenKind::AmpAmp
+                } else {
+                    return Err(SyntaxError::new("unexpected '&'", start, 1));
+                }
+            }
+            b'|' => {
+                if self.cursor.match_char(b'|') {
+                    TokenKind::PipePipe
+                } else {
+                    return Err(SyntaxError::new("unexpected '|'", start, 1));
+                }
+            }
+            b'?' => {
+                if self.cursor.match_char(b'?') {
+                    TokenKind::NullishCoalescing
+                } else {
+                    TokenKind::Question
+                }
+            }
             b'<' => {
                 if self.cursor.match_char(b'=') {
                     TokenKind::LessEq

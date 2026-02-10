@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{ArrowBody, BinOp, Expr, Literal, Stmt, TemplatePart, UnaryOp};
+use crate::parser::ast::{ArrowBody, BinOp, Expr, Literal, LogicalOp, Stmt, TemplatePart, UnaryOp};
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
@@ -71,6 +71,43 @@ impl Interpreter {
                 let val = self.eval_expr(value)?;
                 self.set_property(&obj_val, &key, val.clone())?;
                 Ok(val)
+            }
+            Expr::Logical { left, op, right } => {
+                let lhs = self.eval_expr(left)?;
+                match op {
+                    LogicalOp::And => {
+                        if lhs.to_boolean() {
+                            self.eval_expr(right)
+                        } else {
+                            Ok(lhs)
+                        }
+                    }
+                    LogicalOp::Or => {
+                        if lhs.to_boolean() {
+                            Ok(lhs)
+                        } else {
+                            self.eval_expr(right)
+                        }
+                    }
+                    LogicalOp::Nullish => {
+                        if matches!(lhs, JsValue::Null | JsValue::Undefined) {
+                            self.eval_expr(right)
+                        } else {
+                            Ok(lhs)
+                        }
+                    }
+                }
+            }
+            Expr::Ternary {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
+                if self.eval_expr(condition)?.to_boolean() {
+                    self.eval_expr(then_expr)
+                } else {
+                    self.eval_expr(else_expr)
+                }
             }
             Expr::ArrowFunction { params, body } => {
                 let body = match body {

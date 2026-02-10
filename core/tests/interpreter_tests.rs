@@ -114,3 +114,30 @@ fn unary_negation() {
     let output = run_and_capture("console.log(-5 + 3);");
     assert_eq!(output, vec!["-2"]);
 }
+
+#[test]
+fn logical_and_or_nullish() {
+    let output = run_and_capture(
+        r#"
+        console.log(true && "yes");
+        console.log(false && "no");
+        console.log("left" || "right");
+        console.log("" || "fallback");
+        console.log(null ?? "n");
+        console.log(0 ?? 42);
+        "#,
+    );
+    assert_eq!(output, vec!["yes", "false", "left", "fallback", "n", "0"]);
+}
+
+#[test]
+fn ternary_expression() {
+    let output = run_and_capture(
+        r#"
+        let x = 3;
+        console.log(x > 2 ? "big" : "small");
+        console.log(x < 2 ? 1 : 0);
+        "#,
+    );
+    assert_eq!(output, vec!["big", "0"]);
+}

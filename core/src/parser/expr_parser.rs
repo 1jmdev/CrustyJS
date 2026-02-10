@@ -1,24 +1,35 @@
-use super::ast::{BinOp, Expr, Literal, UnaryOp};
+use super::ast::{BinOp, Expr, Literal, LogicalOp, UnaryOp};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
 fn infix_binding_power(kind: &TokenKind) -> Option<(u8, u8)> {
     match kind {
-        TokenKind::EqEqEq | TokenKind::NotEqEq => Some((3, 4)),
+        TokenKind::PipePipe | TokenKind::NullishCoalescing => Some((1, 2)),
+        TokenKind::AmpAmp => Some((2, 3)),
+        TokenKind::EqEqEq | TokenKind::NotEqEq => Some((4, 5)),
         TokenKind::Less | TokenKind::LessEq | TokenKind::Greater | TokenKind::GreaterEq => {
-            Some((5, 6))
+            Some((6, 7))
         }
-        TokenKind::Plus | TokenKind::Minus => Some((7, 8)),
-        TokenKind::Star | TokenKind::Slash => Some((9, 10)),
+        TokenKind::Plus | TokenKind::Minus => Some((8, 9)),
+        TokenKind::Star | TokenKind::Slash => Some((10, 11)),
         _ => None,
     }
 }
 
 fn prefix_binding_power(kind: &TokenKind) -> Option<u8> {
     match kind {
-        TokenKind::Minus | TokenKind::Bang => Some(11),
+        TokenKind::Minus | TokenKind::Bang => Some(12),
         _ => None,
+    }
+}
+
+fn token_to_logical_op(kind: &TokenKind) -> LogicalOp {
+    match kind {
+        TokenKind::AmpAmp => LogicalOp::And,
+        TokenKind::PipePipe => LogicalOp::Or,
+        TokenKind::NullishCoalescing => LogicalOp::Nullish,
+        _ => unreachable!("not a logical operator: {:?}", kind),
     }
 }
 
@@ -103,13 +114,33 @@ impl Parser {
             }
 
             let op_token = self.advance().kind.clone();
-            let op = token_to_binop(&op_token);
             let rhs = self.parse_expr(r_bp)?;
 
-            lhs = Expr::Binary {
-                left: Box::new(lhs),
-                op,
-                right: Box::new(rhs),
+            lhs = match op_token {
+                TokenKind::AmpAmp | TokenKind::PipePipe | TokenKind::NullishCoalescing => {
+                    Expr::Logical {
+                        left: Box::new(lhs),
+                        op: token_to_logical_op(&op_token),
+                        right: Box::new(rhs),
+                    }
+                }
+                _ => Expr::Binary {
+                    left: Box::new(lhs),
+                    op: token_to_binop(&op_token),
+                    right: Box::new(rhs),
+                },
+            };
+        }
+
+        if min_bp == 0 && self.check(&TokenKind::Question) {
+            self.advance();
+            let then_expr = self.parse_expr(0)?;
+            self.expect(&TokenKind::Colon)?;
+            let else_expr = self.parse_expr(0)?;
+            lhs = Expr::Ternary {
+                condition: Box::new(lhs),
+                then_expr: Box::new(then_expr),
+                else_expr: Box::new(else_expr),
             };
         }
 
