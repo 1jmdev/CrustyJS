@@ -3,6 +3,8 @@ use crate::errors::RuntimeError;
 use crate::parser::ast::{AssignOp, BinOp, Literal, PropertyKey, UnaryOp};
 use crate::runtime::value::JsValue;
 use crate::runtime::value::abstract_equals;
+use crate::runtime::value::iterator::get_property_simple;
+use crate::runtime::value::symbol;
 
 impl Interpreter {
     pub(crate) fn eval_call_args(
@@ -14,17 +16,7 @@ impl Interpreter {
             match arg {
                 crate::parser::ast::Expr::Spread(inner) => {
                     let spread_val = self.eval_expr(inner)?;
-                    match spread_val {
-                        JsValue::Array(arr) => values.extend(arr.borrow().elements.clone()),
-                        JsValue::String(s) => {
-                            values.extend(s.chars().map(|ch| JsValue::String(ch.to_string())))
-                        }
-                        other => {
-                            return Err(RuntimeError::TypeError {
-                                message: format!("cannot spread non-iterable value {other}"),
-                            });
-                        }
-                    }
+                    values.extend(self.collect_iterable(&spread_val)?);
                 }
                 other => values.push(self.eval_expr(other)?),
             }
@@ -36,6 +28,51 @@ impl Interpreter {
         match key {
             PropertyKey::Identifier(name) => Ok(name.clone()),
             PropertyKey::Computed(expr) => Ok(self.eval_expr(expr)?.to_js_string()),
+        }
+    }
+
+    pub(crate) fn collect_iterable(
+        &mut self,
+        value: &JsValue,
+    ) -> Result<Vec<JsValue>, RuntimeError> {
+        match value {
+            JsValue::Array(arr) => Ok(arr.borrow().elements.clone()),
+            JsValue::String(s) => Ok(s
+                .chars()
+                .map(|ch| JsValue::String(ch.to_string()))
+                .collect()),
+            JsValue::Object(obj) => {
+                let iter_sym = symbol::symbol_iterator();
+                let method = obj.borrow().get_symbol(&iter_sym);
+                let Some(iter_fn) = method else {
+                    return Err(RuntimeError::TypeError {
+                        message: "object is not iterable".to_string(),
+                    });
+                };
+                let iterator = self.call_function(&iter_fn, &[])?;
+                let mut results = Vec::new();
+                loop {
+                    let next_fn = get_property_simple(&iterator, "next").ok_or_else(|| {
+                        RuntimeError::TypeError {
+                            message: "iterator has no next method".to_string(),
+                        }
+                    })?;
+                    let result =
+                        self.call_function_with_this(&next_fn, &[], Some(iterator.clone()))?;
+                    let done = get_property_simple(&result, "done")
+                        .map(|v| v.to_boolean())
+                        .unwrap_or(false);
+                    if done {
+                        break;
+                    }
+                    let val = get_property_simple(&result, "value").unwrap_or(JsValue::Undefined);
+                    results.push(val);
+                }
+                Ok(results)
+            }
+            _ => Err(RuntimeError::TypeError {
+                message: format!("{value} is not iterable"),
+            }),
         }
     }
 }

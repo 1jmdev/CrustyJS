@@ -1,6 +1,7 @@
 pub mod array;
 mod coercion;
 mod display;
+pub mod iterator;
 pub mod object;
 pub mod promise;
 pub mod string_methods;
