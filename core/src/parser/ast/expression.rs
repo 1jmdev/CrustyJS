@@ -129,6 +129,17 @@ pub enum Expr {
         body: ArrowBody,
         is_async: bool,
     },
+    OptionalChain {
+        base: Box<Expr>,
+        chain: Vec<OptionalOp>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OptionalOp {
+    PropertyAccess(String),
+    ComputedAccess(Expr),
+    Call(Vec<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

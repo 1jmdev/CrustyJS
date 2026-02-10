@@ -91,6 +91,7 @@ pub enum TokenKind {
     AmpAmp,
     PipePipe,
     NullishCoalescing,
+    QuestionDot,
     Question,
     EqEqEq,
     NotEqEq,

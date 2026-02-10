@@ -7,8 +7,8 @@ mod statement;
 
 pub use class::{ClassDecl, ClassMethod, ClassMethodKind};
 pub use expression::{
-    ArrowBody, AssignOp, BinOp, Expr, LogicalOp, ObjectProperty, PropertyKey, TemplatePart,
-    UnaryOp, UpdateOp,
+    ArrowBody, AssignOp, BinOp, Expr, LogicalOp, ObjectProperty, OptionalOp, PropertyKey,
+    TemplatePart, UnaryOp, UpdateOp,
 };
 pub use literal::Literal;
 pub use module::{ExportDecl, ExportSpecifier, ImportDecl, ImportSpecifier};

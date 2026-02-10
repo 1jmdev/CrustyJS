@@ -2,7 +2,7 @@ use super::eval_expr_helpers::{eval_binary, eval_compound, eval_literal, eval_un
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
-    ArrowBody, BinOp, Expr, LogicalOp, ObjectProperty, Stmt, TemplatePart, UpdateOp,
+    ArrowBody, BinOp, Expr, LogicalOp, ObjectProperty, OptionalOp, Stmt, TemplatePart, UpdateOp,
 };
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
@@ -254,6 +254,31 @@ impl Interpreter {
                     source_path: self.module_stack.last().map(|p| p.display().to_string()),
                     source_offset: 0,
                 })
+            }
+            Expr::OptionalChain { base, chain } => {
+                let mut current = self.eval_expr(base)?;
+                for op in chain {
+                    if matches!(current, JsValue::Null | JsValue::Undefined) {
+                        return Ok(JsValue::Undefined);
+                    }
+
+                    current = match op {
+                        OptionalOp::PropertyAccess(name) => self.get_property(&current, name)?,
+                        OptionalOp::ComputedAccess(expr) => {
+                            let key = self.eval_expr(expr)?.to_js_string();
+                            self.get_property(&current, &key)?
+                        }
+                        OptionalOp::Call(args) => {
+                            let arg_values = args
+                                .iter()
+                                .map(|arg| self.eval_expr(arg))
+                                .collect::<Result<Vec<_>, _>>()?;
+                            self.call_function(&current, &arg_values)?
+                        }
+                    };
+                }
+
+                Ok(current)
             }
         }
     }

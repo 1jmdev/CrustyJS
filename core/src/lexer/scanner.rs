@@ -161,6 +161,8 @@ impl<'src> Scanner<'src> {
             b'?' => {
                 if self.cursor.match_char(b'?') {
                     TokenKind::NullishCoalescing
+                } else if self.cursor.match_char(b'.') {
+                    TokenKind::QuestionDot
                 } else {
                     TokenKind::Question
                 }

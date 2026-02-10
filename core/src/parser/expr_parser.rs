@@ -1,4 +1,4 @@
-use super::ast::{Expr, Literal, UnaryOp, UpdateOp};
+use super::ast::{Expr, Literal, OptionalOp, UnaryOp, UpdateOp};
 use super::expr_ops::{
     infix_binding_power, prefix_binding_power, token_to_binop, token_to_logical_op,
 };
@@ -24,7 +24,8 @@ impl Parser {
                 TokenKind::Dot => {
                     self.advance();
                     let property = self.expect_property_name()?;
-                    if self.check(&TokenKind::Assign) {
+                    if self.check(&TokenKind::Assign) && !matches!(lhs, Expr::OptionalChain { .. })
+                    {
                         self.advance();
                         let value = self.parse_expr(0)?;
                         Expr::MemberAssign {
@@ -39,11 +40,33 @@ impl Parser {
                         }
                     }
                 }
+                TokenKind::QuestionDot => {
+                    self.advance();
+                    match self.peek() {
+                        TokenKind::LeftParen => {
+                            self.advance();
+                            let args = self.parse_call_args()?;
+                            self.expect(&TokenKind::RightParen)?;
+                            self.push_optional_op(lhs, OptionalOp::Call(args))
+                        }
+                        TokenKind::LeftBracket => {
+                            self.advance();
+                            let prop_expr = self.parse_expr(0)?;
+                            self.expect(&TokenKind::RightBracket)?;
+                            self.push_optional_op(lhs, OptionalOp::ComputedAccess(prop_expr))
+                        }
+                        _ => {
+                            let property = self.expect_property_name()?;
+                            self.push_optional_op(lhs, OptionalOp::PropertyAccess(property))
+                        }
+                    }
+                }
                 TokenKind::LeftBracket => {
                     self.advance();
                     let prop_expr = self.parse_expr(0)?;
                     self.expect(&TokenKind::RightBracket)?;
-                    if self.check(&TokenKind::Assign) {
+                    if self.check(&TokenKind::Assign) && !matches!(lhs, Expr::OptionalChain { .. })
+                    {
                         self.advance();
                         let value = self.parse_expr(0)?;
                         Expr::MemberAssign {
@@ -250,5 +273,18 @@ impl Parser {
             }
         }
         Ok(args)
+    }
+
+    fn push_optional_op(&self, lhs: Expr, op: OptionalOp) -> Expr {
+        match lhs {
+            Expr::OptionalChain { base, mut chain } => {
+                chain.push(op);
+                Expr::OptionalChain { base, chain }
+            }
+            base => Expr::OptionalChain {
+                base: Box::new(base),
+                chain: vec![op],
+            },
+        }
     }
 }
