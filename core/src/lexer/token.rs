@@ -49,6 +49,8 @@ pub enum TokenKind {
     Else,
     Return,
     While,
+    For,
+    Of,
 
     // Operators
     Plus,

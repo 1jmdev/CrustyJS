@@ -10,6 +10,7 @@ impl Parser {
             TokenKind::Function => self.parse_function_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::While => self.parse_while(),
+            TokenKind::For => self.parse_for(),
             TokenKind::Return => self.parse_return(),
             TokenKind::LeftBrace => self.parse_block_stmt(),
             _ => self.parse_expr_stmt(),
@@ -108,5 +109,69 @@ impl Parser {
         let expr = self.parse_expr(0)?;
         self.expect(&TokenKind::Semicolon)?;
         Ok(Stmt::ExprStmt(expr))
+    }
+
+    fn parse_for(&mut self) -> Result<Stmt, SyntaxError> {
+        self.advance(); // consume 'for'
+        self.expect(&TokenKind::LeftParen)?;
+
+        // Check for `for (let x of iterable)`
+        if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
+            let saved_pos = self.pos;
+            self.advance(); // consume let/const
+            if let TokenKind::Ident(_) = self.peek() {
+                let name = self.expect_ident()?;
+                if self.check(&TokenKind::Of) {
+                    self.advance(); // consume 'of'
+                    let iterable = self.parse_expr(0)?;
+                    self.expect(&TokenKind::RightParen)?;
+                    let body = Box::new(self.parse_statement()?);
+                    return Ok(Stmt::ForOf {
+                        variable: name,
+                        iterable,
+                        body,
+                    });
+                }
+                // Not for-of, rewind and parse as regular for
+                self.pos = saved_pos;
+            } else {
+                self.pos = saved_pos;
+            }
+        }
+
+        // Regular for loop: for (init; cond; update)
+        let init = if self.check(&TokenKind::Semicolon) {
+            self.advance();
+            None
+        } else {
+            let stmt = if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
+                self.parse_var_decl()?
+            } else {
+                self.parse_expr_stmt()?
+            };
+            Some(Box::new(stmt))
+        };
+
+        let condition = if self.check(&TokenKind::Semicolon) {
+            None
+        } else {
+            Some(self.parse_expr(0)?)
+        };
+        self.expect(&TokenKind::Semicolon)?;
+
+        let update = if self.check(&TokenKind::RightParen) {
+            None
+        } else {
+            Some(self.parse_expr(0)?)
+        };
+        self.expect(&TokenKind::RightParen)?;
+
+        let body = Box::new(self.parse_statement()?);
+        Ok(Stmt::ForLoop {
+            init,
+            condition,
+            update,
+            body,
+        })
     }
 }

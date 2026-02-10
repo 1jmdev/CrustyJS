@@ -72,6 +72,59 @@ impl Interpreter {
                 };
                 Ok(ControlFlow::Return(value))
             }
+            Stmt::ForLoop {
+                init,
+                condition,
+                update,
+                body,
+            } => {
+                self.env.push_scope();
+                if let Some(init_stmt) = init {
+                    self.eval_stmt(init_stmt)?;
+                }
+                loop {
+                    if let Some(cond) = condition {
+                        if !self.eval_expr(cond)?.to_boolean() {
+                            break;
+                        }
+                    }
+                    if let ControlFlow::Return(v) = self.eval_stmt(body)? {
+                        self.env.pop_scope();
+                        return Ok(ControlFlow::Return(v));
+                    }
+                    if let Some(upd) = update {
+                        self.eval_expr(upd)?;
+                    }
+                }
+                self.env.pop_scope();
+                Ok(ControlFlow::None)
+            }
+            Stmt::ForOf {
+                variable,
+                iterable,
+                body,
+            } => {
+                let iter_val = self.eval_expr(iterable)?;
+                let elements = match &iter_val {
+                    JsValue::Array(arr) => arr.borrow().elements.clone(),
+                    _ => {
+                        return Err(RuntimeError::TypeError {
+                            message: "for-of requires an iterable".to_string(),
+                        })
+                    }
+                };
+                self.env.push_scope();
+                self.env.define(variable.clone(), JsValue::Undefined);
+                for elem in &elements {
+                    self.env.set(variable, elem.clone())?;
+                    if let ControlFlow::Return(v) = self.eval_stmt(body)? {
+                        self.env.pop_scope();
+                        return Ok(ControlFlow::Return(v));
+                    }
+                }
+                self.env.pop_scope();
+                Ok(ControlFlow::None)
+            }
         }
     }
 }

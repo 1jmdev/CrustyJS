@@ -165,3 +165,56 @@ fn array_for_each_with_function() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["10", "20", "30"]);
 }
+
+#[test]
+fn for_loop_basic() {
+    let src = r#"
+        let sum = 0;
+        for (let i = 0; i < 5; i = i + 1) {
+            sum = sum + i;
+        }
+        console.log(sum);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["10"]);
+}
+
+#[test]
+fn for_loop_array_iteration() {
+    let src = r#"
+        let arr = [10, 20, 30];
+        let sum = 0;
+        for (let i = 0; i < arr.length; i = i + 1) {
+            sum = sum + arr[i];
+        }
+        console.log(sum);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["60"]);
+}
+
+#[test]
+fn for_of_array() {
+    let src = r#"
+        let arr = [1, 2, 3];
+        let sum = 0;
+        for (let item of arr) {
+            sum = sum + item;
+        }
+        console.log(sum);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["6"]);
+}
+
+#[test]
+fn for_of_with_console_log() {
+    let src = r#"
+        let arr = ["a", "b", "c"];
+        for (let x of arr) {
+            console.log(x);
+        }
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["a", "b", "c"]);
+}

@@ -195,6 +195,8 @@ impl<'src> Scanner<'src> {
             "else" => TokenKind::Else,
             "return" => TokenKind::Return,
             "while" => TokenKind::While,
+            "for" => TokenKind::For,
+            "of" => TokenKind::Of,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
             "null" => TokenKind::Null,

@@ -24,4 +24,15 @@ pub enum Stmt {
         body: Vec<Stmt>,
     },
     Return(Option<Expr>),
+    ForLoop {
+        init: Option<Box<Stmt>>,
+        condition: Option<Expr>,
+        update: Option<Expr>,
+        body: Box<Stmt>,
+    },
+    ForOf {
+        variable: String,
+        iterable: Expr,
+        body: Box<Stmt>,
+    },
 }
