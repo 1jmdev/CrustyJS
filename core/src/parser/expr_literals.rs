@@ -1,4 +1,4 @@
-use super::ast::{ArrowBody, AssignOp, Expr, TemplatePart};
+use super::ast::{ArrowBody, AssignOp, Expr, Param, Pattern, TemplatePart};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
@@ -29,7 +29,10 @@ impl Parser {
             self.advance();
             let body = self.parse_arrow_body()?;
             Ok(Expr::ArrowFunction {
-                params: vec![name],
+                params: vec![Param {
+                    pattern: Pattern::Identifier(name),
+                    default: None,
+                }],
                 body,
             })
         } else if self.check(&TokenKind::PlusEquals)
@@ -67,8 +70,10 @@ impl Parser {
 
     pub(crate) fn parse_paren_or_arrow(&mut self) -> Result<Expr, SyntaxError> {
         let after_lparen = self.pos;
-        if let Some((params, next_pos)) = self.scan_arrow_params(after_lparen) {
-            self.pos = next_pos;
+        if self.scan_arrow_signature(after_lparen) {
+            let params = self.parse_params_list()?;
+            self.expect(&TokenKind::RightParen)?;
+            self.expect(&TokenKind::Arrow)?;
             let body = self.parse_arrow_body()?;
             return Ok(Expr::ArrowFunction { params, body });
         }
@@ -91,6 +96,13 @@ impl Parser {
                 let params = self.parse_method_params()?;
                 self.expect(&TokenKind::RightParen)?;
                 let body = self.parse_block()?;
+                let params = params
+                    .into_iter()
+                    .map(|name| Param {
+                        pattern: Pattern::Identifier(name),
+                        default: None,
+                    })
+                    .collect();
                 Expr::ArrowFunction {
                     params,
                     body: ArrowBody::Block(body),
@@ -175,40 +187,5 @@ impl Parser {
             }
         }
         Ok(params)
-    }
-
-    fn scan_arrow_params(&self, start_pos: usize) -> Option<(Vec<String>, usize)> {
-        let mut params = Vec::new();
-        let mut i = start_pos;
-
-        if matches!(&self.tokens[i].kind, TokenKind::RightParen) {
-            i += 1;
-        } else {
-            loop {
-                match &self.tokens[i].kind {
-                    TokenKind::Ident(name) => params.push(name.clone()),
-                    _ => return None,
-                }
-                i += 1;
-
-                if matches!(&self.tokens[i].kind, TokenKind::Comma) {
-                    i += 1;
-                    continue;
-                }
-                break;
-            }
-
-            if !matches!(&self.tokens[i].kind, TokenKind::RightParen) {
-                return None;
-            }
-            i += 1;
-        }
-
-        if !matches!(&self.tokens[i].kind, TokenKind::Arrow) {
-            return None;
-        }
-        i += 1;
-
-        Some((params, i))
     }
 }

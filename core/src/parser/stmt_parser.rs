@@ -22,7 +22,7 @@ impl Parser {
 
     fn parse_var_decl(&mut self) -> Result<Stmt, SyntaxError> {
         self.advance(); // consume 'let' or 'const'
-        let name = self.expect_ident()?;
+        let pattern = self.parse_pattern()?;
         let init = if self.check(&TokenKind::Assign) {
             self.advance(); // consume '='
             Some(self.parse_expr(0)?)
@@ -30,7 +30,7 @@ impl Parser {
             None
         };
         self.consume_stmt_terminator()?;
-        Ok(Stmt::VarDecl { name, init })
+        Ok(Stmt::VarDecl { pattern, init })
     }
 
     fn parse_function_decl(&mut self) -> Result<Stmt, SyntaxError> {
@@ -38,14 +38,7 @@ impl Parser {
         let name = self.expect_ident()?;
         self.expect(&TokenKind::LeftParen)?;
 
-        let mut params = Vec::new();
-        if !self.check(&TokenKind::RightParen) {
-            params.push(self.expect_ident()?);
-            while self.check(&TokenKind::Comma) {
-                self.advance(); // consume ','
-                params.push(self.expect_ident()?);
-            }
-        }
+        let params = self.parse_params_list()?;
         self.expect(&TokenKind::RightParen)?;
 
         let body = self.parse_block()?;

@@ -95,7 +95,13 @@ impl<'src> Scanner<'src> {
             }
             b',' => TokenKind::Comma,
             b';' => TokenKind::Semicolon,
-            b'.' => TokenKind::Dot,
+            b'.' => {
+                if self.cursor.match_char(b'.') && self.cursor.match_char(b'.') {
+                    TokenKind::DotDotDot
+                } else {
+                    TokenKind::Dot
+                }
+            }
             b':' => TokenKind::Colon,
             b'[' => TokenKind::LeftBracket,
             b']' => TokenKind::RightBracket,

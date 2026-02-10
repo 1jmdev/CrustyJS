@@ -1,5 +1,5 @@
 use crustyjs::lexer::lex;
-use crustyjs::parser::ast::{BinOp, Expr, Literal, Stmt};
+use crustyjs::parser::ast::{BinOp, Expr, Literal, Param, Pattern, Stmt};
 use crustyjs::parser::parse;
 
 fn parse_source(source: &str) -> Vec<Stmt> {
@@ -15,7 +15,7 @@ fn parse_variable_declaration() {
     assert_eq!(
         stmts[0],
         Stmt::VarDecl {
-            name: "x".into(),
+            pattern: Pattern::Identifier("x".into()),
             init: Some(Expr::Literal(Literal::Number(42.0))),
         }
     );
@@ -52,7 +52,13 @@ fn parse_function_declaration() {
     match &stmts[0] {
         Stmt::FunctionDecl { name, params, body } => {
             assert_eq!(name, "fib");
-            assert_eq!(params, &["n".to_string()]);
+            assert_eq!(
+                params,
+                &[Param {
+                    pattern: Pattern::Identifier("n".to_string()),
+                    default: None,
+                }]
+            );
             assert_eq!(body.len(), 1);
         }
         other => panic!("expected FunctionDecl, got {:?}", other),

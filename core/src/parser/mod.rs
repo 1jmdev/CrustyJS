@@ -3,6 +3,7 @@ mod class_parser;
 mod expr_literals;
 mod expr_ops;
 mod expr_parser;
+mod pattern_parser;
 mod stmt_parser;
 
 use crate::errors::SyntaxError;

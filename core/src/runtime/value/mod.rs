@@ -9,7 +9,7 @@ pub use coercion::abstract_equals;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::parser::ast::Stmt;
+use crate::parser::ast::{Param, Stmt};
 use crate::runtime::environment::Scope;
 use array::JsArray;
 use object::JsObject;
@@ -23,7 +23,7 @@ pub enum JsValue {
     String(String),
     Function {
         name: String,
-        params: Vec<String>,
+        params: Vec<Param>,
         body: Vec<Stmt>,
         closure_env: Vec<Rc<RefCell<Scope>>>,
     },

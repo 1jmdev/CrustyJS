@@ -101,6 +101,7 @@ pub enum TokenKind {
     Comma,
     Semicolon,
     Dot,
+    DotDotDot,
     Colon,
 
     // Special

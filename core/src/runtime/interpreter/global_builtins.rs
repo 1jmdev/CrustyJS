@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::Expr;
+use crate::parser::ast::{Expr, Param, Pattern};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
@@ -8,7 +8,10 @@ impl Interpreter {
     pub(crate) fn init_builtins(&mut self) {
         let error_ctor = JsValue::Function {
             name: "Error".to_string(),
-            params: vec!["message".to_string()],
+            params: vec![Param {
+                pattern: Pattern::Identifier("message".to_string()),
+                default: None,
+            }],
             body: Vec::new(),
             closure_env: self.env.capture(),
         };

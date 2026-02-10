@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{ClassDecl, ClassMethod, Expr};
+use crate::parser::ast::{ClassDecl, ClassMethod, Expr, Param, Pattern};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
@@ -184,9 +184,17 @@ impl Interpreter {
     }
 
     fn method_to_function(&self, method: &ClassMethod, class_name: &str) -> JsValue {
+        let params = method
+            .params
+            .iter()
+            .map(|name| Param {
+                pattern: Pattern::Identifier(name.clone()),
+                default: None,
+            })
+            .collect();
         JsValue::Function {
             name: format!("{class_name}::{}", method.name),
-            params: method.params.clone(),
+            params,
             body: method.body.clone(),
             closure_env: self.env.capture(),
         }

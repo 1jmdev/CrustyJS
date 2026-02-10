@@ -1,4 +1,5 @@
 use super::literal::Literal;
+use super::pattern::Param;
 use super::statement::Stmt;
 
 /// Binary operator kinds.
@@ -122,7 +123,7 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     ArrowFunction {
-        params: Vec<String>,
+        params: Vec<Param>,
         body: ArrowBody,
     },
 }

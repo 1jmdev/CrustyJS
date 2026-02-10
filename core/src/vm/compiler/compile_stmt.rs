@@ -6,17 +6,23 @@ use crate::vm::bytecode::{Opcode, VmFunction, VmValue};
 impl Compiler {
     pub fn compile_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::VarDecl { name, init } => {
+            Stmt::VarDecl { pattern, init } => {
+                let Some(name) = pattern.as_identifier() else {
+                    self.chunk.write(Opcode::RunTreeWalk, 0);
+                    return;
+                };
+
                 if let Some(expr) = init {
                     self.compile_expr(expr);
                 } else {
                     self.chunk.write(Opcode::Nil, 0);
                 }
+
                 if self.scope_depth > 0 {
-                    let local_idx = self.define_local(name.clone());
+                    let local_idx = self.define_local(name.to_string());
                     self.chunk.write(Opcode::SetLocal(local_idx), 0);
                 } else {
-                    let idx = self.chunk.add_constant(VmValue::String(name.clone()));
+                    let idx = self.chunk.add_constant(VmValue::String(name.to_string()));
                     self.chunk.write(Opcode::SetGlobal(idx), 0);
                 }
             }
@@ -75,7 +81,11 @@ impl Compiler {
                 let mut fn_compiler = Compiler::new();
                 fn_compiler.scope_depth = 1;
                 for param in params {
-                    fn_compiler.define_local(param.clone());
+                    let Some(param_name) = param.pattern.as_identifier() else {
+                        self.chunk.write(Opcode::RunTreeWalk, 0);
+                        return;
+                    };
+                    fn_compiler.define_local(param_name.to_string());
                 }
                 for stmt in body {
                     fn_compiler.compile_stmt(stmt);

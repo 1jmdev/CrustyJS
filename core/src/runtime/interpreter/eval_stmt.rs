@@ -11,12 +11,12 @@ impl Interpreter {
                 self.eval_expr(expr)?;
                 Ok(ControlFlow::None)
             }
-            Stmt::VarDecl { name, init } => {
+            Stmt::VarDecl { pattern, init } => {
                 let value = match init {
                     Some(expr) => self.eval_expr(expr)?,
                     None => JsValue::Undefined,
                 };
-                self.env.define(name.clone(), value);
+                self.eval_pattern_binding(pattern, value)?;
                 Ok(ControlFlow::None)
             }
             Stmt::Block(stmts) => self.eval_block(stmts),

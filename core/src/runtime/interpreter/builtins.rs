@@ -126,21 +126,20 @@ impl Interpreter {
                 closure_env,
                 ..
             } => {
-                if params.len() != args.len() {
-                    return Err(RuntimeError::ArityMismatch {
-                        expected: params.len(),
-                        got: args.len(),
-                    });
-                }
-
                 let params = params.clone();
                 let body = body.clone();
                 let captured = closure_env.clone();
                 let saved_scopes = self.env.replace_scopes(captured);
 
                 self.env.push_scope_with_this(this_binding);
-                for (param, value) in params.iter().zip(args) {
-                    self.env.define(param.clone(), value.clone());
+                for (idx, param) in params.iter().enumerate() {
+                    let mut value = args.get(idx).cloned().unwrap_or(JsValue::Undefined);
+                    if matches!(value, JsValue::Undefined) {
+                        if let Some(default_expr) = &param.default {
+                            value = self.eval_expr(default_expr)?;
+                        }
+                    }
+                    self.eval_pattern_binding(&param.pattern, value)?;
                 }
 
                 let mut result = JsValue::Undefined;

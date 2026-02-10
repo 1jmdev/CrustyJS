@@ -1,12 +1,13 @@
 use super::class::ClassDecl;
 use super::expression::Expr;
+use super::pattern::{Param, Pattern};
 
 /// Statement AST nodes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     ExprStmt(Expr),
     VarDecl {
-        name: String,
+        pattern: Pattern,
         init: Option<Expr>,
     },
     Block(Vec<Stmt>),
@@ -21,7 +22,7 @@ pub enum Stmt {
     },
     FunctionDecl {
         name: String,
-        params: Vec<String>,
+        params: Vec<Param>,
         body: Vec<Stmt>,
     },
     Return(Option<Expr>),
