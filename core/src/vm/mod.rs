@@ -1,6 +1,7 @@
 pub mod bytecode;
 pub mod compiler;
 pub mod machine;
+pub mod optimizer;
 
 use crate::errors::CrustyError;
 use crate::lexer;
