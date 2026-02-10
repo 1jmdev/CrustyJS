@@ -38,6 +38,11 @@ pub enum Stmt {
         iterable: Expr,
         body: Box<Stmt>,
     },
+    ForIn {
+        variable: String,
+        object: Expr,
+        body: Box<Stmt>,
+    },
     TryCatch {
         try_block: Vec<Stmt>,
         catch_param: Option<String>,

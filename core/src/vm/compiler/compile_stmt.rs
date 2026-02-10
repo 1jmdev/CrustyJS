@@ -114,6 +114,7 @@ impl Compiler {
             }
             Stmt::ForLoop { .. }
             | Stmt::ForOf { .. }
+            | Stmt::ForIn { .. }
             | Stmt::Break
             | Stmt::TryCatch { .. }
             | Stmt::Throw(_)

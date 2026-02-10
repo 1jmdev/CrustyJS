@@ -127,6 +127,36 @@ impl Interpreter {
                 self.env.pop_scope();
                 Ok(ControlFlow::None)
             }
+            Stmt::ForIn {
+                variable,
+                object,
+                body,
+            } => {
+                let source = self.eval_expr(object)?;
+                let keys: Vec<String> = match source {
+                    JsValue::Object(obj) => obj.borrow().properties.keys().cloned().collect(),
+                    JsValue::Array(arr) => (0..arr.borrow().len()).map(|i| i.to_string()).collect(),
+                    JsValue::String(s) => (0..s.chars().count()).map(|i| i.to_string()).collect(),
+                    _ => Vec::new(),
+                };
+
+                self.env.push_scope();
+                self.env
+                    .define(variable.clone(), JsValue::String(String::new()));
+                for key in keys {
+                    self.env.set(variable, JsValue::String(key))?;
+                    match self.eval_stmt(body)? {
+                        ControlFlow::Return(v) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Return(v));
+                        }
+                        ControlFlow::Break => break,
+                        ControlFlow::None => {}
+                    }
+                }
+                self.env.pop_scope();
+                Ok(ControlFlow::None)
+            }
             Stmt::Throw(expr) => {
                 let value = self.eval_expr(expr)?;
                 Err(JsException::new(value).into_runtime_error())

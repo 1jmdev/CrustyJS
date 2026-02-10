@@ -238,3 +238,13 @@ fn parse_computed_property_name() {
         other => panic!("expected object literal var decl, got {other:?}"),
     }
 }
+
+#[test]
+fn parse_for_in_statement() {
+    let stmts = parse_source("for (let key in obj) { console.log(key); }");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ForIn { variable, .. } => assert_eq!(variable, "key"),
+        other => panic!("expected for-in statement, got {other:?}"),
+    }
+}

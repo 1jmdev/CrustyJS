@@ -226,3 +226,18 @@ fn computed_property_name() {
     );
     assert_eq!(output, vec!["Rex"]);
 }
+
+#[test]
+fn for_in_loop_over_object_keys() {
+    let output = run_and_capture(
+        r#"
+        let obj = { a: 1, b: 2 };
+        for (let key in obj) {
+            console.log(key);
+        }
+        "#,
+    );
+    assert_eq!(output.len(), 2);
+    assert!(output.contains(&"a".to_string()));
+    assert!(output.contains(&"b".to_string()));
+}

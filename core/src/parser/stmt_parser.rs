@@ -113,22 +113,31 @@ impl Parser {
         self.advance(); // consume 'for'
         self.expect(&TokenKind::LeftParen)?;
 
-        // Check for `for (let x of iterable)`
+        // Check for `for (let x of iterable)` / `for (let x in object)`
         if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
             let saved_pos = self.pos;
             self.advance(); // consume let/const
             if let TokenKind::Ident(_) = self.peek() {
                 let name = self.expect_ident()?;
-                if self.check(&TokenKind::Of) {
-                    self.advance(); // consume 'of'
-                    let iterable = self.parse_expr(0)?;
+                if self.check(&TokenKind::Of) || self.check(&TokenKind::In) {
+                    let is_for_in = self.check(&TokenKind::In);
+                    self.advance(); // consume 'of' or 'in'
+                    let iterable_or_object = self.parse_expr(0)?;
                     self.expect(&TokenKind::RightParen)?;
                     let body = Box::new(self.parse_statement()?);
-                    return Ok(Stmt::ForOf {
-                        variable: name,
-                        iterable,
-                        body,
-                    });
+                    return if is_for_in {
+                        Ok(Stmt::ForIn {
+                            variable: name,
+                            object: iterable_or_object,
+                            body,
+                        })
+                    } else {
+                        Ok(Stmt::ForOf {
+                            variable: name,
+                            iterable: iterable_or_object,
+                            body,
+                        })
+                    };
                 }
                 // Not for-of, rewind and parse as regular for
                 self.pos = saved_pos;
