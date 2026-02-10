@@ -121,7 +121,9 @@ impl Compiler {
             Stmt::ForLoop { .. }
             | Stmt::ForOf { .. }
             | Stmt::ForIn { .. }
-            | Stmt::Break
+            | Stmt::Break { .. }
+            | Stmt::Continue { .. }
+            | Stmt::Labeled { .. }
             | Stmt::TryCatch { .. }
             | Stmt::Throw(_)
             | Stmt::Switch { .. }
