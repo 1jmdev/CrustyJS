@@ -26,6 +26,7 @@ fn parse_object_destructuring_with_alias_and_default() {
         Stmt::VarDecl {
             pattern: Pattern::ObjectPattern { properties },
             init: Some(Expr::Identifier(init_name)),
+            ..
         } => {
             assert_eq!(init_name, "person");
             assert_eq!(properties.len(), 2);
@@ -57,6 +58,7 @@ fn parse_nested_array_destructuring_with_rest() {
         Stmt::VarDecl {
             pattern: Pattern::ArrayPattern { elements },
             init: Some(Expr::Identifier(init_name)),
+            ..
         } => {
             assert_eq!(init_name, "items");
             assert_eq!(elements.len(), 4);

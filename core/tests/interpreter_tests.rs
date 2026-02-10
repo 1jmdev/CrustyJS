@@ -1,3 +1,4 @@
+use crustyjs::errors::RuntimeError;
 use crustyjs::lexer::lex;
 use crustyjs::parser::parse;
 use crustyjs::runtime::interpreter::Interpreter;
@@ -8,6 +9,13 @@ fn run_and_capture(source: &str) -> Vec<String> {
     let mut interp = Interpreter::new();
     interp.run(&program).expect("execution should succeed");
     interp.output().to_vec()
+}
+
+fn run_and_error(source: &str) -> RuntimeError {
+    let tokens = lex(source).expect("lexing should succeed");
+    let program = parse(tokens).expect("parsing should succeed");
+    let mut interp = Interpreter::new();
+    interp.run(&program).expect_err("execution should fail")
 }
 
 #[test]
@@ -240,4 +248,10 @@ fn for_in_loop_over_object_keys() {
     assert_eq!(output.len(), 2);
     assert!(output.contains(&"a".to_string()));
     assert!(output.contains(&"b".to_string()));
+}
+
+#[test]
+fn const_reassignment_throws() {
+    let err = run_and_error("const x = 10; x = 20;");
+    assert!(matches!(err, RuntimeError::ConstReassignment { .. }));
 }

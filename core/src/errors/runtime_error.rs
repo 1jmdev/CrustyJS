@@ -19,6 +19,9 @@ pub enum RuntimeError {
     #[error("TypeError: {message}")]
     TypeError { message: String },
 
+    #[error("TypeError: Assignment to constant variable '{name}'")]
+    ConstReassignment { name: String },
+
     #[error("Uncaught {value}")]
     Thrown { value: JsValue },
 }

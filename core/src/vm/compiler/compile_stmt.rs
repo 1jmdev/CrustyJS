@@ -6,7 +6,7 @@ use crate::vm::bytecode::{Opcode, VmFunction, VmValue};
 impl Compiler {
     pub fn compile_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::VarDecl { pattern, init } => {
+            Stmt::VarDecl { pattern, init, .. } => {
                 let Some(name) = pattern.as_identifier() else {
                     self.chunk.write(Opcode::RunTreeWalk, 0);
                     return;

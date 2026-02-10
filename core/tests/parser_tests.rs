@@ -1,6 +1,6 @@
 use crustyjs::lexer::lex;
 use crustyjs::parser::ast::{
-    BinOp, Expr, Literal, ObjectProperty, Param, Pattern, PropertyKey, Stmt,
+    BinOp, Expr, Literal, ObjectProperty, Param, Pattern, PropertyKey, Stmt, VarDeclKind,
 };
 use crustyjs::parser::parse;
 
@@ -17,6 +17,7 @@ fn parse_variable_declaration() {
     assert_eq!(
         stmts[0],
         Stmt::VarDecl {
+            kind: VarDeclKind::Let,
             pattern: Pattern::Identifier("x".into()),
             init: Some(Expr::Literal(Literal::Number(42.0))),
         }
