@@ -28,6 +28,11 @@ impl fmt::Display for JsValue {
                 pairs.sort();
                 write!(f, "{{ {} }}", pairs.join(", "))
             }
+            JsValue::Array(arr) => {
+                let arr = arr.borrow();
+                let items: Vec<String> = arr.elements.iter().map(|v| v.to_js_string()).collect();
+                write!(f, "[{}]", items.join(", "))
+            }
         }
     }
 }

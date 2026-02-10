@@ -12,6 +12,7 @@ impl JsValue {
             JsValue::String(s) => s.parse::<f64>().unwrap_or(f64::NAN),
             JsValue::Function { .. } => f64::NAN,
             JsValue::Object(_) => f64::NAN,
+            JsValue::Array(_) => f64::NAN,
         }
     }
 
@@ -24,6 +25,7 @@ impl JsValue {
             JsValue::String(s) => !s.is_empty(),
             JsValue::Function { .. } => true,
             JsValue::Object(_) => true,
+            JsValue::Array(_) => true,
         }
     }
 
@@ -45,6 +47,11 @@ impl JsValue {
                 format!("function {name}() {{ [native code] }}")
             }
             JsValue::Object(_) => "[object Object]".to_string(),
+            JsValue::Array(arr) => {
+                let arr = arr.borrow();
+                let items: Vec<String> = arr.elements.iter().map(|v| v.to_js_string()).collect();
+                items.join(",")
+            }
         }
     }
 }

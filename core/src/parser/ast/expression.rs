@@ -54,6 +54,9 @@ pub enum Expr {
     ObjectLiteral {
         properties: Vec<(String, Expr)>,
     },
+    ArrayLiteral {
+        elements: Vec<Expr>,
+    },
     ComputedMemberAccess {
         object: Box<Expr>,
         property: Box<Expr>,

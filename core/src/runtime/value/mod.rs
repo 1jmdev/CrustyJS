@@ -1,3 +1,4 @@
+pub mod array;
 mod coercion;
 mod display;
 pub mod object;
@@ -7,6 +8,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::parser::ast::Stmt;
+use array::JsArray;
 use object::JsObject;
 
 #[derive(Debug, Clone)]
@@ -22,6 +24,7 @@ pub enum JsValue {
         body: Vec<Stmt>,
     },
     Object(Rc<RefCell<JsObject>>),
+    Array(Rc<RefCell<JsArray>>),
 }
 
 impl PartialEq for JsValue {
@@ -33,6 +36,7 @@ impl PartialEq for JsValue {
             (JsValue::Number(a), JsValue::Number(b)) => a == b,
             (JsValue::String(a), JsValue::String(b)) => a == b,
             (JsValue::Object(a), JsValue::Object(b)) => Rc::ptr_eq(a, b),
+            (JsValue::Array(a), JsValue::Array(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }
