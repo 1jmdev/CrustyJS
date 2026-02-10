@@ -1,5 +1,6 @@
 pub mod cursor;
 pub mod scanner;
+mod string_scanner;
 pub mod token;
 
 use crate::errors::SyntaxError;

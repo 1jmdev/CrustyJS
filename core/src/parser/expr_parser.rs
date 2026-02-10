@@ -1,4 +1,4 @@
-use super::ast::{BinOp, Expr, Literal, UnaryOp};
+use super::ast::{BinOp, Expr, Literal, TemplatePart, UnaryOp};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
@@ -138,6 +138,11 @@ impl Parser {
                 self.expect(&TokenKind::RightParen)?;
                 Ok(expr)
             }
+            TokenKind::NoSubTemplate(ref s) => Ok(Expr::Literal(Literal::String(s.clone()))),
+            TokenKind::TemplateHead(ref s) => {
+                let head = s.clone();
+                self.parse_template_parts(head)
+            }
             _ => Err(SyntaxError::new(
                 format!("unexpected token {:?} in expression", token.kind),
                 token.span.start,
@@ -168,5 +173,38 @@ impl Parser {
                 token.span.len().max(1),
             )),
         }
+    }
+
+    fn parse_template_parts(&mut self, head: String) -> Result<Expr, SyntaxError> {
+        let mut parts = Vec::new();
+        if !head.is_empty() {
+            parts.push(TemplatePart::Str(head));
+        }
+        loop {
+            let expr = self.parse_expr(0)?;
+            parts.push(TemplatePart::Expression(expr));
+            let tok = self.advance().clone();
+            match tok.kind {
+                TokenKind::TemplateTail(ref s) => {
+                    if !s.is_empty() {
+                        parts.push(TemplatePart::Str(s.clone()));
+                    }
+                    break;
+                }
+                TokenKind::TemplateMiddle(ref s) => {
+                    if !s.is_empty() {
+                        parts.push(TemplatePart::Str(s.clone()));
+                    }
+                }
+                _ => {
+                    return Err(SyntaxError::new(
+                        "expected template continuation",
+                        tok.span.start,
+                        tok.span.len().max(1),
+                    ));
+                }
+            }
+        }
+        Ok(Expr::TemplateLiteral { parts })
     }
 }

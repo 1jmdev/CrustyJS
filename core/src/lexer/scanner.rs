@@ -4,13 +4,17 @@ use crate::errors::SyntaxError;
 
 /// Scans source code into a sequence of tokens.
 pub struct Scanner<'src> {
-    cursor: Cursor<'src>,
+    pub(super) cursor: Cursor<'src>,
+    pub(super) pending: Vec<Token>,
+    pub(super) template_depth: usize,
 }
 
 impl<'src> Scanner<'src> {
     pub fn new(source: &'src str) -> Self {
         Self {
             cursor: Cursor::new(source),
+            pending: Vec::new(),
+            template_depth: 0,
         }
     }
 
@@ -18,6 +22,10 @@ impl<'src> Scanner<'src> {
         let mut tokens = Vec::new();
 
         loop {
+            if let Some(tok) = self.pending.pop() {
+                tokens.push(tok);
+                continue;
+            }
             self.skip_whitespace_and_comments();
             if self.cursor.is_at_end() {
                 break;
@@ -78,7 +86,12 @@ impl<'src> Scanner<'src> {
             b'(' => TokenKind::LeftParen,
             b')' => TokenKind::RightParen,
             b'{' => TokenKind::LeftBrace,
-            b'}' => TokenKind::RightBrace,
+            b'}' => {
+                if self.template_depth > 0 {
+                    return self.scan_template_continue(start);
+                }
+                TokenKind::RightBrace
+            }
             b',' => TokenKind::Comma,
             b';' => TokenKind::Semicolon,
             b'.' => TokenKind::Dot,
@@ -115,6 +128,7 @@ impl<'src> Scanner<'src> {
                 }
             }
             b'"' | b'\'' => self.scan_string(ch, start)?,
+            b'`' => return self.scan_template(start),
             c if c.is_ascii_digit() => self.scan_number(start),
             c if is_ident_start(c) => self.scan_identifier(start),
             _ => {
@@ -131,41 +145,6 @@ impl<'src> Scanner<'src> {
             kind,
             span: Span::new(start, end),
         })
-    }
-
-    fn scan_string(&mut self, quote: u8, start: usize) -> Result<TokenKind, SyntaxError> {
-        let mut value = String::new();
-        loop {
-            match self.cursor.advance() {
-                Some(c) if c == quote => break,
-                Some(b'\\') => match self.cursor.advance() {
-                    Some(b'n') => value.push('\n'),
-                    Some(b't') => value.push('\t'),
-                    Some(b'\\') => value.push('\\'),
-                    Some(c) if c == quote => value.push(c as char),
-                    Some(c) => {
-                        value.push('\\');
-                        value.push(c as char);
-                    }
-                    None => {
-                        return Err(SyntaxError::new(
-                            "unterminated string literal",
-                            start,
-                            self.cursor.pos() - start,
-                        ));
-                    }
-                },
-                Some(c) => value.push(c as char),
-                None => {
-                    return Err(SyntaxError::new(
-                        "unterminated string literal",
-                        start,
-                        self.cursor.pos() - start,
-                    ));
-                }
-            }
-        }
-        Ok(TokenKind::String(value))
     }
 
     fn scan_number(&mut self, start: usize) -> TokenKind {

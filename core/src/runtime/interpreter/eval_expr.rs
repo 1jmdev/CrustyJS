@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{BinOp, Expr, Literal, UnaryOp};
+use crate::parser::ast::{BinOp, Expr, Literal, TemplatePart, UnaryOp};
 use crate::runtime::value::JsValue;
 
 impl Interpreter {
@@ -25,6 +25,19 @@ impl Interpreter {
             }
             Expr::MemberAccess { object, property } => {
                 self.eval_member_call(object, property, &[], false)
+            }
+            Expr::TemplateLiteral { parts } => {
+                let mut result = String::new();
+                for part in parts {
+                    match part {
+                        TemplatePart::Str(s) => result.push_str(s),
+                        TemplatePart::Expression(expr) => {
+                            let val = self.eval_expr(expr)?;
+                            result.push_str(&val.to_js_string());
+                        }
+                    }
+                }
+                Ok(JsValue::String(result))
             }
         }
     }

@@ -146,3 +146,40 @@ fn string_trim() {
     );
     assert_eq!(output, vec!["hello"]);
 }
+
+// --- Template literals ---
+
+#[test]
+fn template_literal_no_interpolation() {
+    let output = run_and_capture("console.log(`hello world`);");
+    assert_eq!(output, vec!["hello world"]);
+}
+
+#[test]
+fn template_literal_with_variable() {
+    let output = run_and_capture(
+        r#"
+        let name = "world";
+        console.log(`hello ${name}`);
+        "#,
+    );
+    assert_eq!(output, vec!["hello world"]);
+}
+
+#[test]
+fn template_literal_with_expression() {
+    let output = run_and_capture("console.log(`2+2=${2+2}`);");
+    assert_eq!(output, vec!["2+2=4"]);
+}
+
+#[test]
+fn template_literal_multiple_interpolations() {
+    let output = run_and_capture(
+        r#"
+        let a = "foo";
+        let b = "bar";
+        console.log(`${a} and ${b}`);
+        "#,
+    );
+    assert_eq!(output, vec!["foo and bar"]);
+}

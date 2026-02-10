@@ -48,4 +48,13 @@ pub enum Expr {
         object: Box<Expr>,
         property: String,
     },
+    TemplateLiteral {
+        parts: Vec<TemplatePart>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TemplatePart {
+    Str(String),
+    Expression(Expr),
 }

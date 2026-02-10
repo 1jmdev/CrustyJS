@@ -32,6 +32,12 @@ pub enum TokenKind {
     Null,
     Undefined,
 
+    // Template literals
+    TemplateHead(String),
+    TemplateMiddle(String),
+    TemplateTail(String),
+    NoSubTemplate(String),
+
     // Identifier
     Ident(String),
 
