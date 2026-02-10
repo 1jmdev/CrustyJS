@@ -17,6 +17,7 @@ pub struct JsObject {
     pub properties: HashMap<String, Property>,
     pub symbol_properties: HashMap<u64, (JsSymbol, Property)>,
     pub prototype: Option<Gc<GcCell<JsObject>>>,
+    pub revision: u64,
 }
 
 impl Default for JsObject {
@@ -31,6 +32,7 @@ impl JsObject {
             properties: HashMap::new(),
             symbol_properties: HashMap::new(),
             prototype: None,
+            revision: 0,
         }
     }
 
@@ -45,6 +47,7 @@ impl JsObject {
     }
 
     pub fn set(&mut self, key: String, value: JsValue) {
+        self.revision += 1;
         if let Some(existing) = self.properties.get_mut(&key) {
             existing.value = value;
             return;
@@ -71,6 +74,16 @@ impl JsObject {
             return;
         }
         self.properties.insert(key, Property::with_setter(setter));
+    }
+
+    pub fn delete(&mut self, key: &str) -> bool {
+        self.revision += 1;
+        self.properties.remove(key).is_some()
+    }
+
+    pub fn set_prototype(&mut self, proto: Option<Gc<GcCell<JsObject>>>) {
+        self.revision += 1;
+        self.prototype = proto;
     }
 }
 
