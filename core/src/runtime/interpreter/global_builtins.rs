@@ -2,7 +2,7 @@ use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{Param, Pattern};
 use crate::runtime::value::object::JsObject;
-use crate::runtime::value::JsValue;
+use crate::runtime::value::{JsValue, NativeFunction};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 impl Interpreter {
@@ -15,8 +15,38 @@ impl Interpreter {
             }],
             body: Vec::new(),
             closure_env: self.env.capture(),
+            is_async: false,
         };
         self.env.define("Error".to_string(), error_ctor);
+
+        self.env.define(
+            "setTimeout".to_string(),
+            JsValue::NativeFunction {
+                name: "setTimeout".to_string(),
+                handler: NativeFunction::SetTimeout,
+            },
+        );
+        self.env.define(
+            "setInterval".to_string(),
+            JsValue::NativeFunction {
+                name: "setInterval".to_string(),
+                handler: NativeFunction::SetInterval,
+            },
+        );
+        self.env.define(
+            "clearTimeout".to_string(),
+            JsValue::NativeFunction {
+                name: "clearTimeout".to_string(),
+                handler: NativeFunction::ClearTimeout,
+            },
+        );
+        self.env.define(
+            "clearInterval".to_string(),
+            JsValue::NativeFunction {
+                name: "clearInterval".to_string(),
+                handler: NativeFunction::ClearInterval,
+            },
+        );
     }
 
     pub(crate) fn builtin_console_log_values(

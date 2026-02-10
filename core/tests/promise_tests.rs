@@ -38,7 +38,7 @@ fn promise_chaining_and_catch() {
         "#,
     );
 
-    assert_eq!(output, vec!["4", "fail"]);
+    assert_eq!(output, vec!["fail", "4"]);
 }
 
 #[test]

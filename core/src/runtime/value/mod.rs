@@ -20,6 +20,10 @@ use promise::JsPromise;
 pub enum NativeFunction {
     PromiseResolve(Rc<RefCell<JsPromise>>),
     PromiseReject(Rc<RefCell<JsPromise>>),
+    SetTimeout,
+    SetInterval,
+    ClearTimeout,
+    ClearInterval,
 }
 
 #[derive(Debug, Clone)]
@@ -34,6 +38,7 @@ pub enum JsValue {
         params: Vec<Param>,
         body: Vec<Stmt>,
         closure_env: Vec<Rc<RefCell<Scope>>>,
+        is_async: bool,
     },
     NativeFunction {
         name: String,
