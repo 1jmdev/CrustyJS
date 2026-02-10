@@ -12,15 +12,6 @@ fn run_and_capture(source: &str) -> Vec<String> {
     interp.output().to_vec()
 }
 
-fn run_and_error(source: &str) -> RuntimeError {
-    let tokens = lex(source).expect("lex failed");
-    let program = parse(tokens).expect("parse failed");
-    let mut interp = Interpreter::new();
-    interp
-        .run(&program)
-        .expect_err("runtime should fail with an uncaught exception")
-}
-
 #[test]
 fn catches_thrown_error_object() {
     let output = run_and_capture(
@@ -78,11 +69,12 @@ fn nested_try_catch_works() {
 
 #[test]
 fn uncaught_exception_bubbles_out() {
-    let err = run_and_error(
-        r#"
-        throw new Error("boom");
-        "#,
-    );
+    let tokens = lex("throw new Error(\"boom\");").expect("lex failed");
+    let program = parse(tokens).expect("parse failed");
+    let mut interp = Interpreter::new();
+    let err = interp
+        .run(&program)
+        .expect_err("runtime should fail with an uncaught exception");
 
     match err {
         RuntimeError::Thrown { value } => {

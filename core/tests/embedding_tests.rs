@@ -90,14 +90,14 @@ fn register_class_method_on_instances() {
 
     let class_def = ClassBuilder::new("Element")
         .constructor(|args| {
-            let mut object = crustyjs::runtime::value::object::JsObject::new();
-            object.set(
-                "tag".to_string(),
-                args.get(0)
-                    .cloned()
-                    .unwrap_or(Value::String("div".to_string())),
-            );
-            Ok(Value::Object(object.wrapped()))
+            let tag = args
+                .get(0)
+                .cloned()
+                .unwrap_or(Value::String("div".to_string()));
+            if let Value::Object(object) = args.this() {
+                object.borrow_mut().set("tag".to_string(), tag);
+            }
+            Ok(Value::Undefined)
         })
         .method("tagName", |args| {
             let this = args.this();
@@ -145,10 +145,13 @@ fn register_class_getter_setter_and_inheritance() {
 
     let child = ClassBuilder::new("Element")
         .inherit("Base")
-        .constructor(|_| {
-            let mut obj = crustyjs::runtime::value::object::JsObject::new();
-            obj.set("_html".to_string(), Value::String("init".to_string()));
-            Ok(Value::Object(obj.wrapped()))
+        .constructor(|args| {
+            if let Value::Object(object) = args.this() {
+                object
+                    .borrow_mut()
+                    .set("_html".to_string(), Value::String("init".to_string()));
+            }
+            Ok(Value::Undefined)
         })
         .property_getter("innerHTML", |args| {
             if let Value::Object(object) = args.this() {
