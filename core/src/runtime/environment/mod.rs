@@ -2,6 +2,7 @@ mod scope;
 
 use crate::errors::RuntimeError;
 use crate::runtime::value::JsValue;
+pub(crate) use scope::Binding;
 pub(crate) use scope::{BindingKind, Scope};
 use std::cell::RefCell;
 use std::mem;
@@ -96,5 +97,14 @@ impl Environment {
 
     pub fn replace_scopes(&mut self, scopes: Vec<Rc<RefCell<Scope>>>) -> Vec<Rc<RefCell<Scope>>> {
         mem::replace(&mut self.scopes, scopes)
+    }
+
+    pub(crate) fn current_scope_bindings_snapshot(
+        &self,
+    ) -> std::collections::HashMap<String, Binding> {
+        self.scopes
+            .last()
+            .map(|scope| scope.borrow().bindings.clone())
+            .unwrap_or_default()
     }
 }
