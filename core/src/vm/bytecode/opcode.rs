@@ -31,4 +31,6 @@ pub enum Opcode {
     CreateObject,
     CreateArray,
     Typeof,
+    Nop,
+    GetPropertyIC(u16),
 }
