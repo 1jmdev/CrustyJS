@@ -29,6 +29,10 @@ impl Context {
         Ok(())
     }
 
+    pub fn set_max_steps(&mut self, max: usize) {
+        self.interpreter.set_max_steps(max);
+    }
+
     pub fn eval_module<P: AsRef<Path>>(&mut self, path: P) -> Result<(), CrustyError> {
         let path_buf: PathBuf = path.as_ref().to_path_buf();
         let source = fs::read_to_string(&path_buf).map_err(|err| {

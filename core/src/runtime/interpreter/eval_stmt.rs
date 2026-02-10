@@ -6,6 +6,7 @@ use crate::runtime::value::JsValue;
 
 impl Interpreter {
     pub(crate) fn eval_stmt(&mut self, stmt: &Stmt) -> Result<ControlFlow, RuntimeError> {
+        self.check_step_limit()?;
         match stmt {
             Stmt::Empty => Ok(ControlFlow::None),
             Stmt::ExprStmt(expr) => {

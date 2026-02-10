@@ -57,6 +57,9 @@ pub struct Interpreter {
     pub(crate) source_maps: HashMap<String, SourceMap>,
     pub(crate) start_time: Instant,
     pub(crate) symbol_registry: SymbolRegistry,
+    pub(crate) call_depth: usize,
+    pub(crate) step_count: usize,
+    pub(crate) max_steps: Option<usize>,
 }
 
 impl Default for Interpreter {
@@ -90,6 +93,9 @@ impl Interpreter {
             source_maps: HashMap::new(),
             start_time: Instant::now(),
             symbol_registry: SymbolRegistry::new(),
+            call_depth: 0,
+            step_count: 0,
+            max_steps: None,
         };
         interp.init_builtins();
         interp
@@ -102,6 +108,22 @@ impl Interpreter {
             }
         }
         self.run_event_loop_until_idle()?;
+        Ok(())
+    }
+
+    pub fn set_max_steps(&mut self, max: usize) {
+        self.max_steps = Some(max);
+    }
+
+    pub(crate) fn check_step_limit(&mut self) -> Result<(), RuntimeError> {
+        self.step_count += 1;
+        if let Some(max) = self.max_steps {
+            if self.step_count > max {
+                return Err(RuntimeError::TypeError {
+                    message: "execution step limit exceeded (possible infinite loop)".into(),
+                });
+            }
+        }
         Ok(())
     }
 

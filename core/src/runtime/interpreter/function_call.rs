@@ -96,6 +96,25 @@ impl Interpreter {
         args: &[JsValue],
         this_binding: Option<JsValue>,
     ) -> Result<JsValue, RuntimeError> {
+        const MAX_CALL_DEPTH: usize = 256;
+        self.call_depth += 1;
+        if self.call_depth > MAX_CALL_DEPTH {
+            self.call_depth -= 1;
+            return Err(RuntimeError::TypeError {
+                message: "Maximum call stack size exceeded".to_string(),
+            });
+        }
+        let result = self.call_function_inner(func, args, this_binding);
+        self.call_depth -= 1;
+        result
+    }
+
+    fn call_function_inner(
+        &mut self,
+        func: &JsValue,
+        args: &[JsValue],
+        this_binding: Option<JsValue>,
+    ) -> Result<JsValue, RuntimeError> {
         match func {
             JsValue::Function {
                 name,
