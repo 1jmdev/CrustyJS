@@ -1,6 +1,7 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Pattern;
+use crate::runtime::environment::BindingKind;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
@@ -12,9 +13,18 @@ impl Interpreter {
         pattern: &Pattern,
         value: JsValue,
     ) -> Result<(), RuntimeError> {
+        self.eval_pattern_binding_with_kind(pattern, value, BindingKind::Let)
+    }
+
+    pub(crate) fn eval_pattern_binding_with_kind(
+        &mut self,
+        pattern: &Pattern,
+        value: JsValue,
+        kind: BindingKind,
+    ) -> Result<(), RuntimeError> {
         match pattern {
             Pattern::Identifier(name) => {
-                self.env.define(name.clone(), value);
+                self.env.define_with_kind(name.clone(), value, kind);
                 Ok(())
             }
             Pattern::ArrayPattern { elements } => {
@@ -40,15 +50,16 @@ impl Interpreter {
                             } else {
                                 source[idx..].to_vec()
                             };
-                            self.eval_pattern_binding(
+                            self.eval_pattern_binding_with_kind(
                                 inner,
                                 JsValue::Array(JsArray::new(rest).wrapped()),
+                                kind,
                             )?;
                             break;
                         }
                         Some(inner) => {
                             let val = source.get(idx).cloned().unwrap_or(JsValue::Undefined);
-                            self.eval_pattern_binding(inner, val)?;
+                            self.eval_pattern_binding_with_kind(inner, val, kind)?;
                             idx += 1;
                         }
                     }
@@ -87,7 +98,7 @@ impl Interpreter {
                         .as_ref()
                         .cloned()
                         .unwrap_or(Pattern::Identifier(prop.key.clone()));
-                    self.eval_pattern_binding(&target, prop_value)?;
+                    self.eval_pattern_binding_with_kind(&target, prop_value, kind)?;
                     used.insert(prop.key.clone());
                 }
 
@@ -116,12 +127,16 @@ impl Interpreter {
                         }
                     };
 
-                    self.eval_pattern_binding(rest_target, JsValue::Object(rest_obj.wrapped()))?;
+                    self.eval_pattern_binding_with_kind(
+                        rest_target,
+                        JsValue::Object(rest_obj.wrapped()),
+                        kind,
+                    )?;
                 }
 
                 Ok(())
             }
-            Pattern::Rest(inner) => self.eval_pattern_binding(inner, value),
+            Pattern::Rest(inner) => self.eval_pattern_binding_with_kind(inner, value, kind),
         }
     }
 }

@@ -1,7 +1,8 @@
 use super::error_handling::JsException;
 use super::{ControlFlow, Interpreter};
 use crate::errors::RuntimeError;
-use crate::parser::ast::Stmt;
+use crate::parser::ast::{Stmt, VarDeclKind};
+use crate::runtime::environment::BindingKind;
 use crate::runtime::value::JsValue;
 
 impl Interpreter {
@@ -11,12 +12,20 @@ impl Interpreter {
                 self.eval_expr(expr)?;
                 Ok(ControlFlow::None)
             }
-            Stmt::VarDecl { pattern, init } => {
+            Stmt::VarDecl {
+                kind,
+                pattern,
+                init,
+            } => {
                 let value = match init {
                     Some(expr) => self.eval_expr(expr)?,
                     None => JsValue::Undefined,
                 };
-                self.eval_pattern_binding(pattern, value)?;
+                let binding_kind = match kind {
+                    VarDeclKind::Let => BindingKind::Let,
+                    VarDeclKind::Const => BindingKind::Const,
+                };
+                self.eval_pattern_binding_with_kind(pattern, value, binding_kind)?;
                 Ok(ControlFlow::None)
             }
             Stmt::Block(stmts) => self.eval_block(stmts),

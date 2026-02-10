@@ -2,7 +2,7 @@ mod scope;
 
 use crate::errors::RuntimeError;
 use crate::runtime::value::JsValue;
-pub(crate) use scope::Scope;
+pub(crate) use scope::{BindingKind, Scope};
 use std::cell::RefCell;
 use std::mem;
 use std::rc::Rc;
@@ -37,11 +37,15 @@ impl Environment {
 
     /// Define a new variable in the current (innermost) scope.
     pub fn define(&mut self, name: String, value: JsValue) {
+        self.define_with_kind(name, value, BindingKind::Let);
+    }
+
+    pub fn define_with_kind(&mut self, name: String, value: JsValue, kind: BindingKind) {
         self.scopes
             .last_mut()
             .expect("environment must have at least one scope")
             .borrow_mut()
-            .define(name, value);
+            .define_with_kind(name, value, kind);
     }
 
     /// Look up a variable by walking the scope chain outward.
@@ -70,7 +74,14 @@ impl Environment {
     /// Set an existing variable by walking the scope chain outward.
     pub fn set(&mut self, name: &str, value: JsValue) -> Result<(), RuntimeError> {
         for scope in self.scopes.iter_mut().rev() {
-            if scope.borrow_mut().set(name, value.clone()) {
+            let mut borrowed = scope.borrow_mut();
+            if borrowed.get(name).is_some() {
+                if matches!(borrowed.kind_of(name), Some(BindingKind::Const)) {
+                    return Err(RuntimeError::ConstReassignment {
+                        name: name.to_string(),
+                    });
+                }
+                borrowed.set(name, value.clone());
                 return Ok(());
             }
         }

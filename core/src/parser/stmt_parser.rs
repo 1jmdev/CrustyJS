@@ -1,4 +1,4 @@
-use super::ast::Stmt;
+use super::ast::{Stmt, VarDeclKind};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
@@ -23,7 +23,11 @@ impl Parser {
     }
 
     fn parse_var_decl(&mut self) -> Result<Stmt, SyntaxError> {
-        self.advance(); // consume 'let' or 'const'
+        let kind = match self.advance().kind {
+            TokenKind::Let => VarDeclKind::Let,
+            TokenKind::Const => VarDeclKind::Const,
+            _ => unreachable!("parse_var_decl called on non-var token"),
+        };
         let pattern = self.parse_pattern()?;
         let init = if self.check(&TokenKind::Assign) {
             self.advance(); // consume '='
@@ -32,7 +36,11 @@ impl Parser {
             None
         };
         self.consume_stmt_terminator()?;
-        Ok(Stmt::VarDecl { pattern, init })
+        Ok(Stmt::VarDecl {
+            kind,
+            pattern,
+            init,
+        })
     }
 
     fn parse_function_decl(&mut self) -> Result<Stmt, SyntaxError> {
@@ -113,7 +121,7 @@ impl Parser {
         self.advance(); // consume 'for'
         self.expect(&TokenKind::LeftParen)?;
 
-        // Check for `for (let x of iterable)` / `for (let x in object)`
+        // Check for `for (let/const x of iterable)` / `for (... in object)`
         if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
             let saved_pos = self.pos;
             self.advance(); // consume let/const

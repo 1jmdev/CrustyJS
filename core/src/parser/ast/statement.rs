@@ -7,6 +7,7 @@ use super::pattern::{Param, Pattern};
 pub enum Stmt {
     ExprStmt(Expr),
     VarDecl {
+        kind: VarDeclKind,
         pattern: Pattern,
         init: Option<Expr>,
     },
@@ -61,4 +62,10 @@ pub enum Stmt {
 pub struct SwitchCase {
     pub test: Option<Expr>,
     pub body: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VarDeclKind {
+    Let,
+    Const,
 }
