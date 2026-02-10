@@ -4,7 +4,7 @@ use std::collections::HashMap;
 /// A single scope frame in the environment chain.
 #[derive(Debug, Clone)]
 pub struct Scope {
-    bindings: HashMap<String, JsValue>,
+    pub(crate) bindings: HashMap<String, JsValue>,
 }
 
 impl Scope {

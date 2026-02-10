@@ -70,18 +70,16 @@ impl Interpreter {
         match method {
             "map" => {
                 let mut result = Vec::new();
-                for (i, elem) in elements.iter().enumerate() {
-                    let val =
-                        self.call_function(callback, &[elem.clone(), JsValue::Number(i as f64)])?;
+                for elem in &elements {
+                    let val = self.call_function(callback, std::slice::from_ref(elem))?;
                     result.push(val);
                 }
                 Ok(JsValue::Array(JsArray::new(result).wrapped()))
             }
             "filter" => {
                 let mut result = Vec::new();
-                for (i, elem) in elements.iter().enumerate() {
-                    let val =
-                        self.call_function(callback, &[elem.clone(), JsValue::Number(i as f64)])?;
+                for elem in &elements {
+                    let val = self.call_function(callback, std::slice::from_ref(elem))?;
                     if val.to_boolean() {
                         result.push(elem.clone());
                     }
@@ -89,8 +87,8 @@ impl Interpreter {
                 Ok(JsValue::Array(JsArray::new(result).wrapped()))
             }
             "forEach" => {
-                for (i, elem) in elements.iter().enumerate() {
-                    self.call_function(callback, &[elem.clone(), JsValue::Number(i as f64)])?;
+                for elem in &elements {
+                    self.call_function(callback, std::slice::from_ref(elem))?;
                 }
                 Ok(JsValue::Undefined)
             }
@@ -106,24 +104,46 @@ impl Interpreter {
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
         match func {
-            JsValue::Function { params, body, .. } => {
+            JsValue::Function {
+                params,
+                body,
+                closure_env,
+                ..
+            } => {
+                if params.len() != args.len() {
+                    return Err(RuntimeError::ArityMismatch {
+                        expected: params.len(),
+                        got: args.len(),
+                    });
+                }
+
                 let params = params.clone();
                 let body = body.clone();
+                let captured = closure_env.clone();
+                let saved_scopes = self.env.replace_scopes(captured);
+
                 self.env.push_scope();
                 for (param, value) in params.iter().zip(args) {
                     self.env.define(param.clone(), value.clone());
                 }
+
                 let mut result = JsValue::Undefined;
-                for stmt in &body {
-                    match self.eval_stmt(stmt)? {
-                        super::ControlFlow::Return(val) => {
-                            result = val;
-                            break;
+                let call_result = (|| -> Result<(), RuntimeError> {
+                    for stmt in &body {
+                        match self.eval_stmt(stmt)? {
+                            super::ControlFlow::Return(val) => {
+                                result = val;
+                                break;
+                            }
+                            super::ControlFlow::None => {}
                         }
-                        super::ControlFlow::None => {}
                     }
-                }
+                    Ok(())
+                })();
+
                 self.env.pop_scope();
+                self.env.replace_scopes(saved_scopes);
+                call_result?;
                 Ok(result)
             }
             other => Err(RuntimeError::NotAFunction {

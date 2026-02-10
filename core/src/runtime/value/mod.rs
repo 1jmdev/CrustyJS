@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::parser::ast::Stmt;
+use crate::runtime::environment::Scope;
 use array::JsArray;
 use object::JsObject;
 
@@ -22,6 +23,7 @@ pub enum JsValue {
         name: String,
         params: Vec<String>,
         body: Vec<Stmt>,
+        closure_env: Vec<Rc<RefCell<Scope>>>,
     },
     Object(Rc<RefCell<JsObject>>),
     Array(Rc<RefCell<JsArray>>),

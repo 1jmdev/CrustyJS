@@ -140,6 +140,7 @@ impl Interpreter {
                     name: "<arrow>".to_string(),
                     params: params.clone(),
                     body,
+                    closure_env: self.env.capture(),
                 })
             }
         }
@@ -156,42 +157,7 @@ impl Interpreter {
             .map(|a| self.eval_expr(a))
             .collect::<Result<_, _>>()?;
 
-        match func {
-            JsValue::Function {
-                name: _,
-                params,
-                body,
-            } => {
-                if params.len() != arg_values.len() {
-                    return Err(RuntimeError::ArityMismatch {
-                        expected: params.len(),
-                        got: arg_values.len(),
-                    });
-                }
-
-                self.env.push_scope();
-                for (param, value) in params.iter().zip(arg_values) {
-                    self.env.define(param.clone(), value);
-                }
-
-                let mut result = JsValue::Undefined;
-                for stmt in &body {
-                    match self.eval_stmt(stmt)? {
-                        super::ControlFlow::Return(val) => {
-                            result = val;
-                            break;
-                        }
-                        super::ControlFlow::None => {}
-                    }
-                }
-
-                self.env.pop_scope();
-                Ok(result)
-            }
-            other => Err(RuntimeError::NotAFunction {
-                name: format!("{other}"),
-            }),
-        }
+        self.call_function(&func, &arg_values)
     }
 }
 

@@ -65,3 +65,59 @@ fn arrow_as_for_each_callback() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["10", "20", "30"]);
 }
+
+#[test]
+fn closure_counter_shared_state() {
+    let src = r#"
+        function makeCounter() {
+            let count = 0;
+            return () => {
+                count = count + 1;
+                return count;
+            };
+        }
+        const counter = makeCounter();
+        console.log(counter());
+        console.log(counter());
+        console.log(counter());
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["1", "2", "3"]);
+}
+
+#[test]
+fn two_closures_independent_state() {
+    let src = r#"
+        function makeCounter() {
+            let count = 0;
+            return () => {
+                count = count + 1;
+                return count;
+            };
+        }
+        const a = makeCounter();
+        const b = makeCounter();
+        console.log(a());
+        console.log(a());
+        console.log(b());
+        console.log(a());
+        console.log(b());
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["1", "2", "1", "3", "2"]);
+}
+
+#[test]
+fn higher_order_compose() {
+    let src = r#"
+        function compose(f, g) {
+            return x => f(g(x));
+        }
+        const double = x => x * 2;
+        const inc = x => x + 1;
+        const fnc = compose(inc, double);
+        console.log(fnc(5));
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["11"]);
+}

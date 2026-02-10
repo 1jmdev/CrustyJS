@@ -61,6 +61,7 @@ impl Interpreter {
                     name: name.clone(),
                     params: params.clone(),
                     body: body.clone(),
+                    closure_env: self.env.capture(),
                 };
                 self.env.define(name.clone(), func);
                 Ok(ControlFlow::None)
