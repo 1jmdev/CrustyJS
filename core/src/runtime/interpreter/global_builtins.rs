@@ -16,6 +16,8 @@ impl Interpreter {
             body: Vec::new(),
             closure_env: self.env.capture(),
             is_async: false,
+            source_path: self.module_stack.last().map(|p| p.display().to_string()),
+            source_offset: 0,
         };
         self.env.define("Error".to_string(), error_ctor);
 

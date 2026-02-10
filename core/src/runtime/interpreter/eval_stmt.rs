@@ -61,6 +61,7 @@ impl Interpreter {
                 params,
                 body,
                 is_async,
+                decl_offset,
             } => {
                 let func = JsValue::Function {
                     name: name.clone(),
@@ -68,6 +69,8 @@ impl Interpreter {
                     body: body.clone(),
                     closure_env: self.env.capture(),
                     is_async: *is_async,
+                    source_path: self.module_stack.last().map(|p| p.display().to_string()),
+                    source_offset: *decl_offset,
                 };
                 self.env.define(name.clone(), func);
                 Ok(ControlFlow::None)

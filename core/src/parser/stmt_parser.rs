@@ -54,7 +54,7 @@ impl Parser {
         &mut self,
         is_async: bool,
     ) -> Result<Stmt, SyntaxError> {
-        self.advance(); // consume 'function'
+        let function_token = self.advance().clone(); // consume 'function'
         let name = self.expect_ident()?;
         self.expect(&TokenKind::LeftParen)?;
 
@@ -67,6 +67,7 @@ impl Parser {
             params,
             body,
             is_async,
+            decl_offset: function_token.span.start,
         })
     }
 
