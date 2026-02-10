@@ -74,6 +74,8 @@ impl Interpreter {
                 self.settle_promise(&promise, false, value)?;
             }
             Err(err) => {
+                let trace = self.call_stack.format_trace();
+                let err = self.attach_stack_to_error(err, &trace);
                 let rejected = match err {
                     RuntimeError::Thrown { value } => value,
                     other => JsValue::String(other.to_string()),

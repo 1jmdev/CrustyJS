@@ -15,6 +15,7 @@ mod object_json_date_builtins;
 mod promise_runtime;
 mod property_access;
 
+use crate::diagnostics::source_map::{SourceMap, SourcePos};
 use crate::diagnostics::stack_trace::CallStack;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Program;
@@ -42,6 +43,7 @@ pub struct Interpreter {
     pub(crate) module_cache: ModuleCache,
     pub(crate) module_stack: Vec<PathBuf>,
     pub(crate) call_stack: CallStack,
+    pub(crate) source_maps: HashMap<String, SourceMap>,
 }
 
 impl Interpreter {
@@ -60,6 +62,7 @@ impl Interpreter {
             module_cache: ModuleCache::default(),
             module_stack: Vec::new(),
             call_stack: CallStack::default(),
+            source_maps: HashMap::new(),
         };
         interp.init_builtins();
         interp
@@ -77,8 +80,21 @@ impl Interpreter {
     }
 
     pub fn run_with_path(&mut self, program: &Program, path: PathBuf) -> Result<(), RuntimeError> {
+        let file = path.display().to_string();
+        self.ensure_source_map_for_path(&path);
         self.module_stack.push(path);
-        let out = self.run(program);
+        self.call_stack
+            .push_frame(crate::diagnostics::stack_trace::CallFrame {
+                function_name: "<global>".to_string(),
+                file,
+                line: 1,
+                col: 1,
+            });
+        let out = self.run(program).map_err(|err| {
+            let trace = self.call_stack.format_trace();
+            self.attach_stack_to_error(err, &trace)
+        });
+        self.call_stack.pop_frame();
         self.module_stack.pop();
         out
     }
@@ -90,5 +106,27 @@ impl Interpreter {
 
     pub fn current_stack_trace(&self) -> String {
         self.call_stack.format_trace()
+    }
+
+    pub(crate) fn register_source_map(&mut self, path: &PathBuf, source: &str) {
+        self.source_maps
+            .insert(path.display().to_string(), SourceMap::from_source(source));
+    }
+
+    pub(crate) fn source_pos_for(&self, path: &str, offset: usize) -> SourcePos {
+        self.source_maps
+            .get(path)
+            .map(|m| m.byte_to_pos(offset))
+            .unwrap_or(SourcePos { line: 1, col: 1 })
+    }
+
+    pub(crate) fn ensure_source_map_for_path(&mut self, path: &PathBuf) {
+        let file = path.display().to_string();
+        if self.source_maps.contains_key(&file) {
+            return;
+        }
+        if let Ok(source) = std::fs::read_to_string(path) {
+            self.register_source_map(path, &source);
+        }
     }
 }

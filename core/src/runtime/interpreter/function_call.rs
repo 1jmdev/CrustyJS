@@ -99,18 +99,20 @@ impl Interpreter {
                 body,
                 closure_env,
                 is_async,
+                source_path,
+                source_offset,
                 ..
             } => {
-                let file = self
-                    .module_stack
-                    .last()
-                    .map(|p| p.display().to_string())
+                let file = source_path
+                    .clone()
+                    .or_else(|| self.module_stack.last().map(|p| p.display().to_string()))
                     .unwrap_or_else(|| "<script>".to_string());
+                let pos = self.source_pos_for(&file, *source_offset);
                 self.call_stack.push_frame(CallFrame {
                     function_name: name.clone(),
                     file,
-                    line: 0,
-                    col: 0,
+                    line: pos.line,
+                    col: pos.col,
                 });
 
                 let result = if *is_async {
@@ -132,7 +134,7 @@ impl Interpreter {
         }
     }
 
-    fn attach_stack_to_error(&self, err: RuntimeError, trace: &str) -> RuntimeError {
+    pub(crate) fn attach_stack_to_error(&self, err: RuntimeError, trace: &str) -> RuntimeError {
         if trace.is_empty() {
             return err;
         }
