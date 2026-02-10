@@ -36,6 +36,7 @@ impl Compiler {
 
     pub fn compile(&mut self, program: Program) -> Chunk {
         self.compile_program(&program);
+        crate::vm::optimizer::optimize(&mut self.chunk);
         self.chunk.clone()
     }
 
