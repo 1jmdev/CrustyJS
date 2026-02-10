@@ -20,6 +20,7 @@ impl Interpreter {
             is_generator: false,
             source_path: self.module_stack.last().map(|p| p.display().to_string()),
             source_offset: 0,
+            properties: None,
         };
         self.env.define("Error".to_string(), error_ctor);
 

@@ -173,33 +173,65 @@ impl Interpreter {
             });
         };
 
-        let class =
-            self.classes
-                .get(class_name)
-                .cloned()
-                .ok_or_else(|| RuntimeError::TypeError {
-                    message: format!("'{class_name}' is not a class constructor"),
-                })?;
+        // First try self.classes (class declarations)
+        if let Some(class) = self.classes.get(class_name).cloned() {
+            let arg_values: Vec<JsValue> = args
+                .iter()
+                .map(|arg| self.eval_expr(arg))
+                .collect::<Result<_, _>>()?;
 
-        let arg_values: Vec<JsValue> = args
-            .iter()
-            .map(|arg| self.eval_expr(arg))
-            .collect::<Result<_, _>>()?;
+            let mut instance = JsObject::new();
+            instance.prototype = Some(class.prototype);
+            let instance_value = JsValue::Object(self.heap.alloc_cell(instance));
 
-        let mut instance = JsObject::new();
-        instance.prototype = Some(class.prototype);
-        let instance_value = JsValue::Object(self.heap.alloc_cell(instance));
+            self.super_stack.push(class.parent.clone());
+            let ctor_result = self.call_function_with_this(
+                &class.constructor,
+                &arg_values,
+                Some(instance_value.clone()),
+            );
+            self.super_stack.pop();
+            ctor_result?;
 
-        self.super_stack.push(class.parent.clone());
-        let ctor_result = self.call_function_with_this(
-            &class.constructor,
-            &arg_values,
-            Some(instance_value.clone()),
-        );
-        self.super_stack.pop();
-        ctor_result?;
+            return Ok(instance_value);
+        }
 
-        Ok(instance_value)
+        // Try plain function constructor
+        if let Ok(func_val) = self.env.get(class_name) {
+            if let JsValue::Function { ref properties, .. } = func_val {
+                let arg_values: Vec<JsValue> = args
+                    .iter()
+                    .map(|arg| self.eval_expr(arg))
+                    .collect::<Result<_, _>>()?;
+
+                let mut instance = JsObject::new();
+                if let Some(props) = properties {
+                    let borrowed = props.borrow();
+                    if let Some(proto_prop) = borrowed.properties.get("prototype") {
+                        if let JsValue::Object(proto_obj) = &proto_prop.value {
+                            instance.prototype = Some(*proto_obj);
+                        }
+                    }
+                }
+                let instance_value = JsValue::Object(self.heap.alloc_cell(instance));
+
+                let result = self.call_function_with_this(
+                    &func_val,
+                    &arg_values,
+                    Some(instance_value.clone()),
+                )?;
+
+                // If the constructor returns an object, use that instead
+                if matches!(result, JsValue::Object(_)) {
+                    return Ok(result);
+                }
+                return Ok(instance_value);
+            }
+        }
+
+        Err(RuntimeError::TypeError {
+            message: format!("'{class_name}' is not a class constructor"),
+        })
     }
 
     pub(crate) fn eval_super_call(
