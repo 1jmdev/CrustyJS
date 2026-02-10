@@ -1,8 +1,11 @@
 use super::Interpreter;
 use crate::diagnostics::stack_trace::CallFrame;
 use crate::errors::RuntimeError;
-use crate::runtime::value::JsValue;
 use crate::runtime::value::array::JsArray;
+use crate::runtime::value::generator::JsGenerator;
+use crate::runtime::value::object::JsObject;
+use crate::runtime::value::symbol;
+use crate::runtime::value::JsValue;
 
 impl Interpreter {
     pub(crate) fn eval_array_callback_method(
@@ -99,10 +102,20 @@ impl Interpreter {
                 body,
                 closure_env,
                 is_async,
+                is_generator,
                 source_path,
                 source_offset,
-                ..
             } => {
+                if *is_generator {
+                    return self.create_generator_object(
+                        params,
+                        body,
+                        closure_env,
+                        this_binding,
+                        args,
+                    );
+                }
+
                 let file = source_path
                     .clone()
                     .or_else(|| self.module_stack.last().map(|p| p.display().to_string()))
@@ -163,5 +176,67 @@ impl Interpreter {
             },
             RuntimeError::Thrown { .. } => err,
         }
+    }
+
+    fn create_generator_object(
+        &mut self,
+        params: &[crate::parser::ast::Param],
+        body: &[crate::parser::ast::Stmt],
+        closure_env: &[std::rc::Rc<std::cell::RefCell<crate::runtime::environment::Scope>>],
+        this_binding: Option<JsValue>,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        let saved_yields = std::mem::take(&mut self.generator_yields);
+        self.generator_depth += 1;
+        let return_value =
+            self.execute_function_body(params, body, closure_env, this_binding, args);
+        self.generator_depth -= 1;
+        let yielded = std::mem::replace(&mut self.generator_yields, saved_yields);
+
+        let ret_val = return_value?;
+
+        let mut gen_state = JsGenerator::new();
+        gen_state.yielded_values = yielded.into();
+        gen_state.return_value = ret_val;
+        gen_state.state = crate::runtime::value::generator::GeneratorState::Completed;
+        let gen_rc = gen_state.wrapped();
+
+        let mut obj = JsObject::new();
+
+        obj.set(
+            "next".to_string(),
+            JsValue::NativeFunction {
+                name: "next".to_string(),
+                handler: crate::runtime::value::NativeFunction::GeneratorNext(gen_rc.clone()),
+            },
+        );
+
+        obj.set(
+            "return".to_string(),
+            JsValue::NativeFunction {
+                name: "return".to_string(),
+                handler: crate::runtime::value::NativeFunction::GeneratorReturn(gen_rc),
+            },
+        );
+
+        obj.set(
+            "throw".to_string(),
+            JsValue::NativeFunction {
+                name: "throw".to_string(),
+                handler: crate::runtime::value::NativeFunction::GeneratorThrow,
+            },
+        );
+
+        let iter_sym = symbol::symbol_iterator();
+        let obj_rc = obj.wrapped();
+        obj_rc.borrow_mut().set_symbol(
+            iter_sym,
+            JsValue::NativeFunction {
+                name: "[Symbol.iterator]".to_string(),
+                handler: crate::runtime::value::NativeFunction::GeneratorIterator,
+            },
+        );
+
+        Ok(JsValue::Object(obj_rc))
     }
 }

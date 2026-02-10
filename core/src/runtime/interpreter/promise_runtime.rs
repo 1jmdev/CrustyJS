@@ -84,6 +84,29 @@ impl Interpreter {
                 let args = FunctionArgs::new(this, args.to_vec());
                 callback.call(args)
             }
+            NativeFunction::GeneratorNext(generator) => {
+                let mut g = generator.borrow_mut();
+                if let Some(value) = g.yielded_values.pop_front() {
+                    Ok(crate::runtime::value::iterator::iter_result(value, false))
+                } else {
+                    let ret = g.return_value.clone();
+                    Ok(crate::runtime::value::iterator::iter_result(ret, true))
+                }
+            }
+            NativeFunction::GeneratorReturn(generator) => {
+                let mut g = generator.borrow_mut();
+                g.yielded_values.clear();
+                let value = args.first().cloned().unwrap_or(JsValue::Undefined);
+                g.return_value = value.clone();
+                Ok(crate::runtime::value::iterator::iter_result(value, true))
+            }
+            NativeFunction::GeneratorThrow => {
+                let value = args.first().cloned().unwrap_or(JsValue::Undefined);
+                Err(RuntimeError::Thrown { value })
+            }
+            NativeFunction::GeneratorIterator => {
+                Ok(_this_binding.unwrap_or(JsValue::Undefined))
+            }
         }
     }
 

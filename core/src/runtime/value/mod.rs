@@ -1,6 +1,7 @@
 pub mod array;
 mod coercion;
 mod display;
+pub mod generator;
 pub mod iterator;
 pub mod object;
 pub mod promise;
@@ -17,6 +18,7 @@ use crate::parser::ast::{Param, Stmt};
 use crate::runtime::environment::Scope;
 use crate::runtime::gc::{Trace, Tracer};
 use array::JsArray;
+use generator::JsGenerator;
 use object::JsObject;
 use promise::JsPromise;
 use symbol::JsSymbol;
@@ -33,6 +35,10 @@ pub enum NativeFunction {
     CancelAnimationFrame,
     QueueMicrotask,
     SymbolConstructor,
+    GeneratorNext(Rc<RefCell<JsGenerator>>),
+    GeneratorReturn(Rc<RefCell<JsGenerator>>),
+    GeneratorThrow,
+    GeneratorIterator,
     Host(NativeFunctionBoxed),
 }
 
@@ -124,7 +130,16 @@ impl Trace for NativeFunction {
             | NativeFunction::CancelAnimationFrame
             | NativeFunction::QueueMicrotask
             | NativeFunction::SymbolConstructor
+            | NativeFunction::GeneratorThrow
+            | NativeFunction::GeneratorIterator
             | NativeFunction::Host(_) => {}
+            NativeFunction::GeneratorNext(generator)
+            | NativeFunction::GeneratorReturn(generator) => {
+                for val in &generator.borrow().yielded_values {
+                    val.trace(tracer);
+                }
+                generator.borrow().return_value.trace(tracer);
+            }
         }
     }
 }

@@ -1,10 +1,10 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{AssignOp, BinOp, Literal, PropertyKey, UnaryOp};
-use crate::runtime::value::JsValue;
 use crate::runtime::value::abstract_equals;
 use crate::runtime::value::iterator::get_property_simple;
 use crate::runtime::value::symbol;
+use crate::runtime::value::JsValue;
 
 impl Interpreter {
     pub(crate) fn eval_call_args(
@@ -49,7 +49,7 @@ impl Interpreter {
                         message: "object is not iterable".to_string(),
                     });
                 };
-                let iterator = self.call_function(&iter_fn, &[])?;
+                let iterator = self.call_function_with_this(&iter_fn, &[], Some(value.clone()))?;
                 let mut results = Vec::new();
                 loop {
                     let next_fn = get_property_simple(&iterator, "next").ok_or_else(|| {
