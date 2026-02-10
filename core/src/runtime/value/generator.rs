@@ -2,25 +2,44 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
+use crate::parser::ast::{Param, Stmt};
+use crate::runtime::environment::Scope;
 use crate::runtime::value::JsValue;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GeneratorState {
-    Suspended,
+    SuspendedStart,
+    Executing,
     Completed,
 }
 
 #[derive(Debug, Clone)]
 pub struct JsGenerator {
     pub state: GeneratorState,
+    pub body: Vec<Stmt>,
+    pub params: Vec<Param>,
+    pub captured_env: Vec<Rc<RefCell<Scope>>>,
+    pub this_binding: Option<JsValue>,
+    pub args: Vec<JsValue>,
     pub yielded_values: VecDeque<JsValue>,
     pub return_value: JsValue,
 }
 
 impl JsGenerator {
-    pub fn new() -> Self {
+    pub fn new(
+        params: Vec<Param>,
+        body: Vec<Stmt>,
+        captured_env: Vec<Rc<RefCell<Scope>>>,
+        this_binding: Option<JsValue>,
+        args: Vec<JsValue>,
+    ) -> Self {
         Self {
-            state: GeneratorState::Suspended,
+            state: GeneratorState::SuspendedStart,
+            body,
+            params,
+            captured_env,
+            this_binding,
+            args,
             yielded_values: VecDeque::new(),
             return_value: JsValue::Undefined,
         }
@@ -28,5 +47,18 @@ impl JsGenerator {
 
     pub fn wrapped(self) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(self))
+    }
+
+    pub fn from_values(items: VecDeque<JsValue>) -> Self {
+        Self {
+            state: GeneratorState::Completed,
+            body: Vec::new(),
+            params: Vec::new(),
+            captured_env: Vec::new(),
+            this_binding: None,
+            args: Vec::new(),
+            yielded_values: items,
+            return_value: JsValue::Undefined,
+        }
     }
 }

@@ -157,10 +157,20 @@ impl Trace for NativeFunction {
             | NativeFunction::Host(_) => {}
             NativeFunction::GeneratorNext(generator)
             | NativeFunction::GeneratorReturn(generator) => {
-                for val in &generator.borrow().yielded_values {
+                let g = generator.borrow();
+                for val in &g.yielded_values {
                     val.trace(tracer);
                 }
-                generator.borrow().return_value.trace(tracer);
+                g.return_value.trace(tracer);
+                for scope in &g.captured_env {
+                    scope.borrow().trace(tracer);
+                }
+                for arg in &g.args {
+                    arg.trace(tracer);
+                }
+                if let Some(this) = &g.this_binding {
+                    this.trace(tracer);
+                }
             }
             NativeFunction::ProxyRevoke(proxy) => {
                 let p = proxy.borrow();

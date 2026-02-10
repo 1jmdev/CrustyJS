@@ -2,7 +2,7 @@ use super::Interpreter;
 use crate::diagnostics::stack_trace::CallFrame;
 use crate::errors::RuntimeError;
 use crate::runtime::value::array::JsArray;
-use crate::runtime::value::generator::JsGenerator;
+use crate::runtime::value::generator::{GeneratorState, JsGenerator};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::symbol;
 use crate::runtime::value::JsValue;
@@ -201,19 +201,13 @@ impl Interpreter {
         this_binding: Option<JsValue>,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
-        let saved_yields = std::mem::take(&mut self.generator_yields);
-        self.generator_depth += 1;
-        let return_value =
-            self.execute_function_body(params, body, closure_env, this_binding, args);
-        self.generator_depth -= 1;
-        let yielded = std::mem::replace(&mut self.generator_yields, saved_yields);
-
-        let ret_val = return_value?;
-
-        let mut gen_state = JsGenerator::new();
-        gen_state.yielded_values = yielded.into();
-        gen_state.return_value = ret_val;
-        gen_state.state = crate::runtime::value::generator::GeneratorState::Completed;
+        let gen_state = JsGenerator::new(
+            params.to_vec(),
+            body.to_vec(),
+            closure_env.to_vec(),
+            this_binding,
+            args.to_vec(),
+        );
         let gen_rc = gen_state.wrapped();
 
         let mut obj = JsObject::new();
@@ -253,5 +247,60 @@ impl Interpreter {
         );
 
         Ok(JsValue::Object(obj_rc))
+    }
+
+    pub(crate) fn step_generator(
+        &mut self,
+        generator: &std::rc::Rc<std::cell::RefCell<JsGenerator>>,
+    ) -> Result<JsValue, RuntimeError> {
+        {
+            let g = generator.borrow();
+            if g.state == GeneratorState::Completed && g.yielded_values.is_empty() {
+                return Ok(crate::runtime::value::iterator::iter_result(
+                    g.return_value.clone(),
+                    true,
+                ));
+            }
+        }
+
+        let needs_execute = {
+            let g = generator.borrow();
+            g.state == GeneratorState::SuspendedStart
+        };
+
+        if needs_execute {
+            let (params, body, captured_env, this_binding, args) = {
+                let mut g = generator.borrow_mut();
+                g.state = GeneratorState::Executing;
+                (
+                    g.params.clone(),
+                    g.body.clone(),
+                    g.captured_env.clone(),
+                    g.this_binding.clone(),
+                    g.args.clone(),
+                )
+            };
+
+            let saved_yields = std::mem::take(&mut self.generator_yields);
+            self.generator_depth += 1;
+            let result =
+                self.execute_function_body(&params, &body, &captured_env, this_binding, &args);
+            self.generator_depth -= 1;
+            let yielded = std::mem::replace(&mut self.generator_yields, saved_yields);
+
+            let ret_val = result.unwrap_or(JsValue::Undefined);
+            let mut g = generator.borrow_mut();
+            g.yielded_values = yielded.into();
+            g.return_value = ret_val;
+            g.state = GeneratorState::Completed;
+        }
+
+        let mut g = generator.borrow_mut();
+        if let Some(value) = g.yielded_values.pop_front() {
+            Ok(crate::runtime::value::iterator::iter_result(value, false))
+        } else {
+            let ret = g.return_value.clone();
+            Ok(crate::runtime::value::iterator::iter_result(ret, true))
+        }
     }
 }

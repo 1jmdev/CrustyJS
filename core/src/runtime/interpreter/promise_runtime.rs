@@ -85,16 +85,11 @@ impl Interpreter {
                 callback.call(args)
             }
             NativeFunction::GeneratorNext(generator) => {
-                let mut g = generator.borrow_mut();
-                if let Some(value) = g.yielded_values.pop_front() {
-                    Ok(crate::runtime::value::iterator::iter_result(value, false))
-                } else {
-                    let ret = g.return_value.clone();
-                    Ok(crate::runtime::value::iterator::iter_result(ret, true))
-                }
+                self.step_generator(generator)
             }
             NativeFunction::GeneratorReturn(generator) => {
                 let mut g = generator.borrow_mut();
+                g.state = crate::runtime::value::generator::GeneratorState::Completed;
                 g.yielded_values.clear();
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
                 g.return_value = value.clone();

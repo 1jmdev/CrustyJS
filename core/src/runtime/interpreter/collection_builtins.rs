@@ -277,13 +277,11 @@ impl Interpreter {
     }
 
     fn create_array_iterator(&mut self, items: Vec<JsValue>) -> JsValue {
-        use crate::runtime::value::generator::{GeneratorState, JsGenerator};
+        use crate::runtime::value::generator::JsGenerator;
         use crate::runtime::value::object::JsObject;
         use crate::runtime::value::symbol;
 
-        let mut gen_state = JsGenerator::new();
-        gen_state.yielded_values = items.into();
-        gen_state.state = GeneratorState::Completed;
+        let gen_state = JsGenerator::from_values(items.into());
         let gen_rc = gen_state.wrapped();
 
         let mut obj = JsObject::new();
