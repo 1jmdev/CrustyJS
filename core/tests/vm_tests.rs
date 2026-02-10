@@ -11,6 +11,14 @@ fn compile_source(source: &str) -> Vec<Opcode> {
     chunk.instructions
 }
 
+fn compile_source_with_fallback_flag(source: &str) -> (Vec<Opcode>, bool) {
+    let tokens = lex(source).expect("lex failed");
+    let program = parse(tokens).expect("parse failed");
+    let mut compiler = Compiler::new();
+    let chunk = compiler.compile(program);
+    (chunk.instructions, compiler.requires_tree_walk)
+}
+
 fn run_vm_source(source: &str) {
     crustyjs::run_vm(source).expect("vm run should succeed");
 }
@@ -54,7 +62,7 @@ fn vm_path_runs_classes_example() {
 
 #[test]
 fn vm_compiles_fib_without_treewalk_fallback() {
-    let ops = compile_source(
+    let (ops, requires_fallback) = compile_source_with_fallback_flag(
         r#"
         function fib(n) {
           if (n <= 1) return n;
@@ -63,6 +71,7 @@ fn vm_compiles_fib_without_treewalk_fallback() {
         console.log(fib(20));
         "#,
     );
+    assert!(!requires_fallback);
     assert!(ops.iter().all(|op| !matches!(op, Opcode::RunTreeWalk)));
 }
 
@@ -89,7 +98,7 @@ fn vm_path_runs_array_and_closure_snippets() {
 
 #[test]
 fn vm_falls_back_to_single_tree_walk_for_mixed_program() {
-    let ops = compile_source(
+    let (ops, requires_fallback) = compile_source_with_fallback_flag(
         r#"
         let x = 1;
         class A {}
@@ -97,8 +106,8 @@ fn vm_falls_back_to_single_tree_walk_for_mixed_program() {
         "#,
     );
 
-    assert_eq!(ops.len(), 1);
-    assert!(matches!(ops[0], Opcode::RunTreeWalk));
+    assert!(requires_fallback);
+    assert!(ops.iter().all(|op| !matches!(op, Opcode::RunTreeWalk)));
 }
 
 #[test]

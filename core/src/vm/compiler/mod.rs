@@ -3,7 +3,7 @@ mod compile_stmt;
 
 use crate::parser::ast::Program;
 
-use super::bytecode::{Chunk, Opcode};
+use super::bytecode::Chunk;
 
 #[derive(Debug, Clone)]
 pub struct Local {
@@ -30,10 +30,6 @@ impl Compiler {
 
     pub fn compile(&mut self, program: Program) -> Chunk {
         self.compile_program(&program);
-        if self.requires_tree_walk {
-            self.chunk = Chunk::new();
-            self.chunk.write(Opcode::RunTreeWalk, 0);
-        }
         self.chunk.clone()
     }
 

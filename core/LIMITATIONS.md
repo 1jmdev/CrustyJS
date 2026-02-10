@@ -22,8 +22,8 @@ This document tracks known deviations and gaps from full ECMAScript behavior.
 
 ## VM
 
-- VM executes a supported opcode subset and bridges unsupported regions back to tree-walk mode.
-- Unsupported constructs now fall back as a single whole-program bridge to avoid mixed partial execution.
+- VM executes a supported opcode subset.
+- When unsupported constructs are detected at compile time, the `--vm` path delegates the whole program to the tree-walk interpreter instead of executing a mixed fallback opcode path.
 - Full bytecode parity for all high-level features is still in progress.
 
 ## REPL and Tooling

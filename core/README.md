@@ -48,7 +48,7 @@ cargo run -- --eval "console.log(1 + 2)"
 - Lexer/Parser builds AST
 - Compiler lowers AST to bytecode `Chunk`
 - VM executes opcodes on a value stack with call frames
-- For unsupported bytecode regions, VM can bridge to tree-walk execution (`RunTreeWalk`)
+- If unsupported constructs are detected, the `--vm` path delegates whole-program execution to the tree-walk interpreter
 
 ## Performance Snapshot
 
