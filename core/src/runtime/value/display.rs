@@ -1,0 +1,21 @@
+use super::JsValue;
+use std::fmt;
+
+impl fmt::Display for JsValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            JsValue::Undefined => write!(f, "undefined"),
+            JsValue::Null => write!(f, "null"),
+            JsValue::Boolean(b) => write!(f, "{b}"),
+            JsValue::Number(n) => {
+                if n.fract() == 0.0 && n.is_finite() {
+                    write!(f, "{}", *n as i64)
+                } else {
+                    write!(f, "{n}")
+                }
+            }
+            JsValue::String(s) => write!(f, "{s}"),
+            JsValue::Function { name, .. } => write!(f, "function {name}() {{ [native code] }}"),
+        }
+    }
+}
