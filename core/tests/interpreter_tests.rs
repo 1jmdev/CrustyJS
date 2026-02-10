@@ -283,3 +283,14 @@ fn queue_microtask_executes_callback() {
     );
     assert_eq!(output, vec!["true"]);
 }
+
+#[test]
+fn optional_chaining_short_circuits_on_nullish() {
+    let output = run_and_capture(
+        r#"
+        let obj = null;
+        console.log(obj?.name);
+        "#,
+    );
+    assert_eq!(output, vec!["undefined"]);
+}

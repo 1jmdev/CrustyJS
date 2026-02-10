@@ -229,6 +229,22 @@ fn lex_logical_and_update_tokens() {
 }
 
 #[test]
+fn lex_optional_chaining_tokens() {
+    let kinds = token_kinds("obj?.value ?? fallback");
+    assert_eq!(
+        kinds,
+        vec![
+            TokenKind::Ident("obj".into()),
+            TokenKind::QuestionDot,
+            TokenKind::Ident("value".into()),
+            TokenKind::NullishCoalescing,
+            TokenKind::Ident("fallback".into()),
+            TokenKind::Eof,
+        ]
+    );
+}
+
+#[test]
 fn lex_typeof_and_loose_equality_tokens() {
     let kinds = token_kinds("typeof x == \"1\" != false");
     assert_eq!(

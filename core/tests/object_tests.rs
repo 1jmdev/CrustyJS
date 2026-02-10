@@ -182,3 +182,14 @@ fn object_getter_and_setter_accessors_work() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["1", "7"]);
 }
+
+#[test]
+fn optional_chaining_on_object_and_missing_path() {
+    let src = r#"
+        let obj = { inner: { name: "Rex" } };
+        console.log(obj?.inner?.name);
+        console.log(obj?.missing?.name);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["Rex", "undefined"]);
+}

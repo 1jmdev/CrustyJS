@@ -1,7 +1,7 @@
 use crustyjs::lexer::lex;
 use crustyjs::parser::ast::{
-    BinOp, ClassMethodKind, Expr, Literal, ObjectProperty, Param, Pattern, PropertyKey, Stmt,
-    VarDeclKind,
+    BinOp, ClassMethodKind, Expr, Literal, ObjectProperty, OptionalOp, Param, Pattern, PropertyKey,
+    Stmt, VarDeclKind,
 };
 use crustyjs::parser::parse;
 
@@ -263,6 +263,25 @@ fn parse_class_getter_and_setter() {
             ));
         }
         other => panic!("expected class declaration, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_optional_chain_expression() {
+    let stmts = parse_source("let x = obj?.a?.[k]?.(1);");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::VarDecl {
+            init: Some(Expr::OptionalChain { base, chain }),
+            ..
+        } => {
+            assert!(matches!(**base, Expr::Identifier(ref name) if name == "obj"));
+            assert_eq!(chain.len(), 3);
+            assert!(matches!(chain[0], OptionalOp::PropertyAccess(ref name) if name == "a"));
+            assert!(matches!(chain[1], OptionalOp::ComputedAccess(_)));
+            assert!(matches!(chain[2], OptionalOp::Call(_)));
+        }
+        other => panic!("expected optional chain var init, got {other:?}"),
     }
 }
 

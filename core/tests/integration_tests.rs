@@ -39,3 +39,13 @@ fn engine_context_animation_frame_flow() {
     let frame = ctx.get_global("frame").expect("frame should exist");
     assert_eq!(frame, Value::Number(16.0));
 }
+
+#[test]
+fn engine_context_optional_chaining_flow() {
+    let engine = Engine::new();
+    let mut ctx = engine.new_context();
+    ctx.eval("let data = null; let out = data?.nested?.value ?? 'none';")
+        .expect("script should evaluate");
+    let out = ctx.get_global("out").expect("out should exist");
+    assert_eq!(out, Value::String("none".to_string()));
+}
