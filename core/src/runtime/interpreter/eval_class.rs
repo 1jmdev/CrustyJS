@@ -98,6 +98,14 @@ impl Interpreter {
             return Ok(super::error_handling::create_error_object(message));
         }
 
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Map") {
+            return self.eval_new_map(args);
+        }
+
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Set") {
+            return self.eval_new_set(args);
+        }
+
         let class_name = if let crate::parser::ast::Expr::Identifier(name) = callee {
             name
         } else {

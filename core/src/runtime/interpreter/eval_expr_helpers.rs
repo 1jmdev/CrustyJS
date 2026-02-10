@@ -41,6 +41,21 @@ impl Interpreter {
                 .chars()
                 .map(|ch| JsValue::String(ch.to_string()))
                 .collect()),
+            JsValue::Map(map) => {
+                let entries: Vec<JsValue> = map
+                    .borrow()
+                    .entries
+                    .iter()
+                    .map(|(k, v)| {
+                        JsValue::Array(
+                            crate::runtime::value::array::JsArray::new(vec![k.clone(), v.clone()])
+                                .wrapped(),
+                        )
+                    })
+                    .collect();
+                Ok(entries)
+            }
+            JsValue::Set(set) => Ok(set.borrow().entries.clone()),
             JsValue::Object(obj) => {
                 let iter_sym = symbol::symbol_iterator();
                 let method = obj.borrow().get_symbol(&iter_sym);

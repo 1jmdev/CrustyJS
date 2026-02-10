@@ -1,4 +1,5 @@
 mod builtins;
+mod collection_builtins;
 mod error_handling;
 mod eval_async;
 mod eval_class;

@@ -1,8 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::runtime::value::JsValue;
 use crate::runtime::value::string_methods;
 use crate::runtime::value::symbol::JsSymbol;
+use crate::runtime::value::JsValue;
 use std::rc::Rc;
 
 impl Interpreter {
@@ -47,6 +47,20 @@ impl Interpreter {
                 Ok(JsValue::Undefined)
             }
             JsValue::String(s) => string_methods::resolve_string_property(s, key),
+            JsValue::Map(map) => {
+                if key == "size" {
+                    Ok(JsValue::Number(map.borrow().size() as f64))
+                } else {
+                    Ok(JsValue::Undefined)
+                }
+            }
+            JsValue::Set(set) => {
+                if key == "size" {
+                    Ok(JsValue::Number(set.borrow().size() as f64))
+                } else {
+                    Ok(JsValue::Undefined)
+                }
+            }
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot access property '{key}' on {obj_val}"),
             }),

@@ -1,9 +1,9 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
-use crate::runtime::value::JsValue;
 use crate::runtime::value::array::methods::call_array_method;
 use crate::runtime::value::string_methods;
+use crate::runtime::value::JsValue;
 
 impl Interpreter {
     pub(crate) fn eval_member_call(
@@ -99,6 +99,22 @@ impl Interpreter {
                 return self.builtin_promise_instance_call(promise, property, &arg_values);
             }
             return Ok(JsValue::Undefined);
+        }
+
+        if let JsValue::Map(ref map) = obj_val {
+            if is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.call_map_method(map, property, &arg_values);
+            }
+            return self.get_property(&obj_val, property);
+        }
+
+        if let JsValue::Set(ref set) = obj_val {
+            if is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.call_set_method(set, property, &arg_values);
+            }
+            return self.get_property(&obj_val, property);
         }
 
         if !is_call {
