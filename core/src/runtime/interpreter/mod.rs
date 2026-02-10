@@ -15,6 +15,7 @@ use std::collections::HashMap;
 pub(crate) enum ControlFlow {
     None,
     Return(crate::runtime::value::JsValue),
+    Break,
 }
 
 /// The tree-walk interpreter.

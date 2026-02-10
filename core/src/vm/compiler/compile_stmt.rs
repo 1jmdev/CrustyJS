@@ -114,8 +114,10 @@ impl Compiler {
             }
             Stmt::ForLoop { .. }
             | Stmt::ForOf { .. }
+            | Stmt::Break
             | Stmt::TryCatch { .. }
             | Stmt::Throw(_)
+            | Stmt::Switch { .. }
             | Stmt::Class(_) => {
                 self.chunk.write(Opcode::RunTreeWalk, 0);
             }

@@ -143,6 +143,11 @@ impl Interpreter {
                                 result = val;
                                 break;
                             }
+                            super::ControlFlow::Break => {
+                                return Err(RuntimeError::TypeError {
+                                    message: "illegal break statement".to_string(),
+                                });
+                            }
                             super::ControlFlow::None => {}
                         }
                     }

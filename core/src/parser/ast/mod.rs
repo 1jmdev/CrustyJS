@@ -10,7 +10,7 @@ pub use expression::{
 };
 pub use literal::Literal;
 pub use pattern::{ObjectPatternProp, Param, Pattern};
-pub use statement::Stmt;
+pub use statement::{Stmt, SwitchCase};
 
 /// A complete JavaScript program — a list of top-level statements.
 #[derive(Debug, Clone, PartialEq)]

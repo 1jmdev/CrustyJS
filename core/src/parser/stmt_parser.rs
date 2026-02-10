@@ -12,8 +12,10 @@ impl Parser {
             TokenKind::While => self.parse_while(),
             TokenKind::For => self.parse_for(),
             TokenKind::Return => self.parse_return(),
+            TokenKind::Break => self.parse_break(),
             TokenKind::Try => self.parse_try_catch(),
             TokenKind::Throw => self.parse_throw(),
+            TokenKind::Switch => self.parse_switch(),
             TokenKind::Class => self.parse_class_decl(),
             TokenKind::LeftBrace => self.parse_block_stmt(),
             _ => self.parse_expr_stmt(),
@@ -216,6 +218,12 @@ impl Parser {
         let expr = self.parse_expr(0)?;
         self.consume_stmt_terminator()?;
         Ok(Stmt::Throw(expr))
+    }
+
+    fn parse_break(&mut self) -> Result<Stmt, SyntaxError> {
+        self.advance(); // consume 'break'
+        self.consume_stmt_terminator()?;
+        Ok(Stmt::Break)
     }
 
     fn consume_stmt_terminator(&mut self) -> Result<(), SyntaxError> {

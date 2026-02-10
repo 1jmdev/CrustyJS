@@ -26,6 +26,7 @@ pub enum Stmt {
         body: Vec<Stmt>,
     },
     Return(Option<Expr>),
+    Break,
     ForLoop {
         init: Option<Box<Stmt>>,
         condition: Option<Expr>,
@@ -44,5 +45,15 @@ pub enum Stmt {
         finally_block: Option<Vec<Stmt>>,
     },
     Throw(Expr),
+    Switch {
+        discriminant: Expr,
+        cases: Vec<SwitchCase>,
+    },
     Class(ClassDecl),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SwitchCase {
+    pub test: Option<Expr>,
+    pub body: Vec<Stmt>,
 }

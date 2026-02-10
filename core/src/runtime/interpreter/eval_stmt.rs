@@ -40,8 +40,10 @@ impl Interpreter {
                     if !cond_val.to_boolean() {
                         break;
                     }
-                    if let ControlFlow::Return(v) = self.eval_stmt(body)? {
-                        return Ok(ControlFlow::Return(v));
+                    match self.eval_stmt(body)? {
+                        ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
+                        ControlFlow::Break => break,
+                        ControlFlow::None => {}
                     }
                 }
                 Ok(ControlFlow::None)
@@ -63,6 +65,7 @@ impl Interpreter {
                 };
                 Ok(ControlFlow::Return(value))
             }
+            Stmt::Break => Ok(ControlFlow::Break),
             Stmt::ForLoop {
                 init,
                 condition,
@@ -79,9 +82,13 @@ impl Interpreter {
                             break;
                         }
                     }
-                    if let ControlFlow::Return(v) = self.eval_stmt(body)? {
-                        self.env.pop_scope();
-                        return Ok(ControlFlow::Return(v));
+                    match self.eval_stmt(body)? {
+                        ControlFlow::Return(v) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Return(v));
+                        }
+                        ControlFlow::Break => break,
+                        ControlFlow::None => {}
                     }
                     if let Some(upd) = update {
                         self.eval_expr(upd)?;
@@ -108,9 +115,13 @@ impl Interpreter {
                 self.env.define(variable.clone(), JsValue::Undefined);
                 for elem in &elements {
                     self.env.set(variable, elem.clone())?;
-                    if let ControlFlow::Return(v) = self.eval_stmt(body)? {
-                        self.env.pop_scope();
-                        return Ok(ControlFlow::Return(v));
+                    match self.eval_stmt(body)? {
+                        ControlFlow::Return(v) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Return(v));
+                        }
+                        ControlFlow::Break => break,
+                        ControlFlow::None => {}
                     }
                 }
                 self.env.pop_scope();
@@ -130,6 +141,10 @@ impl Interpreter {
                 self.eval_class_decl(class_decl)?;
                 Ok(ControlFlow::None)
             }
+            Stmt::Switch {
+                discriminant,
+                cases,
+            } => self.eval_switch(discriminant, cases),
         }
     }
 
@@ -138,7 +153,7 @@ impl Interpreter {
         let mut result = ControlFlow::None;
         for s in stmts {
             result = self.eval_stmt(s)?;
-            if matches!(result, ControlFlow::Return(_)) {
+            if matches!(result, ControlFlow::Return(_) | ControlFlow::Break) {
                 break;
             }
         }
@@ -168,7 +183,7 @@ impl Interpreter {
                         let mut catch_flow = ControlFlow::None;
                         for stmt in catch_stmts {
                             catch_flow = self.eval_stmt(stmt)?;
-                            if matches!(catch_flow, ControlFlow::Return(_)) {
+                            if matches!(catch_flow, ControlFlow::Return(_) | ControlFlow::Break) {
                                 break;
                             }
                         }
@@ -195,5 +210,45 @@ impl Interpreter {
         }
 
         Ok(flow)
+    }
+
+    fn eval_switch(
+        &mut self,
+        discriminant: &crate::parser::ast::Expr,
+        cases: &[crate::parser::ast::SwitchCase],
+    ) -> Result<ControlFlow, RuntimeError> {
+        let value = self.eval_expr(discriminant)?;
+        let mut selected = None;
+        let mut default_idx = None;
+
+        for (idx, case) in cases.iter().enumerate() {
+            if case.test.is_none() {
+                default_idx = Some(idx);
+                continue;
+            }
+            let case_value = self.eval_expr(case.test.as_ref().expect("checked above"))?;
+            if case_value == value {
+                selected = Some(idx);
+                break;
+            }
+        }
+
+        let mut idx = selected.or(default_idx);
+        while let Some(i) = idx {
+            for stmt in &cases[i].body {
+                match self.eval_stmt(stmt)? {
+                    ControlFlow::None => {}
+                    ControlFlow::Break => return Ok(ControlFlow::None),
+                    ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
+                }
+            }
+            idx = if i + 1 < cases.len() {
+                Some(i + 1)
+            } else {
+                None
+            };
+        }
+
+        Ok(ControlFlow::None)
     }
 }

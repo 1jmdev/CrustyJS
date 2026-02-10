@@ -5,6 +5,7 @@ mod expr_ops;
 mod expr_parser;
 mod pattern_parser;
 mod stmt_parser;
+mod switch_parser;
 
 use crate::errors::SyntaxError;
 use crate::lexer::token::{Token, TokenKind};

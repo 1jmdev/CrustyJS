@@ -45,3 +45,23 @@ fn lex_class_keywords() {
         ]
     );
 }
+
+#[test]
+fn lex_switch_keywords() {
+    let kinds: Vec<TokenKind> = lex("switch case default break")
+        .expect("lexing should succeed")
+        .into_iter()
+        .map(|t| t.kind)
+        .collect();
+
+    assert_eq!(
+        kinds,
+        vec![
+            TokenKind::Switch,
+            TokenKind::Case,
+            TokenKind::Default,
+            TokenKind::Break,
+            TokenKind::Eof,
+        ]
+    );
+}
