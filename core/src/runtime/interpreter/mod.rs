@@ -1,5 +1,6 @@
 mod builtins;
 mod error_handling;
+mod eval_class;
 mod eval_expr;
 mod eval_stmt;
 mod global_builtins;
@@ -7,6 +8,7 @@ mod global_builtins;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Program;
 use crate::runtime::environment::Environment;
+use std::collections::HashMap;
 
 /// Control flow signal from statement evaluation.
 pub(crate) enum ControlFlow {
@@ -18,6 +20,8 @@ pub(crate) enum ControlFlow {
 pub struct Interpreter {
     pub(crate) env: Environment,
     pub(crate) output: Vec<String>,
+    pub(crate) classes: HashMap<String, eval_class::RuntimeClass>,
+    pub(crate) super_stack: Vec<Option<String>>,
 }
 
 impl Interpreter {
@@ -25,6 +29,8 @@ impl Interpreter {
         let mut interp = Self {
             env: Environment::new(),
             output: Vec::new(),
+            classes: HashMap::new(),
+            super_stack: Vec::new(),
         };
         interp.init_builtins();
         interp

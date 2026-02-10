@@ -126,6 +126,10 @@ impl Interpreter {
                 catch_block,
                 finally_block,
             } => self.eval_try_catch(try_block, catch_param, catch_block, finally_block),
+            Stmt::Class(class_decl) => {
+                self.eval_class_decl(class_decl)?;
+                Ok(ControlFlow::None)
+            }
         }
     }
 

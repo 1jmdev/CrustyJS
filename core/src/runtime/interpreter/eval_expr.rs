@@ -1,4 +1,3 @@
-use super::error_handling::create_error_object;
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
@@ -146,19 +145,8 @@ impl Interpreter {
                 };
                 Ok(JsValue::String(t.to_string()))
             }
-            Expr::New { callee, args } => {
-                if matches!(&**callee, Expr::Identifier(name) if name == "Error") {
-                    let message = args
-                        .first()
-                        .map(|expr| self.eval_expr(expr))
-                        .transpose()?
-                        .unwrap_or(JsValue::Undefined);
-                    return Ok(create_error_object(message));
-                }
-                Err(RuntimeError::TypeError {
-                    message: "new currently supports only Error(...)".to_string(),
-                })
-            }
+            Expr::New { callee, args } => self.eval_new(callee, args),
+            Expr::SuperCall { args } => self.eval_super_call(args),
             Expr::ArrowFunction { params, body } => {
                 let body = match body {
                     ArrowBody::Block(stmts) => stmts.clone(),
