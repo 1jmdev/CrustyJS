@@ -1,0 +1,28 @@
+use crustyjs::lexer::lex;
+use crustyjs::parser::parse;
+use crustyjs::runtime::interpreter::Interpreter;
+use std::path::PathBuf;
+
+#[test]
+fn kitchen_sink_example_runs() {
+    let path = PathBuf::from("examples/kitchen_sink.js");
+    let source = std::fs::read_to_string(&path).expect("read kitchen sink");
+    let tokens = lex(&source).expect("lexing should succeed");
+    let program = parse(tokens).expect("parsing should succeed");
+    let mut interp = Interpreter::new_with_realtime_timers(false);
+    interp
+        .run_with_path(&program, path)
+        .expect("execution should succeed");
+
+    let out = interp.output();
+    assert_eq!(out.len(), 4);
+    assert_eq!(out[0], "Hello Ada, age 36");
+    assert!(out[1].contains("\"sum\":14"));
+    assert!(out[1].contains("\"sorted\""));
+    assert!(out[1].contains("1.0") || out[1].contains("1"));
+    assert!(out[1].contains("\"timestamp\":"));
+    assert!(out[2].contains("id"));
+    assert!(out[2].contains("role"));
+    assert!(out[2].contains("active"));
+    assert_eq!(out[3], "1");
+}
