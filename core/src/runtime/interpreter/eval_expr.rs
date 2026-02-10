@@ -161,7 +161,11 @@ impl Interpreter {
             }
             Expr::ComputedMemberAccess { object, property } => {
                 let obj_val = self.eval_expr(object)?;
-                let key = self.eval_expr(property)?.to_js_string();
+                let key_val = self.eval_expr(property)?;
+                if let JsValue::Symbol(ref sym) = key_val {
+                    return self.get_symbol_property(&obj_val, sym);
+                }
+                let key = key_val.to_js_string();
                 self.get_property(&obj_val, &key)
             }
             Expr::MemberAssign {
@@ -170,8 +174,13 @@ impl Interpreter {
                 value,
             } => {
                 let obj_val = self.eval_expr(object)?;
-                let key = self.eval_expr(property)?.to_js_string();
+                let key_val = self.eval_expr(property)?;
                 let val = self.eval_expr(value)?;
+                if let JsValue::Symbol(ref sym) = key_val {
+                    self.set_symbol_property(&obj_val, sym, val.clone())?;
+                    return Ok(val);
+                }
+                let key = key_val.to_js_string();
                 self.set_property(&obj_val, &key, val.clone())?;
                 Ok(val)
             }
@@ -222,6 +231,7 @@ impl Interpreter {
                     JsValue::String(_) => "string",
                     JsValue::Function { .. } => "function",
                     JsValue::NativeFunction { .. } => "function",
+                    JsValue::Symbol(_) => "symbol",
                     JsValue::Object(_) | JsValue::Array(_) | JsValue::Promise(_) => "object",
                 };
                 Ok(JsValue::String(t.to_string()))

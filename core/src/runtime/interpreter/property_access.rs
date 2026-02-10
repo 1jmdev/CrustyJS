@@ -2,6 +2,7 @@ use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::runtime::value::JsValue;
 use crate::runtime::value::string_methods;
+use crate::runtime::value::symbol::JsSymbol;
 use std::rc::Rc;
 
 impl Interpreter {
@@ -98,6 +99,47 @@ impl Interpreter {
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot set property '{key}' on {obj_val}"),
+            }),
+        }
+    }
+
+    pub(crate) fn get_symbol_property(
+        &mut self,
+        obj_val: &JsValue,
+        sym: &JsSymbol,
+    ) -> Result<JsValue, RuntimeError> {
+        match obj_val {
+            JsValue::Object(obj) => {
+                let mut current = Some(Rc::clone(obj));
+                while let Some(candidate) = current {
+                    let (val, next) = {
+                        let borrowed = candidate.borrow();
+                        (borrowed.get_symbol(sym), borrowed.prototype.clone())
+                    };
+                    if let Some(v) = val {
+                        return Ok(v);
+                    }
+                    current = next;
+                }
+                Ok(JsValue::Undefined)
+            }
+            _ => Ok(JsValue::Undefined),
+        }
+    }
+
+    pub(crate) fn set_symbol_property(
+        &mut self,
+        obj_val: &JsValue,
+        sym: &JsSymbol,
+        value: JsValue,
+    ) -> Result<(), RuntimeError> {
+        match obj_val {
+            JsValue::Object(obj) => {
+                obj.borrow_mut().set_symbol(sym.clone(), value);
+                Ok(())
+            }
+            _ => Err(RuntimeError::TypeError {
+                message: format!("cannot set symbol property on {obj_val}"),
             }),
         }
     }
