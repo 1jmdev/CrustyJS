@@ -4,8 +4,10 @@ mod eval_class;
 mod eval_expr;
 mod eval_pattern;
 mod eval_stmt;
+mod function_call;
 mod global_builtins;
 mod object_json_date_builtins;
+mod property_access;
 
 use crate::errors::RuntimeError;
 use crate::parser::ast::Program;
