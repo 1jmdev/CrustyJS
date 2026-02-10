@@ -52,6 +52,11 @@ pub enum TokenKind {
     For,
     Of,
     Typeof,
+    Try,
+    Catch,
+    Finally,
+    Throw,
+    New,
 
     // Operators
     Plus,

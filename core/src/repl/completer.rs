@@ -14,5 +14,10 @@ pub fn keywords() -> &'static [&'static str] {
         "null",
         "undefined",
         "typeof",
+        "try",
+        "catch",
+        "finally",
+        "throw",
+        "new",
     ]
 }
