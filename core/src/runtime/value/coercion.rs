@@ -25,6 +25,8 @@ impl JsValue {
             JsValue::Promise(_) => f64::NAN,
             JsValue::Map(_) => f64::NAN,
             JsValue::Set(_) => f64::NAN,
+            JsValue::WeakMap(_) => f64::NAN,
+            JsValue::WeakSet(_) => f64::NAN,
         }
     }
 
@@ -43,6 +45,8 @@ impl JsValue {
             JsValue::Promise(_) => true,
             JsValue::Map(_) => true,
             JsValue::Set(_) => true,
+            JsValue::WeakMap(_) => true,
+            JsValue::WeakSet(_) => true,
         }
     }
 
@@ -76,6 +80,8 @@ impl JsValue {
             JsValue::Promise(_) => "[object Promise]".to_string(),
             JsValue::Map(_) => "[object Map]".to_string(),
             JsValue::Set(_) => "[object Set]".to_string(),
+            JsValue::WeakMap(_) => "[object WeakMap]".to_string(),
+            JsValue::WeakSet(_) => "[object WeakSet]".to_string(),
         }
     }
 }

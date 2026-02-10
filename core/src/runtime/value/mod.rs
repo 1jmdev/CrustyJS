@@ -21,6 +21,8 @@ use crate::runtime::gc::{Trace, Tracer};
 use array::JsArray;
 use collections::map::JsMap;
 use collections::set::JsSet;
+use collections::weak_map::JsWeakMap;
+use collections::weak_set::JsWeakSet;
 use generator::JsGenerator;
 use object::JsObject;
 use promise::JsPromise;
@@ -72,6 +74,8 @@ pub enum JsValue {
     Promise(Rc<RefCell<JsPromise>>),
     Map(Rc<RefCell<JsMap>>),
     Set(Rc<RefCell<JsSet>>),
+    WeakMap(Rc<RefCell<JsWeakMap>>),
+    WeakSet(Rc<RefCell<JsWeakSet>>),
 }
 
 impl PartialEq for JsValue {
@@ -108,6 +112,8 @@ impl PartialEq for JsValue {
             (JsValue::Promise(a), JsValue::Promise(b)) => Rc::ptr_eq(a, b),
             (JsValue::Map(a), JsValue::Map(b)) => Rc::ptr_eq(a, b),
             (JsValue::Set(a), JsValue::Set(b)) => Rc::ptr_eq(a, b),
+            (JsValue::WeakMap(a), JsValue::WeakMap(b)) => Rc::ptr_eq(a, b),
+            (JsValue::WeakSet(a), JsValue::WeakSet(b)) => Rc::ptr_eq(a, b),
             (
                 JsValue::NativeFunction {
                     handler: NativeFunction::Host(a),
@@ -171,6 +177,17 @@ impl Trace for JsValue {
             }
             JsValue::Set(set) => {
                 for v in &set.borrow().entries {
+                    v.trace(tracer);
+                }
+            }
+            JsValue::WeakMap(wm) => {
+                for (k, v) in &wm.borrow().entries {
+                    k.trace(tracer);
+                    v.trace(tracer);
+                }
+            }
+            JsValue::WeakSet(ws) => {
+                for v in &ws.borrow().entries {
                     v.trace(tracer);
                 }
             }

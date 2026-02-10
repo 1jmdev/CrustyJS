@@ -57,6 +57,8 @@ impl fmt::Display for JsValue {
                 let set = set.borrow();
                 write!(f, "Set({})", set.size())
             }
+            JsValue::WeakMap(_) => write!(f, "WeakMap {{}}"),
+            JsValue::WeakSet(_) => write!(f, "WeakSet {{}}"),
         }
     }
 }
