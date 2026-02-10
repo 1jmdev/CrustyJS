@@ -157,3 +157,10 @@ fn parse_new_expression() {
         other => panic!("expected New expression, got {other:?}"),
     }
 }
+
+#[test]
+fn parse_expression_without_semicolon_at_eof() {
+    let stmts = parse_source("console.log(1)");
+    assert_eq!(stmts.len(), 1);
+    assert!(matches!(stmts[0], Stmt::ExprStmt(Expr::Call { .. })));
+}

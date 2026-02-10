@@ -101,3 +101,17 @@ fn error_constructor_exists_globally() {
     let output = run_and_capture("console.log(typeof Error);");
     assert_eq!(output, vec!["function"]);
 }
+
+#[test]
+fn catch_body_allows_missing_semicolon_before_brace() {
+    let output = run_and_capture(
+        r#"
+        try {
+          throw new Error("boom");
+        } catch (e) {
+          console.log(e.message)
+        }
+        "#,
+    );
+    assert_eq!(output, vec!["boom"]);
+}

@@ -11,3 +11,10 @@ try {
 } catch (e) {
   console.log(e);
 }
+
+try {
+  throw new Error("boom");
+  console.log("never runs")
+} catch (e) {
+  console.log(e)
+}

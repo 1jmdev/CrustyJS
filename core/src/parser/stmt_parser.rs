@@ -28,7 +28,7 @@ impl Parser {
         } else {
             None
         };
-        self.expect(&TokenKind::Semicolon)?;
+        self.consume_stmt_terminator()?;
         Ok(Stmt::VarDecl { name, init })
     }
 
@@ -89,7 +89,7 @@ impl Parser {
             return Ok(Stmt::Return(None));
         }
         let value = self.parse_expr(0)?;
-        self.expect(&TokenKind::Semicolon)?;
+        self.consume_stmt_terminator()?;
         Ok(Stmt::Return(Some(value)))
     }
 
@@ -109,7 +109,7 @@ impl Parser {
 
     fn parse_expr_stmt(&mut self) -> Result<Stmt, SyntaxError> {
         let expr = self.parse_expr(0)?;
-        self.expect(&TokenKind::Semicolon)?;
+        self.consume_stmt_terminator()?;
         Ok(Stmt::ExprStmt(expr))
     }
 
@@ -220,7 +220,23 @@ impl Parser {
     fn parse_throw(&mut self) -> Result<Stmt, SyntaxError> {
         self.advance(); // consume 'throw'
         let expr = self.parse_expr(0)?;
-        self.expect(&TokenKind::Semicolon)?;
+        self.consume_stmt_terminator()?;
         Ok(Stmt::Throw(expr))
+    }
+
+    fn consume_stmt_terminator(&mut self) -> Result<(), SyntaxError> {
+        if self.check(&TokenKind::Semicolon) {
+            self.advance();
+            return Ok(());
+        }
+        if self.check(&TokenKind::RightBrace) || self.check(&TokenKind::Eof) {
+            return Ok(());
+        }
+        let token = self.tokens[self.pos].clone();
+        Err(SyntaxError::new(
+            format!("expected Semicolon, found {:?}", token.kind),
+            token.span.start,
+            token.span.len().max(1),
+        ))
     }
 }
