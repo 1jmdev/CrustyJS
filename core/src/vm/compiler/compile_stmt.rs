@@ -121,7 +121,9 @@ impl Compiler {
             | Stmt::TryCatch { .. }
             | Stmt::Throw(_)
             | Stmt::Switch { .. }
-            | Stmt::Class(_) => {
+            | Stmt::Class(_)
+            | Stmt::Import(_)
+            | Stmt::Export(_) => {
                 self.chunk.write(Opcode::RunTreeWalk, 0);
             }
         }

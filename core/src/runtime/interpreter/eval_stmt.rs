@@ -186,6 +186,18 @@ impl Interpreter {
                 discriminant,
                 cases,
             } => self.eval_switch(discriminant, cases),
+            Stmt::Import(decl) => self.eval_import_stmt(decl),
+            Stmt::Export(decl) => {
+                let flow = self.eval_export_stmt(decl)?;
+                if let crate::parser::ast::ExportDecl::NamedStmt(inner) = decl {
+                    for name in Interpreter::export_names_from_stmt(inner) {
+                        if let Ok(value) = self.env.get(&name) {
+                            self.env.define(format!("__export_{name}"), value);
+                        }
+                    }
+                }
+                Ok(flow)
+            }
         }
     }
 

@@ -44,12 +44,12 @@ fn main() {
         return;
     }
 
-    let source = if let Some(code) = cli.eval {
-        code
+    let (source, source_path) = if let Some(code) = cli.eval {
+        (code, std::path::PathBuf::from("."))
     } else {
         let file = cli.file.expect("checked above");
         match fs::read_to_string(&file) {
-            Ok(s) => s,
+            Ok(s) => (s, std::path::PathBuf::from(file)),
             Err(e) => {
                 eprintln!("error: could not read '{}': {e}", file);
                 process::exit(1);
@@ -95,7 +95,7 @@ fn main() {
         let mut interp =
             crustyjs::runtime::interpreter::Interpreter::new_with_realtime_timers(true);
         interp
-            .run(&program)
+            .run_with_path(&program, source_path)
             .map_err(crustyjs::errors::CrustyError::from)
     };
 
