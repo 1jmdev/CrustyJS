@@ -5,8 +5,6 @@ use crate::runtime::value::string_methods;
 use crate::runtime::value::JsValue;
 
 impl Interpreter {
-    /// Handle member access and method calls.
-    /// `is_call` distinguishes `obj.prop` (false) from `obj.method()` (true).
     pub(crate) fn eval_member_call(
         &mut self,
         object: &Expr,
@@ -14,17 +12,14 @@ impl Interpreter {
         args: &[Expr],
         is_call: bool,
     ) -> Result<JsValue, RuntimeError> {
-        // console.log special case
         if let Expr::Identifier(name) = object {
             if name == "console" && property == "log" {
                 return self.builtin_console_log(args);
             }
         }
 
-        // Evaluate the object to get its value
         let obj_val = self.eval_expr(object)?;
 
-        // String property/method access
         if let JsValue::String(ref s) = obj_val {
             if is_call {
                 let arg_values: Vec<JsValue> = args
@@ -36,9 +31,47 @@ impl Interpreter {
             return string_methods::resolve_string_property(s, property);
         }
 
+        if !is_call {
+            return self.get_property(&obj_val, property);
+        }
+
         Err(RuntimeError::TypeError {
             message: format!("cannot access property '{property}' on this value"),
         })
+    }
+
+    pub(crate) fn get_property(
+        &self,
+        obj_val: &JsValue,
+        key: &str,
+    ) -> Result<JsValue, RuntimeError> {
+        match obj_val {
+            JsValue::Object(obj) => {
+                let borrowed = obj.borrow();
+                Ok(borrowed.get(key).unwrap_or(JsValue::Undefined))
+            }
+            JsValue::String(s) => string_methods::resolve_string_property(s, key),
+            _ => Err(RuntimeError::TypeError {
+                message: format!("cannot access property '{key}' on {obj_val}"),
+            }),
+        }
+    }
+
+    pub(crate) fn set_property(
+        &self,
+        obj_val: &JsValue,
+        key: &str,
+        value: JsValue,
+    ) -> Result<(), RuntimeError> {
+        match obj_val {
+            JsValue::Object(obj) => {
+                obj.borrow_mut().set(key.to_string(), value);
+                Ok(())
+            }
+            _ => Err(RuntimeError::TypeError {
+                message: format!("cannot set property '{key}' on {obj_val}"),
+            }),
+        }
     }
 
     fn builtin_console_log(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {

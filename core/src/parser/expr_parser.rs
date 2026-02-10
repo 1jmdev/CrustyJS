@@ -3,7 +3,6 @@ use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
-/// Binding power for Pratt parsing. Higher = tighter binding.
 fn infix_binding_power(kind: &TokenKind) -> Option<(u8, u8)> {
     match kind {
         TokenKind::EqEqEq | TokenKind::NotEqEq => Some((3, 4)),
@@ -40,15 +39,13 @@ fn token_to_binop(kind: &TokenKind) -> BinOp {
 }
 
 impl Parser {
-    /// Parse an expression with the given minimum binding power.
     pub(crate) fn parse_expr(&mut self, min_bp: u8) -> Result<Expr, SyntaxError> {
         let mut lhs = self.parse_prefix()?;
 
         loop {
-            // Postfix: function call or member access
             lhs = match self.peek() {
                 TokenKind::LeftParen => {
-                    self.advance(); // consume '('
+                    self.advance();
                     let args = self.parse_call_args()?;
                     self.expect(&TokenKind::RightParen)?;
                     Expr::Call {
@@ -57,18 +54,46 @@ impl Parser {
                     }
                 }
                 TokenKind::Dot => {
-                    self.advance(); // consume '.'
+                    self.advance();
                     let property = self.expect_ident()?;
-                    Expr::MemberAccess {
-                        object: Box::new(lhs),
-                        property,
+                    if self.check(&TokenKind::Assign) {
+                        self.advance();
+                        let value = self.parse_expr(0)?;
+                        Expr::MemberAssign {
+                            object: Box::new(lhs),
+                            property: Box::new(Expr::Literal(Literal::String(property))),
+                            value: Box::new(value),
+                        }
+                    } else {
+                        Expr::MemberAccess {
+                            object: Box::new(lhs),
+                            property,
+                        }
+                    }
+                }
+                TokenKind::LeftBracket => {
+                    self.advance();
+                    let prop_expr = self.parse_expr(0)?;
+                    self.expect(&TokenKind::RightBracket)?;
+                    if self.check(&TokenKind::Assign) {
+                        self.advance();
+                        let value = self.parse_expr(0)?;
+                        Expr::MemberAssign {
+                            object: Box::new(lhs),
+                            property: Box::new(prop_expr),
+                            value: Box::new(value),
+                        }
+                    } else {
+                        Expr::ComputedMemberAccess {
+                            object: Box::new(lhs),
+                            property: Box::new(prop_expr),
+                        }
                     }
                 }
                 _ => break,
             };
         }
 
-        // Infix binary operators
         loop {
             let Some((l_bp, r_bp)) = infix_binding_power(self.peek()) else {
                 break;
@@ -92,7 +117,6 @@ impl Parser {
     }
 
     fn parse_prefix(&mut self) -> Result<Expr, SyntaxError> {
-        // Unary prefix operators
         if let Some(rbp) = prefix_binding_power(self.peek()) {
             let op_kind = self.advance().kind.clone();
             let op = match op_kind {
@@ -121,9 +145,8 @@ impl Parser {
             TokenKind::Undefined => Ok(Expr::Literal(Literal::Undefined)),
             TokenKind::Ident(ref name) => {
                 let name = name.clone();
-                // Check for assignment: `ident = expr`
                 if self.check(&TokenKind::Assign) {
-                    self.advance(); // consume '='
+                    self.advance();
                     let value = self.parse_expr(0)?;
                     Ok(Expr::Assign {
                         name,
@@ -138,6 +161,7 @@ impl Parser {
                 self.expect(&TokenKind::RightParen)?;
                 Ok(expr)
             }
+            TokenKind::LeftBrace => self.parse_object_literal(),
             TokenKind::NoSubTemplate(ref s) => Ok(Expr::Literal(Literal::String(s.clone()))),
             TokenKind::TemplateHead(ref s) => {
                 let head = s.clone();
@@ -156,11 +180,26 @@ impl Parser {
         if !self.check(&TokenKind::RightParen) {
             args.push(self.parse_expr(0)?);
             while self.check(&TokenKind::Comma) {
-                self.advance(); // consume ','
+                self.advance();
                 args.push(self.parse_expr(0)?);
             }
         }
         Ok(args)
+    }
+
+    fn parse_object_literal(&mut self) -> Result<Expr, SyntaxError> {
+        let mut properties = Vec::new();
+        while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
+            let key = self.expect_ident()?;
+            self.expect(&TokenKind::Colon)?;
+            let value = self.parse_expr(0)?;
+            properties.push((key, value));
+            if !self.check(&TokenKind::RightBrace) {
+                self.expect(&TokenKind::Comma)?;
+            }
+        }
+        self.expect(&TokenKind::RightBrace)?;
+        Ok(Expr::ObjectLiteral { properties })
     }
 
     pub(crate) fn expect_ident(&mut self) -> Result<String, SyntaxError> {

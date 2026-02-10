@@ -48,6 +48,22 @@ impl Interpreter {
                 }
                 Ok(JsValue::Object(obj.wrapped()))
             }
+            Expr::ComputedMemberAccess { object, property } => {
+                let obj_val = self.eval_expr(object)?;
+                let key = self.eval_expr(property)?.to_js_string();
+                self.get_property(&obj_val, &key)
+            }
+            Expr::MemberAssign {
+                object,
+                property,
+                value,
+            } => {
+                let obj_val = self.eval_expr(object)?;
+                let key = self.eval_expr(property)?.to_js_string();
+                let val = self.eval_expr(value)?;
+                self.set_property(&obj_val, &key, val.clone())?;
+                Ok(val)
+            }
         }
     }
 
