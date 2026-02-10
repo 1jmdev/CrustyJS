@@ -1,4 +1,4 @@
-use super::eval_expr_helpers::{eval_binary, eval_compound, eval_literal, eval_unary};
+use super::eval_expr_helpers::{eval_literal, eval_unary};
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
@@ -22,7 +22,7 @@ impl Interpreter {
                 }
                 let lhs = self.eval_expr(left)?;
                 let rhs = self.eval_expr(right)?;
-                eval_binary(lhs, op, rhs)
+                self.eval_binary(lhs, op, rhs)
             }
             Expr::Unary { op, operand } => {
                 let val = self.eval_expr(operand)?;
@@ -37,7 +37,7 @@ impl Interpreter {
             Expr::CompoundAssign { name, op, value } => {
                 let current = self.env.get(name)?;
                 let rhs = self.eval_expr(value)?;
-                let next = eval_compound(current, op, rhs)?;
+                let next = self.eval_compound(current, op, rhs)?;
                 self.env.set(name, next.clone())?;
                 Ok(next)
             }
