@@ -8,6 +8,7 @@ mod eval_stmt;
 mod function_call;
 mod global_builtins;
 mod object_json_date_builtins;
+mod promise_runtime;
 mod property_access;
 
 use crate::errors::RuntimeError;

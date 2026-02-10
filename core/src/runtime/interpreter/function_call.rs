@@ -138,6 +138,9 @@ impl Interpreter {
                 call_result?;
                 Ok(result)
             }
+            JsValue::NativeFunction { handler, .. } => {
+                self.call_native_function(handler, args, this_binding)
+            }
             other => Err(RuntimeError::NotAFunction {
                 name: format!("{other}"),
             }),
