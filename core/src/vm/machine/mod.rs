@@ -8,6 +8,7 @@ use crate::lexer;
 use crate::parser;
 use crate::runtime::interpreter::Interpreter;
 use crate::vm::bytecode::{Chunk, Opcode, VmValue};
+use std::path::PathBuf;
 
 use call_frame::CallFrame;
 use stack::Stack;
@@ -27,7 +28,12 @@ impl VM {
         }
     }
 
-    pub fn run(&mut self, chunk: Chunk, source: Option<String>) -> Result<(), RuntimeError> {
+    pub fn run(
+        &mut self,
+        chunk: Chunk,
+        source: Option<String>,
+        source_path: Option<PathBuf>,
+    ) -> Result<(), RuntimeError> {
         self.frames.push(CallFrame::new(chunk));
 
         while !self.frames.is_empty() {
@@ -168,7 +174,8 @@ impl VM {
                                 message: format!("VM bridge parse error: {e}"),
                             })?;
                         let mut interp = Interpreter::new_with_realtime_timers(true);
-                        interp.run(&program)?;
+                        let base_path = source_path.clone().unwrap_or_else(|| PathBuf::from("."));
+                        interp.run_with_path(&program, base_path)?;
                         return Ok(());
                     }
                     return Err(RuntimeError::TypeError {

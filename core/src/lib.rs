@@ -21,3 +21,7 @@ pub fn run(source: &str) -> Result<Interpreter, CrustyError> {
 pub fn run_vm(source: &str) -> Result<(), CrustyError> {
     vm::run_vm(source)
 }
+
+pub fn run_vm_with_path(source: &str, path: Option<std::path::PathBuf>) -> Result<(), CrustyError> {
+    vm::run_vm_with_path(source, path)
+}

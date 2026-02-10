@@ -90,7 +90,7 @@ fn main() {
     }
 
     let result = if cli.vm {
-        crustyjs::run_vm(&source).map(|_| ())
+        crustyjs::run_vm_with_path(&source, Some(source_path.clone())).map(|_| ())
     } else {
         let mut interp =
             crustyjs::runtime::interpreter::Interpreter::new_with_realtime_timers(true);
