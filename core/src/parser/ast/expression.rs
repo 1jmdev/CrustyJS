@@ -143,6 +143,12 @@ pub enum ArrowBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectProperty {
-    KeyValue(String, Expr),
+    KeyValue(PropertyKey, Expr),
     Spread(Expr),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PropertyKey {
+    Identifier(String),
+    Computed(Expr),
 }

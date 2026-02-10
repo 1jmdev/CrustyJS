@@ -214,3 +214,15 @@ fn loose_equality_with_coercion() {
     );
     assert_eq!(output, vec!["true", "true", "true", "true", "false"]);
 }
+
+#[test]
+fn computed_property_name() {
+    let output = run_and_capture(
+        r#"
+        let prop = "name";
+        let obj = { [prop]: "Rex" };
+        console.log(obj.name);
+        "#,
+    );
+    assert_eq!(output, vec!["Rex"]);
+}

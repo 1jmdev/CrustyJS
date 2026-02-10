@@ -1,8 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
-    ArrowBody, AssignOp, BinOp, Expr, Literal, LogicalOp, ObjectProperty, Stmt, TemplatePart,
-    UnaryOp, UpdateOp,
+    ArrowBody, AssignOp, BinOp, Expr, Literal, LogicalOp, ObjectProperty, PropertyKey, Stmt,
+    TemplatePart, UnaryOp, UpdateOp,
 };
 use crate::runtime::value::abstract_equals;
 use crate::runtime::value::array::JsArray;
@@ -74,7 +74,8 @@ impl Interpreter {
                     match property {
                         ObjectProperty::KeyValue(key, val_expr) => {
                             let val = self.eval_expr(val_expr)?;
-                            obj.set(key.clone(), val);
+                            let key = self.eval_property_key(key)?;
+                            obj.set(key, val);
                         }
                         ObjectProperty::Spread(expr) => {
                             let spread_val = self.eval_expr(expr)?;
@@ -247,6 +248,15 @@ impl Interpreter {
             }
         }
         Ok(values)
+    }
+}
+
+impl Interpreter {
+    fn eval_property_key(&mut self, key: &PropertyKey) -> Result<String, RuntimeError> {
+        match key {
+            PropertyKey::Identifier(name) => Ok(name.clone()),
+            PropertyKey::Computed(expr) => Ok(self.eval_expr(expr)?.to_js_string()),
+        }
     }
 }
 

@@ -1,5 +1,7 @@
 use crustyjs::lexer::lex;
-use crustyjs::parser::ast::{BinOp, Expr, Literal, ObjectProperty, Param, Pattern, Stmt};
+use crustyjs::parser::ast::{
+    BinOp, Expr, Literal, ObjectProperty, Param, Pattern, PropertyKey, Stmt,
+};
 use crustyjs::parser::parse;
 
 fn parse_source(source: &str) -> Vec<Stmt> {
@@ -208,7 +210,29 @@ fn parse_object_method_shorthand() {
             assert_eq!(properties.len(), 1);
             assert!(matches!(
                 properties[0],
-                ObjectProperty::KeyValue(ref key, _) if key == "speak"
+                ObjectProperty::KeyValue(PropertyKey::Identifier(ref key), _) if key == "speak"
+            ));
+        }
+        other => panic!("expected object literal var decl, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_computed_property_name() {
+    let stmts = parse_source("let obj = { [name]: 42 }; ");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::VarDecl {
+            init: Some(Expr::ObjectLiteral { properties }),
+            ..
+        } => {
+            assert_eq!(properties.len(), 1);
+            assert!(matches!(
+                properties[0],
+                ObjectProperty::KeyValue(
+                    PropertyKey::Computed(_),
+                    Expr::Literal(Literal::Number(42.0))
+                )
             ));
         }
         other => panic!("expected object literal var decl, got {other:?}"),

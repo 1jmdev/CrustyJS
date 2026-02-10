@@ -1,4 +1,6 @@
-use super::ast::{ArrowBody, AssignOp, Expr, ObjectProperty, Param, Pattern, TemplatePart};
+use super::ast::{
+    ArrowBody, AssignOp, Expr, ObjectProperty, Param, Pattern, PropertyKey, TemplatePart,
+};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
@@ -96,33 +98,44 @@ impl Parser {
                 continue;
             }
 
-            let key = self.expect_ident()?;
-            let value = if self.check(&TokenKind::Colon) {
+            let (key, value) = if self.check(&TokenKind::LeftBracket) {
                 self.advance();
-                self.parse_expr(0)?
-            } else if self.check(&TokenKind::LeftParen) {
-                self.advance();
-                let params = self.parse_method_params()?;
-                self.expect(&TokenKind::RightParen)?;
-                let body = self.parse_block()?;
-                let params = params
-                    .into_iter()
-                    .map(|name| Param {
-                        pattern: Pattern::Identifier(name),
-                        default: None,
-                    })
-                    .collect();
-                Expr::ArrowFunction {
-                    params,
-                    body: ArrowBody::Block(body),
-                }
+                let key_expr = self.parse_expr(0)?;
+                self.expect(&TokenKind::RightBracket)?;
+                self.expect(&TokenKind::Colon)?;
+                (PropertyKey::Computed(key_expr), self.parse_expr(0)?)
             } else {
-                let token = self.tokens[self.pos].clone();
-                return Err(SyntaxError::new(
-                    "expected ':' or method parameter list",
-                    token.span.start,
-                    token.span.len().max(1),
-                ));
+                let key_name = self.expect_ident()?;
+                if self.check(&TokenKind::Colon) {
+                    self.advance();
+                    (PropertyKey::Identifier(key_name), self.parse_expr(0)?)
+                } else if self.check(&TokenKind::LeftParen) {
+                    self.advance();
+                    let params = self.parse_method_params()?;
+                    self.expect(&TokenKind::RightParen)?;
+                    let body = self.parse_block()?;
+                    let params = params
+                        .into_iter()
+                        .map(|name| Param {
+                            pattern: Pattern::Identifier(name),
+                            default: None,
+                        })
+                        .collect();
+                    (
+                        PropertyKey::Identifier(key_name),
+                        Expr::ArrowFunction {
+                            params,
+                            body: ArrowBody::Block(body),
+                        },
+                    )
+                } else {
+                    let token = self.tokens[self.pos].clone();
+                    return Err(SyntaxError::new(
+                        "expected ':' or method parameter list",
+                        token.span.start,
+                        token.span.len().max(1),
+                    ));
+                }
             };
             properties.push(ObjectProperty::KeyValue(key, value));
             if !self.check(&TokenKind::RightBrace) {
