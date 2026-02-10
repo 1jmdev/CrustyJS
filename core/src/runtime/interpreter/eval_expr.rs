@@ -17,6 +17,9 @@ impl Interpreter {
                 if matches!(op, BinOp::Instanceof) {
                     return self.eval_instanceof_expr(left, right);
                 }
+                if matches!(op, BinOp::In) {
+                    return self.eval_in_expr(left, right);
+                }
                 let lhs = self.eval_expr(left)?;
                 let rhs = self.eval_expr(right)?;
                 eval_binary(lhs, op, rhs)

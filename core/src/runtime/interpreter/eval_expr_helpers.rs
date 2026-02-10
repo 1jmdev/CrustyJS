@@ -129,6 +129,7 @@ pub(crate) fn eval_binary(lhs: JsValue, op: &BinOp, rhs: JsValue) -> Result<JsVa
         BinOp::EqEq => Ok(JsValue::Boolean(abstract_equals(&lhs, &rhs))),
         BinOp::NotEq => Ok(JsValue::Boolean(!abstract_equals(&lhs, &rhs))),
         BinOp::Instanceof => unreachable!("instanceof handled before eval_binary"),
+        BinOp::In => unreachable!("in handled before eval_binary"),
     }
 }
 

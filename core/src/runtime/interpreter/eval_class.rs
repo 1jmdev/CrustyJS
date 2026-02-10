@@ -225,6 +225,81 @@ impl Interpreter {
         Ok(JsValue::Boolean(false))
     }
 
+    pub(crate) fn eval_in_expr(
+        &mut self,
+        left: &Expr,
+        right: &Expr,
+    ) -> Result<JsValue, RuntimeError> {
+        let key = self.eval_expr(left)?.to_js_string();
+        let target = self.eval_expr(right)?;
+        match &target {
+            JsValue::Object(obj) => {
+                let mut current = Some(std::rc::Rc::clone(obj));
+                while let Some(candidate) = current {
+                    let borrowed = candidate.borrow();
+                    if borrowed.properties.contains_key(&key) {
+                        return Ok(JsValue::Boolean(true));
+                    }
+                    current = borrowed.prototype.clone();
+                }
+                Ok(JsValue::Boolean(false))
+            }
+            JsValue::Proxy(proxy) => {
+                let (trap, proxy_target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("has"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    let result =
+                        self.call_function(&trap_fn, &[proxy_target, JsValue::String(key)])?;
+                    Ok(JsValue::Boolean(result.to_boolean()))
+                } else {
+                    self.eval_in_value(&key, &proxy_target)
+                }
+            }
+            JsValue::Array(arr) => {
+                if let Ok(idx) = key.parse::<usize>() {
+                    Ok(JsValue::Boolean(idx < arr.borrow().len()))
+                } else {
+                    Ok(JsValue::Boolean(false))
+                }
+            }
+            _ => Err(RuntimeError::TypeError {
+                message: format!(
+                    "Cannot use 'in' operator to search for '{}' in {}",
+                    key,
+                    target.to_js_string()
+                ),
+            }),
+        }
+    }
+
+    fn eval_in_value(&mut self, key: &str, target: &JsValue) -> Result<JsValue, RuntimeError> {
+        match target {
+            JsValue::Object(obj) => {
+                let mut current = Some(std::rc::Rc::clone(obj));
+                while let Some(candidate) = current {
+                    let borrowed = candidate.borrow();
+                    if borrowed.properties.contains_key(key) {
+                        return Ok(JsValue::Boolean(true));
+                    }
+                    current = borrowed.prototype.clone();
+                }
+                Ok(JsValue::Boolean(false))
+            }
+            JsValue::Array(arr) => {
+                if let Ok(idx) = key.parse::<usize>() {
+                    Ok(JsValue::Boolean(idx < arr.borrow().len()))
+                } else {
+                    Ok(JsValue::Boolean(false))
+                }
+            }
+            _ => Ok(JsValue::Boolean(false)),
+        }
+    }
+
     fn method_to_function(&self, method: &ClassMethod, class_name: &str) -> JsValue {
         let params = method
             .params
