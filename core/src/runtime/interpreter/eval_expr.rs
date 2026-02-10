@@ -76,6 +76,41 @@ impl Interpreter {
                             let key = self.eval_property_key(key)?;
                             obj.set(key, val);
                         }
+                        ObjectProperty::Getter(key, body) => {
+                            let key = self.eval_property_key(key)?;
+                            let getter = JsValue::Function {
+                                name: format!("get {key}"),
+                                params: Vec::new(),
+                                body: body.clone(),
+                                closure_env: self.env.capture(),
+                                is_async: false,
+                                source_path: self
+                                    .module_stack
+                                    .last()
+                                    .map(|p| p.display().to_string()),
+                                source_offset: 0,
+                            };
+                            obj.set(key, getter);
+                        }
+                        ObjectProperty::Setter(key, param, body) => {
+                            let key = self.eval_property_key(key)?;
+                            let setter = JsValue::Function {
+                                name: format!("set {key}"),
+                                params: vec![crate::parser::ast::Param {
+                                    pattern: crate::parser::ast::Pattern::Identifier(param.clone()),
+                                    default: None,
+                                }],
+                                body: body.clone(),
+                                closure_env: self.env.capture(),
+                                is_async: false,
+                                source_path: self
+                                    .module_stack
+                                    .last()
+                                    .map(|p| p.display().to_string()),
+                                source_offset: 0,
+                            };
+                            obj.set(key, setter);
+                        }
                         ObjectProperty::Spread(expr) => {
                             let spread_val = self.eval_expr(expr)?;
                             match spread_val {

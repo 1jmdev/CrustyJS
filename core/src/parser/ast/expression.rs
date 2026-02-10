@@ -146,6 +146,8 @@ pub enum ArrowBody {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectProperty {
     KeyValue(PropertyKey, Expr),
+    Getter(PropertyKey, Vec<Stmt>),
+    Setter(PropertyKey, String, Vec<Stmt>),
     Spread(Expr),
 }
 

@@ -14,4 +14,12 @@ pub struct ClassMethod {
     pub params: Vec<String>,
     pub body: Vec<Stmt>,
     pub is_static: bool,
+    pub kind: ClassMethodKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassMethodKind {
+    Method,
+    Getter,
+    Setter,
 }

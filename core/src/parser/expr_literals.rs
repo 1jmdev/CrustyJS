@@ -111,6 +111,42 @@ impl Parser {
                 (PropertyKey::Computed(key_expr), self.parse_expr(0)?)
             } else {
                 let key_name = self.expect_ident()?;
+                if (key_name == "get" || key_name == "set") && !self.check(&TokenKind::Colon) {
+                    let accessor_key = PropertyKey::Identifier(self.expect_ident()?);
+                    self.expect(&TokenKind::LeftParen)?;
+                    let params = self.parse_method_params()?;
+                    self.expect(&TokenKind::RightParen)?;
+                    let body = self.parse_block()?;
+
+                    let accessor = if key_name == "get" {
+                        if !params.is_empty() {
+                            let token = self.tokens[self.pos - 1].clone();
+                            return Err(SyntaxError::new(
+                                "getter must not declare parameters",
+                                token.span.start,
+                                token.span.len().max(1),
+                            ));
+                        }
+                        ObjectProperty::Getter(accessor_key, body)
+                    } else {
+                        if params.len() != 1 {
+                            let token = self.tokens[self.pos - 1].clone();
+                            return Err(SyntaxError::new(
+                                "setter must declare exactly one parameter",
+                                token.span.start,
+                                token.span.len().max(1),
+                            ));
+                        }
+                        ObjectProperty::Setter(accessor_key, params[0].clone(), body)
+                    };
+
+                    properties.push(accessor);
+                    if !self.check(&TokenKind::RightBrace) {
+                        self.expect(&TokenKind::Comma)?;
+                    }
+                    continue;
+                }
+
                 if self.check(&TokenKind::Colon) {
                     self.advance();
                     (PropertyKey::Identifier(key_name), self.parse_expr(0)?)
