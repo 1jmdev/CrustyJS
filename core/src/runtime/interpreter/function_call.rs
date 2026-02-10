@@ -141,6 +141,21 @@ impl Interpreter {
             JsValue::NativeFunction { handler, .. } => {
                 self.call_native_function(handler, args, this_binding)
             }
+            JsValue::Proxy(proxy) => {
+                let (trap, target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("apply"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    let this_arg = this_binding.clone().unwrap_or(JsValue::Undefined);
+                    let args_array = JsValue::Array(JsArray::new(args.to_vec()).wrapped());
+                    self.call_function(&trap_fn, &[target, this_arg, args_array])
+                } else {
+                    self.call_function_with_this(&target, args, this_binding)
+                }
+            }
             other => Err(RuntimeError::NotAFunction {
                 name: format!("{other}"),
             }),
