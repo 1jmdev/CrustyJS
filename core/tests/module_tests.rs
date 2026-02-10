@@ -114,3 +114,21 @@ fn circular_import_is_reported() {
     let err = run_file_result(&main).expect_err("expected circular import error");
     assert!(err.to_string().contains("circular import detected"));
 }
+
+#[test]
+fn module_parse_error_reports_file_line_and_column() {
+    let dir = std::env::temp_dir().join(format!("crustyjs_mod_{}_e", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).expect("create dir");
+
+    let bad = dir.join("bad.js");
+    let main = dir.join("main.js");
+
+    fs::write(&bad, "export function (").expect("write bad module");
+    fs::write(&main, "import { x } from './bad.js';").expect("write main");
+
+    let err = run_file_result(&main).expect_err("expected parse error");
+    let msg = err.to_string();
+    assert!(msg.contains("failed to parse module"));
+    assert!(msg.contains(":1:"));
+}

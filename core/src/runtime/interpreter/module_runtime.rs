@@ -1,4 +1,5 @@
 use super::{ControlFlow, Interpreter};
+use crate::diagnostics::source_map::SourceMap;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{ExportDecl, ImportSpecifier, Pattern, Stmt};
 use crate::runtime::modules::resolver;
@@ -100,11 +101,12 @@ impl Interpreter {
         let source = std::fs::read_to_string(&path).map_err(|e| RuntimeError::TypeError {
             message: format!("failed to read module '{}': {e}", path.display()),
         })?;
+        self.register_source_map(&path, &source);
         let tokens = crate::lexer::lex(&source).map_err(|e| RuntimeError::TypeError {
-            message: format!("failed to lex module '{}': {e}", path.display()),
+            message: Self::format_syntax_error(&path, &source, "lex", &e),
         })?;
         let program = crate::parser::parse(tokens).map_err(|e| RuntimeError::TypeError {
-            message: format!("failed to parse module '{}': {e}", path.display()),
+            message: Self::format_syntax_error(&path, &source, "parse", &e),
         })?;
 
         self.module_stack.push(path.clone());
@@ -141,5 +143,23 @@ impl Interpreter {
             },
             _ => Vec::new(),
         }
+    }
+
+    fn format_syntax_error(
+        path: &PathBuf,
+        source: &str,
+        phase: &str,
+        err: &crate::errors::SyntaxError,
+    ) -> String {
+        let map = SourceMap::from_source(source);
+        let pos = map.byte_to_pos(err.span.offset());
+        format!(
+            "failed to {phase} module '{}': {}:{}:{}: {}",
+            path.display(),
+            path.display(),
+            pos.line,
+            pos.col,
+            err.message
+        )
     }
 }
