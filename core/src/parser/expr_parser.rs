@@ -162,6 +162,7 @@ impl Parser {
                 Ok(expr)
             }
             TokenKind::LeftBrace => self.parse_object_literal(),
+            TokenKind::LeftBracket => self.parse_array_literal(),
             TokenKind::NoSubTemplate(ref s) => Ok(Expr::Literal(Literal::String(s.clone()))),
             TokenKind::TemplateHead(ref s) => {
                 let head = s.clone();
@@ -200,6 +201,18 @@ impl Parser {
         }
         self.expect(&TokenKind::RightBrace)?;
         Ok(Expr::ObjectLiteral { properties })
+    }
+
+    fn parse_array_literal(&mut self) -> Result<Expr, SyntaxError> {
+        let mut elements = Vec::new();
+        while !self.check(&TokenKind::RightBracket) && !self.is_at_end() {
+            elements.push(self.parse_expr(0)?);
+            if !self.check(&TokenKind::RightBracket) {
+                self.expect(&TokenKind::Comma)?;
+            }
+        }
+        self.expect(&TokenKind::RightBracket)?;
+        Ok(Expr::ArrayLiteral { elements })
     }
 
     pub(crate) fn expect_ident(&mut self) -> Result<String, SyntaxError> {

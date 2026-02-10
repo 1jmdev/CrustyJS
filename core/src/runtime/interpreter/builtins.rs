@@ -50,6 +50,16 @@ impl Interpreter {
                 let borrowed = obj.borrow();
                 Ok(borrowed.get(key).unwrap_or(JsValue::Undefined))
             }
+            JsValue::Array(arr) => {
+                let borrowed = arr.borrow();
+                if key == "length" {
+                    return Ok(JsValue::Number(borrowed.len() as f64));
+                }
+                if let Ok(idx) = key.parse::<usize>() {
+                    return Ok(borrowed.get(idx));
+                }
+                Ok(JsValue::Undefined)
+            }
             JsValue::String(s) => string_methods::resolve_string_property(s, key),
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot access property '{key}' on {obj_val}"),
@@ -67,6 +77,16 @@ impl Interpreter {
             JsValue::Object(obj) => {
                 obj.borrow_mut().set(key.to_string(), value);
                 Ok(())
+            }
+            JsValue::Array(arr) => {
+                if let Ok(idx) = key.parse::<usize>() {
+                    arr.borrow_mut().set(idx, value);
+                    Ok(())
+                } else {
+                    Err(RuntimeError::TypeError {
+                        message: format!("cannot set property '{key}' on array"),
+                    })
+                }
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot set property '{key}' on {obj_val}"),

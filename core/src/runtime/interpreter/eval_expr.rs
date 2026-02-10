@@ -1,6 +1,7 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{BinOp, Expr, Literal, TemplatePart, UnaryOp};
+use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
@@ -47,6 +48,13 @@ impl Interpreter {
                     obj.set(key.clone(), val);
                 }
                 Ok(JsValue::Object(obj.wrapped()))
+            }
+            Expr::ArrayLiteral { elements } => {
+                let vals: Vec<JsValue> = elements
+                    .iter()
+                    .map(|e| self.eval_expr(e))
+                    .collect::<Result<_, _>>()?;
+                Ok(JsValue::Array(JsArray::new(vals).wrapped()))
             }
             Expr::ComputedMemberAccess { object, property } => {
                 let obj_val = self.eval_expr(object)?;
