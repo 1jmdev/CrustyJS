@@ -6,6 +6,7 @@ pub mod generator;
 pub mod iterator;
 pub mod object;
 pub mod promise;
+pub mod proxy;
 pub mod regexp;
 pub mod string_methods;
 pub mod symbol;
@@ -27,6 +28,7 @@ use collections::weak_set::JsWeakSet;
 use generator::JsGenerator;
 use object::JsObject;
 use promise::JsPromise;
+use proxy::JsProxy;
 use regexp::JsRegExp;
 use symbol::JsSymbol;
 
@@ -79,6 +81,7 @@ pub enum JsValue {
     WeakMap(Rc<RefCell<JsWeakMap>>),
     WeakSet(Rc<RefCell<JsWeakSet>>),
     RegExp(Rc<RefCell<JsRegExp>>),
+    Proxy(Rc<RefCell<JsProxy>>),
 }
 
 impl PartialEq for JsValue {
@@ -118,6 +121,7 @@ impl PartialEq for JsValue {
             (JsValue::WeakMap(a), JsValue::WeakMap(b)) => Rc::ptr_eq(a, b),
             (JsValue::WeakSet(a), JsValue::WeakSet(b)) => Rc::ptr_eq(a, b),
             (JsValue::RegExp(a), JsValue::RegExp(b)) => Rc::ptr_eq(a, b),
+            (JsValue::Proxy(a), JsValue::Proxy(b)) => Rc::ptr_eq(a, b),
             (
                 JsValue::NativeFunction {
                     handler: NativeFunction::Host(a),
@@ -202,6 +206,11 @@ impl Trace for JsValue {
             | JsValue::String(_)
             | JsValue::Symbol(_)
             | JsValue::RegExp(_) => {}
+            JsValue::Proxy(proxy) => {
+                let p = proxy.borrow();
+                p.target.trace(tracer);
+                p.handler.borrow().trace(tracer);
+            }
         }
     }
 }

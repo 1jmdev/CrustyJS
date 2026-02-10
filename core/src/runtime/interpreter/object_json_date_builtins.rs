@@ -200,6 +200,7 @@ impl Interpreter {
                 map.insert("flags".to_string(), JsonValue::String(re.flag_string()));
                 map
             }),
+            JsValue::Proxy(_) => JsonValue::Object(serde_json::Map::new()),
         })
     }
 

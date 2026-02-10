@@ -230,7 +230,8 @@ impl Interpreter {
                     | JsValue::Set(_)
                     | JsValue::WeakMap(_)
                     | JsValue::WeakSet(_)
-                    | JsValue::RegExp(_) => "object",
+                    | JsValue::RegExp(_)
+                    | JsValue::Proxy(_) => "object",
                 };
                 Ok(JsValue::String(t.to_string()))
             }

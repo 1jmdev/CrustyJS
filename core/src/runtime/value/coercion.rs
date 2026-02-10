@@ -28,6 +28,7 @@ impl JsValue {
             JsValue::WeakMap(_) => f64::NAN,
             JsValue::WeakSet(_) => f64::NAN,
             JsValue::RegExp(_) => f64::NAN,
+            JsValue::Proxy(_) => f64::NAN,
         }
     }
 
@@ -49,6 +50,7 @@ impl JsValue {
             JsValue::WeakMap(_) => true,
             JsValue::WeakSet(_) => true,
             JsValue::RegExp(_) => true,
+            JsValue::Proxy(_) => true,
         }
     }
 
@@ -85,6 +87,7 @@ impl JsValue {
             JsValue::WeakMap(_) => "[object WeakMap]".to_string(),
             JsValue::WeakSet(_) => "[object WeakSet]".to_string(),
             JsValue::RegExp(re) => re.borrow().to_string(),
+            JsValue::Proxy(_) => "[object Object]".to_string(),
         }
     }
 }
