@@ -23,14 +23,16 @@ impl Interpreter {
                 self.env.set(name, val.clone())?;
                 Ok(val)
             }
-            Expr::MemberAccess { object, property } => self.eval_member_call(object, property, &[]),
+            Expr::MemberAccess { object, property } => {
+                self.eval_member_call(object, property, &[], false)
+            }
         }
     }
 
     fn eval_call(&mut self, callee: &Expr, args: &[Expr]) -> Result<JsValue, RuntimeError> {
-        // Special case: console.log(...)
+        // Special case: member method call (e.g. console.log(...), str.toUpperCase())
         if let Expr::MemberAccess { object, property } = callee {
-            return self.eval_member_call(object, property, args);
+            return self.eval_member_call(object, property, args, true);
         }
 
         let func = self.eval_expr(callee)?;

@@ -1,5 +1,6 @@
 mod coercion;
 mod display;
+pub mod string_methods;
 
 use crate::parser::ast::Stmt;
 
