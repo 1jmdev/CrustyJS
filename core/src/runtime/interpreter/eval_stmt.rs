@@ -57,12 +57,18 @@ impl Interpreter {
                 }
                 Ok(ControlFlow::None)
             }
-            Stmt::FunctionDecl { name, params, body } => {
+            Stmt::FunctionDecl {
+                name,
+                params,
+                body,
+                is_async,
+            } => {
                 let func = JsValue::Function {
                     name: name.clone(),
                     params: params.clone(),
                     body: body.clone(),
                     closure_env: self.env.capture(),
+                    is_async: *is_async,
                 };
                 self.env.define(name.clone(), func);
                 Ok(ControlFlow::None)

@@ -50,6 +50,7 @@ impl Interpreter {
                 params: Vec::new(),
                 body: Vec::new(),
                 closure_env: self.env.capture(),
+                is_async: false,
             },
         };
 
@@ -201,6 +202,7 @@ impl Interpreter {
             params,
             body: method.body.clone(),
             closure_env: self.env.capture(),
+            is_async: false,
         }
     }
 }

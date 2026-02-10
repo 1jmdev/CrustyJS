@@ -96,47 +96,14 @@ impl Interpreter {
                 params,
                 body,
                 closure_env,
+                is_async,
                 ..
             } => {
-                let params = params.clone();
-                let body = body.clone();
-                let captured = closure_env.clone();
-                let saved_scopes = self.env.replace_scopes(captured);
-
-                self.env.push_scope_with_this(this_binding);
-                for (idx, param) in params.iter().enumerate() {
-                    let mut value = args.get(idx).cloned().unwrap_or(JsValue::Undefined);
-                    if matches!(value, JsValue::Undefined) {
-                        if let Some(default_expr) = &param.default {
-                            value = self.eval_expr(default_expr)?;
-                        }
-                    }
-                    self.eval_pattern_binding(&param.pattern, value)?;
+                if *is_async {
+                    self.execute_async_function_body(params, body, closure_env, this_binding, args)
+                } else {
+                    self.execute_function_body(params, body, closure_env, this_binding, args)
                 }
-
-                let mut result = JsValue::Undefined;
-                let call_result = (|| -> Result<(), RuntimeError> {
-                    for stmt in &body {
-                        match self.eval_stmt(stmt)? {
-                            super::ControlFlow::Return(val) => {
-                                result = val;
-                                break;
-                            }
-                            super::ControlFlow::Break => {
-                                return Err(RuntimeError::TypeError {
-                                    message: "illegal break statement".to_string(),
-                                });
-                            }
-                            super::ControlFlow::None => {}
-                        }
-                    }
-                    Ok(())
-                })();
-
-                self.env.pop_scope();
-                self.env.replace_scopes(saved_scopes);
-                call_result?;
-                Ok(result)
             }
             JsValue::NativeFunction { handler, .. } => {
                 self.call_native_function(handler, args, this_binding)

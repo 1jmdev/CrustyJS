@@ -200,7 +200,12 @@ impl Interpreter {
             }),
             Expr::New { callee, args } => self.eval_new(callee, args),
             Expr::SuperCall { args } => self.eval_super_call(args),
-            Expr::ArrowFunction { params, body } => {
+            Expr::Await(expr) => self.eval_await_expr(expr),
+            Expr::ArrowFunction {
+                params,
+                body,
+                is_async,
+            } => {
                 let body = match body {
                     ArrowBody::Block(stmts) => stmts.clone(),
                     ArrowBody::Expr(expr) => vec![Stmt::Return(Some(*expr.clone()))],
@@ -210,6 +215,7 @@ impl Interpreter {
                     params: params.clone(),
                     body,
                     closure_env: self.env.capture(),
+                    is_async: *is_async,
                 })
             }
         }
