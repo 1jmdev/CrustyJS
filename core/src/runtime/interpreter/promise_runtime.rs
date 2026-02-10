@@ -129,6 +129,45 @@ impl Interpreter {
         is_reject: bool,
         value: JsValue,
     ) -> Result<JsValue, RuntimeError> {
+        if !is_reject {
+            if let JsValue::Promise(inner) = &value {
+                if Rc::ptr_eq(promise, inner) {
+                    return self.settle_promise(
+                        promise,
+                        true,
+                        JsValue::String("Cannot resolve promise with itself".to_string()),
+                    );
+                }
+
+                let passthrough = PromiseReaction {
+                    on_fulfilled: None,
+                    on_rejected: None,
+                    next: promise.clone(),
+                };
+
+                let settled = {
+                    let borrowed = inner.borrow();
+                    match &borrowed.state {
+                        PromiseState::Pending => None,
+                        PromiseState::Fulfilled(v) => Some((false, v.clone())),
+                        PromiseState::Rejected(v) => Some((true, v.clone())),
+                    }
+                };
+
+                if let Some((inner_reject, inner_value)) = settled {
+                    self.event_loop
+                        .enqueue_microtask(Microtask::PromiseReaction {
+                            reaction: passthrough,
+                            is_reject: inner_reject,
+                            value: inner_value,
+                        });
+                } else {
+                    inner.borrow_mut().reactions.push(passthrough);
+                }
+                return Ok(JsValue::Undefined);
+            }
+        }
+
         let reactions = {
             let mut borrowed = promise.borrow_mut();
             if !matches!(borrowed.state, PromiseState::Pending) {
