@@ -106,6 +106,14 @@ impl Interpreter {
             return self.eval_new_set(args);
         }
 
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "WeakMap") {
+            return self.eval_new_weak_map(args);
+        }
+
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "WeakSet") {
+            return self.eval_new_weak_set(args);
+        }
+
         let class_name = if let crate::parser::ast::Expr::Identifier(name) = callee {
             name
         } else {

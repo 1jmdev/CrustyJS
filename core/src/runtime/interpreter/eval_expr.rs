@@ -226,7 +226,9 @@ impl Interpreter {
                     | JsValue::Array(_)
                     | JsValue::Promise(_)
                     | JsValue::Map(_)
-                    | JsValue::Set(_) => "object",
+                    | JsValue::Set(_)
+                    | JsValue::WeakMap(_)
+                    | JsValue::WeakSet(_) => "object",
                 };
                 Ok(JsValue::String(t.to_string()))
             }

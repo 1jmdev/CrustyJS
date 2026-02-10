@@ -117,6 +117,22 @@ impl Interpreter {
             return self.get_property(&obj_val, property);
         }
 
+        if let JsValue::WeakMap(ref wm) = obj_val {
+            if is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.call_weak_map_method(wm, property, &arg_values);
+            }
+            return Ok(JsValue::Undefined);
+        }
+
+        if let JsValue::WeakSet(ref ws) = obj_val {
+            if is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.call_weak_set_method(ws, property, &arg_values);
+            }
+            return Ok(JsValue::Undefined);
+        }
+
         if !is_call {
             return self.get_property(&obj_val, property);
         }

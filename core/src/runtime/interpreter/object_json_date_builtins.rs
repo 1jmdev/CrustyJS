@@ -191,6 +191,8 @@ impl Interpreter {
             JsValue::Symbol(_) => JsonValue::Null,
             JsValue::Map(_) => JsonValue::Null,
             JsValue::Set(_) => JsonValue::Null,
+            JsValue::WeakMap(_) => JsonValue::Null,
+            JsValue::WeakSet(_) => JsonValue::Null,
         })
     }
 
