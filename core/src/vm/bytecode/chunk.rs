@@ -1,11 +1,9 @@
-use crate::runtime::value::JsValue;
-
-use super::Opcode;
+use super::{Opcode, VmValue};
 
 #[derive(Debug, Clone)]
 pub struct Chunk {
     pub instructions: Vec<Opcode>,
-    pub constants: Vec<JsValue>,
+    pub constants: Vec<VmValue>,
     pub lines: Vec<usize>,
 }
 
@@ -23,7 +21,7 @@ impl Chunk {
         self.lines.push(line);
     }
 
-    pub fn add_constant(&mut self, value: JsValue) -> u16 {
+    pub fn add_constant(&mut self, value: VmValue) -> u16 {
         self.constants.push(value);
         (self.constants.len() - 1) as u16
     }

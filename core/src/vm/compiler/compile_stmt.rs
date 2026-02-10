@@ -1,8 +1,7 @@
-use crate::parser::ast::Stmt;
-use crate::runtime::value::JsValue;
+use crate::parser::ast::{Expr, Stmt};
 
 use super::Compiler;
-use crate::vm::bytecode::Opcode;
+use crate::vm::bytecode::{Opcode, VmFunction, VmValue};
 
 impl Compiler {
     pub fn compile_stmt(&mut self, stmt: &Stmt) {
@@ -13,19 +12,35 @@ impl Compiler {
                 } else {
                     self.chunk.write(Opcode::Nil, 0);
                 }
-                let idx = self.chunk.add_constant(JsValue::String(name.clone()));
-                self.chunk.write(Opcode::SetGlobal(idx), 0);
+                if self.scope_depth > 0 {
+                    let local_idx = self.define_local(name.clone());
+                    self.chunk.write(Opcode::SetLocal(local_idx), 0);
+                } else {
+                    let idx = self.chunk.add_constant(VmValue::String(name.clone()));
+                    self.chunk.write(Opcode::SetGlobal(idx), 0);
+                }
             }
             Stmt::ExprStmt(expr) => {
+                if let Expr::Call { callee, args } = expr {
+                    if let Expr::MemberAccess { object, property } = &**callee {
+                        if let Expr::Identifier(name) = &**object {
+                            if name == "console" && property == "log" && args.len() == 1 {
+                                self.compile_expr(&args[0]);
+                                self.chunk.write(Opcode::Print, 0);
+                                return;
+                            }
+                        }
+                    }
+                }
                 self.compile_expr(expr);
                 self.chunk.write(Opcode::Pop, 0);
             }
             Stmt::Block(stmts) => {
-                self.scope_depth += 1;
+                self.begin_scope();
                 for stmt in stmts {
                     self.compile_stmt(stmt);
                 }
-                self.scope_depth -= 1;
+                self.end_scope();
             }
             Stmt::If {
                 condition,
@@ -56,9 +71,38 @@ impl Compiler {
                 let end = self.chunk.instructions.len() as u16;
                 self.chunk.instructions[jump_out_pos] = Opcode::JumpIfFalse(end);
             }
-            Stmt::FunctionDecl { .. }
-            | Stmt::Return(_)
-            | Stmt::ForLoop { .. }
+            Stmt::FunctionDecl { name, params, body } => {
+                let mut fn_compiler = Compiler::new();
+                fn_compiler.scope_depth = 1;
+                for param in params {
+                    fn_compiler.define_local(param.clone());
+                }
+                for stmt in body {
+                    fn_compiler.compile_stmt(stmt);
+                }
+                fn_compiler.chunk.write(Opcode::Nil, 0);
+                fn_compiler.chunk.write(Opcode::Return, 0);
+                let function = VmFunction {
+                    name: name.clone(),
+                    arity: params.len(),
+                    chunk: Box::new(fn_compiler.chunk),
+                };
+                let fn_idx = self
+                    .chunk
+                    .add_constant(VmValue::Function(Box::new(function)));
+                self.chunk.write(Opcode::Constant(fn_idx), 0);
+                let name_idx = self.chunk.add_constant(VmValue::String(name.clone()));
+                self.chunk.write(Opcode::SetGlobal(name_idx), 0);
+            }
+            Stmt::Return(value) => {
+                if let Some(expr) = value {
+                    self.compile_expr(expr);
+                } else {
+                    self.chunk.write(Opcode::Nil, 0);
+                }
+                self.chunk.write(Opcode::Return, 0);
+            }
+            Stmt::ForLoop { .. }
             | Stmt::ForOf { .. }
             | Stmt::TryCatch { .. }
             | Stmt::Throw(_)

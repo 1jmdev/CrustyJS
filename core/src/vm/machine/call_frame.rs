@@ -1,6 +1,5 @@
 use crate::vm::bytecode::Chunk;
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct CallFrame {
     pub chunk: Chunk,

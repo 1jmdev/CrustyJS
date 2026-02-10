@@ -1,16 +1,19 @@
 use crate::parser::ast::{BinOp, Expr, Literal, UnaryOp};
-use crate::runtime::value::JsValue;
 
 use super::Compiler;
-use crate::vm::bytecode::Opcode;
+use crate::vm::bytecode::{Opcode, VmValue};
 
 impl Compiler {
     pub fn compile_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Literal(lit) => self.compile_literal(lit),
             Expr::Identifier(name) => {
-                let idx = self.chunk.add_constant(JsValue::String(name.clone()));
-                self.chunk.write(Opcode::GetGlobal(idx), 0);
+                if let Some(local_idx) = self.resolve_local(name) {
+                    self.chunk.write(Opcode::GetLocal(local_idx), 0);
+                } else {
+                    let idx = self.chunk.add_constant(VmValue::String(name.clone()));
+                    self.chunk.write(Opcode::GetGlobal(idx), 0);
+                }
             }
             Expr::Binary { left, op, right } => {
                 self.compile_expr(left);
@@ -33,7 +36,7 @@ impl Compiler {
             }
             Expr::MemberAccess { object, property } => {
                 self.compile_expr(object);
-                let idx = self.chunk.add_constant(JsValue::String(property.clone()));
+                let idx = self.chunk.add_constant(VmValue::String(property.clone()));
                 self.chunk.write(Opcode::Constant(idx), 0);
                 self.chunk.write(Opcode::GetProperty, 0);
             }
@@ -49,7 +52,7 @@ impl Compiler {
             }
             Expr::ObjectLiteral { properties } => {
                 for (key, value) in properties {
-                    let key_idx = self.chunk.add_constant(JsValue::String(key.clone()));
+                    let key_idx = self.chunk.add_constant(VmValue::String(key.clone()));
                     self.chunk.write(Opcode::Constant(key_idx), 0);
                     self.compile_expr(value);
                 }
@@ -64,11 +67,11 @@ impl Compiler {
     fn compile_literal(&mut self, lit: &Literal) {
         match lit {
             Literal::Number(n) => {
-                let idx = self.chunk.add_constant(JsValue::Number(*n));
+                let idx = self.chunk.add_constant(VmValue::Number(*n));
                 self.chunk.write(Opcode::Constant(idx), 0);
             }
             Literal::String(s) => {
-                let idx = self.chunk.add_constant(JsValue::String(s.clone()));
+                let idx = self.chunk.add_constant(VmValue::String(s.clone()));
                 self.chunk.write(Opcode::Constant(idx), 0);
             }
             Literal::Boolean(true) => self.chunk.write(Opcode::True, 0),
@@ -85,9 +88,20 @@ impl Compiler {
             BinOp::Div => self.chunk.write(Opcode::Div, 0),
             BinOp::Mod => self.chunk.write(Opcode::Mod, 0),
             BinOp::Less => self.chunk.write(Opcode::LessThan, 0),
+            BinOp::LessEq => {
+                self.chunk.write(Opcode::GreaterThan, 0);
+                self.chunk.write(Opcode::Not, 0);
+            }
             BinOp::Greater => self.chunk.write(Opcode::GreaterThan, 0),
+            BinOp::GreaterEq => {
+                self.chunk.write(Opcode::LessThan, 0);
+                self.chunk.write(Opcode::Not, 0);
+            }
             BinOp::EqEq | BinOp::EqEqEq => self.chunk.write(Opcode::Equal, 0),
-            BinOp::NotEq | BinOp::NotEqEq => self.chunk.write(Opcode::StrictEqual, 0),
+            BinOp::NotEq | BinOp::NotEqEq => {
+                self.chunk.write(Opcode::Equal, 0);
+                self.chunk.write(Opcode::Not, 0);
+            }
             _ => self.chunk.write(Opcode::RunTreeWalk, 0),
         }
     }

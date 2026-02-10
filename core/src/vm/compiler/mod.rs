@@ -36,4 +36,37 @@ impl Compiler {
             self.compile_stmt(stmt);
         }
     }
+
+    pub(crate) fn resolve_local(&self, name: &str) -> Option<u16> {
+        self.locals
+            .iter()
+            .rposition(|local| local.name == name)
+            .map(|idx| idx as u16)
+    }
+
+    pub(crate) fn define_local(&mut self, name: String) -> u16 {
+        self.locals.push(Local {
+            name,
+            depth: self.scope_depth,
+        });
+        (self.locals.len() - 1) as u16
+    }
+
+    pub(crate) fn begin_scope(&mut self) {
+        self.scope_depth += 1;
+    }
+
+    pub(crate) fn end_scope(&mut self) {
+        if self.scope_depth == 0 {
+            return;
+        }
+        self.scope_depth -= 1;
+        while let Some(local) = self.locals.last() {
+            if local.depth > self.scope_depth {
+                self.locals.pop();
+            } else {
+                break;
+            }
+        }
+    }
 }
