@@ -5,6 +5,7 @@ mod expr_ops;
 mod expr_parser;
 mod pattern_parser;
 mod stmt_parser;
+mod stmt_parser_loops;
 mod stmt_terminator;
 mod switch_parser;
 

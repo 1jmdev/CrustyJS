@@ -23,7 +23,7 @@ impl Parser {
         }
     }
 
-    fn parse_var_decl(&mut self) -> Result<Stmt, SyntaxError> {
+    pub(crate) fn parse_var_decl(&mut self) -> Result<Stmt, SyntaxError> {
         let kind = match self.advance().kind {
             TokenKind::Let => VarDeclKind::Let,
             TokenKind::Const => VarDeclKind::Const,
@@ -131,83 +131,10 @@ impl Parser {
         Ok(stmts)
     }
 
-    fn parse_expr_stmt(&mut self) -> Result<Stmt, SyntaxError> {
+    pub(crate) fn parse_expr_stmt(&mut self) -> Result<Stmt, SyntaxError> {
         let expr = self.parse_expr(0)?;
         self.consume_stmt_terminator()?;
         Ok(Stmt::ExprStmt(expr))
-    }
-
-    fn parse_for(&mut self) -> Result<Stmt, SyntaxError> {
-        self.advance(); // consume 'for'
-        self.expect(&TokenKind::LeftParen)?;
-
-        // Check for `for (let/const x of iterable)` / `for (... in object)`
-        if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
-            let saved_pos = self.pos;
-            self.advance(); // consume let/const
-            if let TokenKind::Ident(_) = self.peek() {
-                let name = self.expect_ident()?;
-                if self.check(&TokenKind::Of) || self.check(&TokenKind::In) {
-                    let is_for_in = self.check(&TokenKind::In);
-                    self.advance(); // consume 'of' or 'in'
-                    let iterable_or_object = self.parse_expr(0)?;
-                    self.expect(&TokenKind::RightParen)?;
-                    let body = Box::new(self.parse_statement()?);
-                    return if is_for_in {
-                        Ok(Stmt::ForIn {
-                            variable: name,
-                            object: iterable_or_object,
-                            body,
-                        })
-                    } else {
-                        Ok(Stmt::ForOf {
-                            variable: name,
-                            iterable: iterable_or_object,
-                            body,
-                        })
-                    };
-                }
-                // Not for-of, rewind and parse as regular for
-                self.pos = saved_pos;
-            } else {
-                self.pos = saved_pos;
-            }
-        }
-
-        // Regular for loop: for (init; cond; update)
-        let init = if self.check(&TokenKind::Semicolon) {
-            self.advance();
-            None
-        } else {
-            let stmt = if matches!(self.peek(), TokenKind::Let | TokenKind::Const) {
-                self.parse_var_decl()?
-            } else {
-                self.parse_expr_stmt()?
-            };
-            Some(Box::new(stmt))
-        };
-
-        let condition = if self.check(&TokenKind::Semicolon) {
-            None
-        } else {
-            Some(self.parse_expr(0)?)
-        };
-        self.expect(&TokenKind::Semicolon)?;
-
-        let update = if self.check(&TokenKind::RightParen) {
-            None
-        } else {
-            Some(self.parse_expr(0)?)
-        };
-        self.expect(&TokenKind::RightParen)?;
-
-        let body = Box::new(self.parse_statement()?);
-        Ok(Stmt::ForLoop {
-            init,
-            condition,
-            update,
-            body,
-        })
     }
 
     fn parse_try_catch(&mut self) -> Result<Stmt, SyntaxError> {

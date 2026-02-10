@@ -6,6 +6,7 @@ mod eval_expr;
 mod eval_expr_helpers;
 mod eval_pattern;
 mod eval_stmt;
+mod eval_stmt_control;
 mod event_loop_driver;
 mod function_call;
 mod global_builtins;
