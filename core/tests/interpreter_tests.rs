@@ -255,3 +255,19 @@ fn const_reassignment_throws() {
     let err = run_and_error("const x = 10; x = 20;");
     assert!(matches!(err, RuntimeError::ConstReassignment { .. }));
 }
+
+#[test]
+fn accessor_assignment_and_read() {
+    let output = run_and_capture(
+        r#"
+        let obj = {
+            _v: 1,
+            get value() { return this._v; },
+            set value(next) { this._v = next; }
+        };
+        obj.value = 9;
+        console.log(obj.value);
+        "#,
+    );
+    assert_eq!(output, vec!["9"]);
+}

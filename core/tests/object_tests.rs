@@ -166,3 +166,19 @@ fn object_method_shorthand_binds_this() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["Rex barks"]);
 }
+
+#[test]
+fn object_getter_and_setter_accessors_work() {
+    let src = r#"
+        let obj = {
+            _x: 1,
+            get x() { return this._x; },
+            set x(v) { this._x = v; }
+        };
+        console.log(obj.x);
+        obj.x = 7;
+        console.log(obj.x);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["1", "7"]);
+}

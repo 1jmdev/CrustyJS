@@ -86,3 +86,26 @@ fn instanceof_checks_prototype_chain() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["true", "true", "false"]);
 }
+
+#[test]
+fn class_getter_and_setter_accessors_work() {
+    let src = r#"
+        class Counter {
+          constructor() {
+            this._count = 0;
+          }
+          get count() {
+            return this._count;
+          }
+          set count(v) {
+            this._count = v;
+          }
+        }
+        const c = new Counter();
+        console.log(c.count);
+        c.count = 5;
+        console.log(c.count);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["0", "5"]);
+}

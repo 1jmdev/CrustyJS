@@ -14,18 +14,24 @@ impl Interpreter {
             JsValue::Object(obj) => {
                 let mut current = Some(Rc::clone(obj));
                 while let Some(candidate) = current {
-                    let borrowed = candidate.borrow();
-                    if let Some(prop) = borrowed.properties.get(key) {
-                        if let Some(getter) = &prop.getter {
+                    let (prop, next) = {
+                        let borrowed = candidate.borrow();
+                        (
+                            borrowed.properties.get(key).cloned(),
+                            borrowed.prototype.clone(),
+                        )
+                    };
+                    if let Some(prop) = prop {
+                        if let Some(getter) = prop.getter {
                             return self.call_function_with_this(
-                                getter,
+                                &getter,
                                 &[],
                                 Some(obj_val.clone()),
                             );
                         }
                         return Ok(prop.value.clone());
                     }
-                    current = borrowed.prototype.clone();
+                    current = next;
                 }
                 Ok(JsValue::Undefined)
             }
@@ -56,11 +62,17 @@ impl Interpreter {
             JsValue::Object(obj) => {
                 let mut current = Some(Rc::clone(obj));
                 while let Some(candidate) = current {
-                    let borrowed = candidate.borrow();
-                    if let Some(prop) = borrowed.properties.get(key) {
-                        if let Some(setter) = &prop.setter {
+                    let (prop, next) = {
+                        let borrowed = candidate.borrow();
+                        (
+                            borrowed.properties.get(key).cloned(),
+                            borrowed.prototype.clone(),
+                        )
+                    };
+                    if let Some(prop) = prop {
+                        if let Some(setter) = prop.setter {
                             self.call_function_with_this(
-                                setter,
+                                &setter,
                                 std::slice::from_ref(&value),
                                 Some(obj_val.clone()),
                             )?;
@@ -68,7 +80,7 @@ impl Interpreter {
                         }
                         break;
                     }
-                    current = borrowed.prototype.clone();
+                    current = next;
                 }
 
                 obj.borrow_mut().set(key.to_string(), value);

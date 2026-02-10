@@ -1,6 +1,7 @@
 use crustyjs::lexer::lex;
 use crustyjs::parser::ast::{
-    BinOp, Expr, Literal, ObjectProperty, Param, Pattern, PropertyKey, Stmt, VarDeclKind,
+    BinOp, ClassMethodKind, Expr, Literal, ObjectProperty, Param, Pattern, PropertyKey, Stmt,
+    VarDeclKind,
 };
 use crustyjs::parser::parse;
 
@@ -217,6 +218,51 @@ fn parse_object_method_shorthand() {
             ));
         }
         other => panic!("expected object literal var decl, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_object_getter_and_setter() {
+    let stmts = parse_source("let obj = { get x() { return 1; }, set x(v) { this._x = v; } }; ");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::VarDecl {
+            init: Some(Expr::ObjectLiteral { properties }),
+            ..
+        } => {
+            assert_eq!(properties.len(), 2);
+            assert!(matches!(
+                properties[0],
+                ObjectProperty::Getter(PropertyKey::Identifier(ref key), _) if key == "x"
+            ));
+            assert!(matches!(
+                properties[1],
+                ObjectProperty::Setter(PropertyKey::Identifier(ref key), ref param, _)
+                    if key == "x" && param == "v"
+            ));
+        }
+        other => panic!("expected object literal var decl, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_class_getter_and_setter() {
+    let stmts =
+        parse_source("class Box { get value() { return this._v; } set value(v) { this._v = v; } }");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::Class(class_decl) => {
+            assert_eq!(class_decl.methods.len(), 2);
+            assert!(matches!(
+                class_decl.methods[0].kind,
+                ClassMethodKind::Getter
+            ));
+            assert!(matches!(
+                class_decl.methods[1].kind,
+                ClassMethodKind::Setter
+            ));
+        }
+        other => panic!("expected class declaration, got {other:?}"),
     }
 }
 
