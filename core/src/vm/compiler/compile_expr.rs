@@ -107,8 +107,7 @@ impl Compiler {
             Expr::MemberAccess { object, property } => {
                 self.compile_expr(object);
                 let idx = self.chunk.add_constant(VmValue::String(property.clone()));
-                self.chunk.write(Opcode::Constant(idx), 0);
-                self.chunk.write(Opcode::GetProperty, 0);
+                self.chunk.write(Opcode::GetPropertyIC(idx), 0);
             }
             Expr::Typeof(inner) => {
                 self.compile_expr(inner);

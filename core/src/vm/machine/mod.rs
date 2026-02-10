@@ -141,6 +141,13 @@ impl VM {
                 Opcode::Loop(target) => {
                     self.current_frame_mut()?.ip = target as usize;
                 }
+                Opcode::Nop => {}
+                Opcode::GetPropertyIC(idx) => {
+                    let prop_name = self.constant_name(idx)?;
+                    let obj = self.stack.pop_vm()?;
+                    let result = self.get_property_value(&obj, &prop_name);
+                    self.stack.push_vm(result)?;
+                }
                 other => {
                     return Err(RuntimeError::TypeError {
                         message: format!("unsupported opcode in VM: {other:?}"),
@@ -256,6 +263,16 @@ impl VM {
             _ => Err(RuntimeError::TypeError {
                 message: "global name constant must be a string".to_string(),
             }),
+        }
+    }
+
+    fn get_property_value(&self, obj: &VmValue, prop: &str) -> VmValue {
+        match obj {
+            VmValue::String(s) => match prop {
+                "length" => VmValue::Number(s.len() as f64),
+                _ => VmValue::Undefined,
+            },
+            _ => VmValue::Undefined,
         }
     }
 }
