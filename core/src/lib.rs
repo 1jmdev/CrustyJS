@@ -3,6 +3,7 @@ pub mod lexer;
 pub mod parser;
 pub mod repl;
 pub mod runtime;
+pub mod vm;
 
 use errors::CrustyError;
 use runtime::interpreter::Interpreter;
@@ -14,4 +15,9 @@ pub fn run(source: &str) -> Result<Interpreter, CrustyError> {
     let mut interp = Interpreter::new();
     interp.run(&program)?;
     Ok(interp)
+}
+
+/// Execute source through the VM path.
+pub fn run_vm(source: &str) -> Result<(), CrustyError> {
+    vm::run_vm(source)
 }
