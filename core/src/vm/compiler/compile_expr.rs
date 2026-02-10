@@ -46,6 +46,7 @@ impl Compiler {
             }
             Expr::ArrayLiteral { .. } => self.chunk.write(Opcode::RunTreeWalk, 0),
             Expr::ObjectLiteral { .. } => self.chunk.write(Opcode::RunTreeWalk, 0),
+            Expr::Spread(_) => self.chunk.write(Opcode::RunTreeWalk, 0),
             _ => {
                 self.chunk.write(Opcode::RunTreeWalk, 0);
             }

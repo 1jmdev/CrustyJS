@@ -1,7 +1,8 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
-    ArrowBody, AssignOp, BinOp, Expr, Literal, LogicalOp, Stmt, TemplatePart, UnaryOp, UpdateOp,
+    ArrowBody, AssignOp, BinOp, Expr, Literal, LogicalOp, ObjectProperty, Stmt, TemplatePart,
+    UnaryOp, UpdateOp,
 };
 use crate::runtime::value::abstract_equals;
 use crate::runtime::value::array::JsArray;
@@ -69,17 +70,62 @@ impl Interpreter {
             }
             Expr::ObjectLiteral { properties } => {
                 let mut obj = JsObject::new();
-                for (key, val_expr) in properties {
-                    let val = self.eval_expr(val_expr)?;
-                    obj.set(key.clone(), val);
+                for property in properties {
+                    match property {
+                        ObjectProperty::KeyValue(key, val_expr) => {
+                            let val = self.eval_expr(val_expr)?;
+                            obj.set(key.clone(), val);
+                        }
+                        ObjectProperty::Spread(expr) => {
+                            let spread_val = self.eval_expr(expr)?;
+                            match spread_val {
+                                JsValue::Object(source) => {
+                                    let borrowed = source.borrow();
+                                    for (k, p) in &borrowed.properties {
+                                        obj.set(k.clone(), p.value.clone());
+                                    }
+                                }
+                                JsValue::Undefined | JsValue::Null => {}
+                                other => {
+                                    return Err(RuntimeError::TypeError {
+                                        message: format!(
+                                            "cannot spread non-object value {other} in object literal"
+                                        ),
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
                 Ok(JsValue::Object(obj.wrapped()))
             }
             Expr::ArrayLiteral { elements } => {
-                let vals: Vec<JsValue> = elements
-                    .iter()
-                    .map(|e| self.eval_expr(e))
-                    .collect::<Result<_, _>>()?;
+                let mut vals: Vec<JsValue> = Vec::new();
+                for element in elements {
+                    match element {
+                        Expr::Spread(inner) => {
+                            let spread_val = self.eval_expr(inner)?;
+                            match spread_val {
+                                JsValue::Array(arr) => {
+                                    vals.extend(arr.borrow().elements.clone());
+                                }
+                                JsValue::String(s) => {
+                                    vals.extend(
+                                        s.chars().map(|ch| JsValue::String(ch.to_string())),
+                                    );
+                                }
+                                other => {
+                                    return Err(RuntimeError::TypeError {
+                                        message: format!(
+                                            "cannot spread non-iterable value {other}"
+                                        ),
+                                    });
+                                }
+                            }
+                        }
+                        other => vals.push(self.eval_expr(other)?),
+                    }
+                }
                 Ok(JsValue::Array(JsArray::new(vals).wrapped()))
             }
             Expr::ComputedMemberAccess { object, property } => {
@@ -148,6 +194,9 @@ impl Interpreter {
                 };
                 Ok(JsValue::String(t.to_string()))
             }
+            Expr::Spread(_) => Err(RuntimeError::TypeError {
+                message: "spread syntax is only valid in calls and array literals".to_string(),
+            }),
             Expr::New { callee, args } => self.eval_new(callee, args),
             Expr::SuperCall { args } => self.eval_super_call(args),
             Expr::ArrowFunction { params, body } => {
@@ -171,12 +220,33 @@ impl Interpreter {
         }
 
         let func = self.eval_expr(callee)?;
-        let arg_values: Vec<JsValue> = args
-            .iter()
-            .map(|a| self.eval_expr(a))
-            .collect::<Result<_, _>>()?;
+        let arg_values = self.eval_call_args(args)?;
 
         self.call_function(&func, &arg_values)
+    }
+
+    pub(crate) fn eval_call_args(&mut self, args: &[Expr]) -> Result<Vec<JsValue>, RuntimeError> {
+        let mut values = Vec::new();
+        for arg in args {
+            match arg {
+                Expr::Spread(inner) => {
+                    let spread_val = self.eval_expr(inner)?;
+                    match spread_val {
+                        JsValue::Array(arr) => values.extend(arr.borrow().elements.clone()),
+                        JsValue::String(s) => {
+                            values.extend(s.chars().map(|ch| JsValue::String(ch.to_string())))
+                        }
+                        other => {
+                            return Err(RuntimeError::TypeError {
+                                message: format!("cannot spread non-iterable value {other}"),
+                            });
+                        }
+                    }
+                }
+                other => values.push(self.eval_expr(other)?),
+            }
+        }
+        Ok(values)
     }
 }
 

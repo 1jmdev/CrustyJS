@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{Expr, Param, Pattern};
+use crate::parser::ast::{Param, Pattern};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
@@ -18,23 +18,22 @@ impl Interpreter {
         self.env.define("Error".to_string(), error_ctor);
     }
 
-    pub(crate) fn builtin_console_log(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {
-        let values: Vec<String> = args
-            .iter()
-            .map(|a| self.eval_expr(a).map(|v| v.to_string()))
-            .collect::<Result<_, _>>()?;
+    pub(crate) fn builtin_console_log_values(
+        &mut self,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        let values: Vec<String> = args.iter().map(|v| v.to_string()).collect();
         let line = values.join(" ");
         println!("{line}");
         self.output.push(line);
         Ok(JsValue::Undefined)
     }
 
-    pub(crate) fn builtin_object_create(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {
-        let proto = args
-            .first()
-            .map(|arg| self.eval_expr(arg))
-            .transpose()?
-            .unwrap_or(JsValue::Null);
+    pub(crate) fn builtin_object_create_values(
+        &mut self,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        let proto = args.first().cloned().unwrap_or(JsValue::Null);
         let mut obj = JsObject::new();
         obj.prototype = match proto {
             JsValue::Object(parent) => Some(parent),

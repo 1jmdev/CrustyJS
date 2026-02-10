@@ -145,6 +145,12 @@ impl Parser {
             return Ok(Expr::Typeof(Box::new(operand)));
         }
 
+        if self.check(&TokenKind::DotDotDot) {
+            self.advance();
+            let inner = self.parse_expr(12)?;
+            return Ok(Expr::Spread(Box::new(inner)));
+        }
+
         if self.check(&TokenKind::New) {
             return self.parse_new_expr();
         }

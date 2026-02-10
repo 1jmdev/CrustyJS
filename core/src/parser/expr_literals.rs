@@ -1,4 +1,4 @@
-use super::ast::{ArrowBody, AssignOp, Expr, Param, Pattern, TemplatePart};
+use super::ast::{ArrowBody, AssignOp, Expr, ObjectProperty, Param, Pattern, TemplatePart};
 use super::Parser;
 use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
@@ -87,6 +87,15 @@ impl Parser {
     pub(crate) fn parse_object_literal(&mut self) -> Result<Expr, SyntaxError> {
         let mut properties = Vec::new();
         while !self.check(&TokenKind::RightBrace) && !self.is_at_end() {
+            if self.check(&TokenKind::DotDotDot) {
+                self.advance();
+                properties.push(ObjectProperty::Spread(self.parse_expr(0)?));
+                if !self.check(&TokenKind::RightBrace) {
+                    self.expect(&TokenKind::Comma)?;
+                }
+                continue;
+            }
+
             let key = self.expect_ident()?;
             let value = if self.check(&TokenKind::Colon) {
                 self.advance();
@@ -115,7 +124,7 @@ impl Parser {
                     token.span.len().max(1),
                 ));
             };
-            properties.push((key, value));
+            properties.push(ObjectProperty::KeyValue(key, value));
             if !self.check(&TokenKind::RightBrace) {
                 self.expect(&TokenKind::Comma)?;
             }

@@ -17,10 +17,12 @@ impl Interpreter {
     ) -> Result<JsValue, RuntimeError> {
         if let Expr::Identifier(name) = object {
             if name == "console" && property == "log" {
-                return self.builtin_console_log(args);
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_console_log_values(&arg_values);
             }
             if name == "Object" && property == "create" && is_call {
-                return self.builtin_object_create(args);
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_object_create_values(&arg_values);
             }
         }
 
@@ -28,10 +30,7 @@ impl Interpreter {
 
         if let JsValue::String(ref s) = obj_val {
             if is_call {
-                let arg_values: Vec<JsValue> = args
-                    .iter()
-                    .map(|a| self.eval_expr(a))
-                    .collect::<Result<_, _>>()?;
+                let arg_values = self.eval_call_args(args)?;
                 return string_methods::call_string_method(s, property, &arg_values);
             }
             return string_methods::resolve_string_property(s, property);
@@ -39,10 +38,7 @@ impl Interpreter {
 
         if let JsValue::Array(ref arr) = obj_val {
             if is_call {
-                let arg_values: Vec<JsValue> = args
-                    .iter()
-                    .map(|a| self.eval_expr(a))
-                    .collect::<Result<_, _>>()?;
+                let arg_values = self.eval_call_args(args)?;
                 if let Some(result) = call_array_method(arr, property, &arg_values)? {
                     return Ok(result);
                 }
@@ -55,10 +51,7 @@ impl Interpreter {
             return self.get_property(&obj_val, property);
         }
 
-        let arg_values: Vec<JsValue> = args
-            .iter()
-            .map(|a| self.eval_expr(a))
-            .collect::<Result<_, _>>()?;
+        let arg_values = self.eval_call_args(args)?;
         let method = self.get_property(&obj_val, property)?;
         return self.call_function_with_this(&method, &arg_values, Some(obj_val));
     }

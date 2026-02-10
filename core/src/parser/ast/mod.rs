@@ -6,7 +6,7 @@ mod statement;
 
 pub use class::{ClassDecl, ClassMethod};
 pub use expression::{
-    ArrowBody, AssignOp, BinOp, Expr, LogicalOp, TemplatePart, UnaryOp, UpdateOp,
+    ArrowBody, AssignOp, BinOp, Expr, LogicalOp, ObjectProperty, TemplatePart, UnaryOp, UpdateOp,
 };
 pub use literal::Literal;
 pub use pattern::{ObjectPatternProp, Param, Pattern};

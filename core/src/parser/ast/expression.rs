@@ -90,7 +90,7 @@ pub enum Expr {
         parts: Vec<TemplatePart>,
     },
     ObjectLiteral {
-        properties: Vec<(String, Expr)>,
+        properties: Vec<ObjectProperty>,
     },
     ArrayLiteral {
         elements: Vec<Expr>,
@@ -115,6 +115,7 @@ pub enum Expr {
         else_expr: Box<Expr>,
     },
     Typeof(Box<Expr>),
+    Spread(Box<Expr>),
     New {
         callee: Box<Expr>,
         args: Vec<Expr>,
@@ -138,4 +139,10 @@ pub enum TemplatePart {
 pub enum ArrowBody {
     Expr(Box<Expr>),
     Block(Vec<Stmt>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ObjectProperty {
+    KeyValue(String, Expr),
+    Spread(Expr),
 }
