@@ -1,9 +1,8 @@
-use crate::runtime::gc::{Gc, Trace, Tracer};
-use crate::runtime::value::JsValue;
+use crate::runtime::gc::{ErasedGc, Trace, Tracer};
 
 #[derive(Debug, Clone)]
 pub struct JsWeakSet {
-    pub entries: Vec<JsValue>,
+    pub entries: Vec<ErasedGc>,
 }
 
 impl JsWeakSet {
@@ -13,35 +12,23 @@ impl JsWeakSet {
         }
     }
 
-    pub fn has(&self, value: &JsValue) -> bool {
-        self.entries.iter().any(|v| weak_val_eq(v, value))
+    pub fn has(&self, key: ErasedGc) -> bool {
+        self.entries.iter().any(|k| *k == key)
     }
 
-    pub fn add(&mut self, value: JsValue) {
-        if !self.has(&value) {
-            self.entries.push(value);
+    pub fn add(&mut self, key: ErasedGc) {
+        if !self.has(key) {
+            self.entries.push(key);
         }
     }
 
-    pub fn delete(&mut self, value: &JsValue) -> bool {
+    pub fn delete(&mut self, key: ErasedGc) -> bool {
         let len = self.entries.len();
-        self.entries.retain(|v| !weak_val_eq(v, value));
+        self.entries.retain(|k| *k != key);
         self.entries.len() != len
     }
 }
 
 impl Trace for JsWeakSet {
-    fn trace(&self, tracer: &mut Tracer) {
-        self.entries.trace(tracer);
-    }
-}
-
-fn weak_val_eq(a: &JsValue, b: &JsValue) -> bool {
-    match (a, b) {
-        (JsValue::Object(x), JsValue::Object(y)) => Gc::ptr_eq(*x, *y),
-        (JsValue::Array(x), JsValue::Array(y)) => Gc::ptr_eq(*x, *y),
-        (JsValue::Map(x), JsValue::Map(y)) => Gc::ptr_eq(*x, *y),
-        (JsValue::Set(x), JsValue::Set(y)) => Gc::ptr_eq(*x, *y),
-        _ => false,
-    }
+    fn trace(&self, _tracer: &mut Tracer) {}
 }

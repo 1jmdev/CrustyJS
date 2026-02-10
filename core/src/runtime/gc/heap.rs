@@ -95,6 +95,26 @@ impl Clone for ErasedGc {
     }
 }
 
+impl std::fmt::Debug for ErasedGc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ErasedGc({:p})", self.ptr.as_ptr())
+    }
+}
+
+impl PartialEq for ErasedGc {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr == other.ptr
+    }
+}
+
+impl Eq for ErasedGc {}
+
+impl std::hash::Hash for ErasedGc {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ptr.hash(state);
+    }
+}
+
 impl ErasedGc {
     fn header(&self) -> &GcHeader {
         unsafe { self.ptr.as_ref() }

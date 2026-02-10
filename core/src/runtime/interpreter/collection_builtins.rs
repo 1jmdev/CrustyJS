@@ -4,7 +4,7 @@ use crate::parser::ast::Expr;
 use crate::runtime::gc::{Gc, GcCell};
 use crate::runtime::value::collections::map::JsMap;
 use crate::runtime::value::collections::set::JsSet;
-use crate::runtime::value::collections::weak_map::{is_valid_weak_key, JsWeakMap};
+use crate::runtime::value::collections::weak_map::{extract_weak_key, JsWeakMap};
 use crate::runtime::value::collections::weak_set::JsWeakSet;
 use crate::runtime::value::JsValue;
 
@@ -180,13 +180,11 @@ impl Interpreter {
                 let entries = self.collect_iterable(&iterable)?;
                 for entry in entries {
                     let key = self.get_property(&entry, "0")?;
-                    if !is_valid_weak_key(&key) {
-                        return Err(RuntimeError::TypeError {
-                            message: "Invalid value used as weak map key".to_string(),
-                        });
-                    }
+                    let erased = extract_weak_key(&key).ok_or_else(|| RuntimeError::TypeError {
+                        message: "Invalid value used as weak map key".to_string(),
+                    })?;
                     let value = self.get_property(&entry, "1")?;
-                    wm.set(key, value);
+                    wm.set(erased, value);
                 }
             }
         }
@@ -200,12 +198,11 @@ impl Interpreter {
             if !matches!(iterable, JsValue::Null | JsValue::Undefined) {
                 let elements = self.collect_iterable(&iterable)?;
                 for elem in elements {
-                    if !is_valid_weak_key(&elem) {
-                        return Err(RuntimeError::TypeError {
+                    let erased =
+                        extract_weak_key(&elem).ok_or_else(|| RuntimeError::TypeError {
                             message: "Invalid value used as weak set value".to_string(),
-                        });
-                    }
-                    ws.add(elem);
+                        })?;
+                    ws.add(erased);
                 }
             }
         }
@@ -221,26 +218,33 @@ impl Interpreter {
         match method {
             "set" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                if !is_valid_weak_key(&key) {
-                    return Err(RuntimeError::TypeError {
-                        message: "Invalid value used as weak map key".to_string(),
-                    });
-                }
+                let erased = extract_weak_key(&key).ok_or_else(|| RuntimeError::TypeError {
+                    message: "Invalid value used as weak map key".to_string(),
+                })?;
                 let value = args.get(1).cloned().unwrap_or(JsValue::Undefined);
-                wm_gc.borrow_mut().set(key, value);
+                wm_gc.borrow_mut().set(erased, value);
                 Ok(JsValue::WeakMap(*wm_gc))
             }
             "get" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(wm_gc.borrow().get(&key))
+                match extract_weak_key(&key) {
+                    Some(erased) => Ok(wm_gc.borrow().get(erased)),
+                    None => Ok(JsValue::Undefined),
+                }
             }
             "has" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(wm_gc.borrow().has(&key)))
+                match extract_weak_key(&key) {
+                    Some(erased) => Ok(JsValue::Boolean(wm_gc.borrow().has(erased))),
+                    None => Ok(JsValue::Boolean(false)),
+                }
             }
             "delete" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(wm_gc.borrow_mut().delete(&key)))
+                match extract_weak_key(&key) {
+                    Some(erased) => Ok(JsValue::Boolean(wm_gc.borrow_mut().delete(erased))),
+                    None => Ok(JsValue::Boolean(false)),
+                }
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("weakMap.{method} is not a function"),
@@ -257,21 +261,25 @@ impl Interpreter {
         match method {
             "add" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                if !is_valid_weak_key(&value) {
-                    return Err(RuntimeError::TypeError {
-                        message: "Invalid value used as weak set value".to_string(),
-                    });
-                }
-                ws_gc.borrow_mut().add(value);
+                let erased = extract_weak_key(&value).ok_or_else(|| RuntimeError::TypeError {
+                    message: "Invalid value used as weak set value".to_string(),
+                })?;
+                ws_gc.borrow_mut().add(erased);
                 Ok(JsValue::WeakSet(*ws_gc))
             }
             "has" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(ws_gc.borrow().has(&value)))
+                match extract_weak_key(&value) {
+                    Some(erased) => Ok(JsValue::Boolean(ws_gc.borrow().has(erased))),
+                    None => Ok(JsValue::Boolean(false)),
+                }
             }
             "delete" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(ws_gc.borrow_mut().delete(&value)))
+                match extract_weak_key(&value) {
+                    Some(erased) => Ok(JsValue::Boolean(ws_gc.borrow_mut().delete(erased))),
+                    None => Ok(JsValue::Boolean(false)),
+                }
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("weakSet.{method} is not a function"),
