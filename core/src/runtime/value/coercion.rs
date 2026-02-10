@@ -23,6 +23,8 @@ impl JsValue {
             JsValue::Object(_) => f64::NAN,
             JsValue::Array(_) => f64::NAN,
             JsValue::Promise(_) => f64::NAN,
+            JsValue::Map(_) => f64::NAN,
+            JsValue::Set(_) => f64::NAN,
         }
     }
 
@@ -39,6 +41,8 @@ impl JsValue {
             JsValue::Object(_) => true,
             JsValue::Array(_) => true,
             JsValue::Promise(_) => true,
+            JsValue::Map(_) => true,
+            JsValue::Set(_) => true,
         }
     }
 
@@ -70,6 +74,8 @@ impl JsValue {
                 items.join(",")
             }
             JsValue::Promise(_) => "[object Promise]".to_string(),
+            JsValue::Map(_) => "[object Map]".to_string(),
+            JsValue::Set(_) => "[object Set]".to_string(),
         }
     }
 }

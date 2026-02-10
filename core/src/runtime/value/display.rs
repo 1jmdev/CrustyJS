@@ -49,6 +49,14 @@ impl fmt::Display for JsValue {
                     }
                 }
             }
+            JsValue::Map(map) => {
+                let map = map.borrow();
+                write!(f, "Map({})", map.size())
+            }
+            JsValue::Set(set) => {
+                let set = set.borrow();
+                write!(f, "Set({})", set.size())
+            }
         }
     }
 }

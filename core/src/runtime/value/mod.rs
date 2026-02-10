@@ -1,5 +1,6 @@
 pub mod array;
 mod coercion;
+pub mod collections;
 mod display;
 pub mod generator;
 pub mod iterator;
@@ -18,6 +19,8 @@ use crate::parser::ast::{Param, Stmt};
 use crate::runtime::environment::Scope;
 use crate::runtime::gc::{Trace, Tracer};
 use array::JsArray;
+use collections::map::JsMap;
+use collections::set::JsSet;
 use generator::JsGenerator;
 use object::JsObject;
 use promise::JsPromise;
@@ -67,6 +70,8 @@ pub enum JsValue {
     Object(Rc<RefCell<JsObject>>),
     Array(Rc<RefCell<JsArray>>),
     Promise(Rc<RefCell<JsPromise>>),
+    Map(Rc<RefCell<JsMap>>),
+    Set(Rc<RefCell<JsSet>>),
 }
 
 impl PartialEq for JsValue {
@@ -101,6 +106,8 @@ impl PartialEq for JsValue {
             (JsValue::Object(a), JsValue::Object(b)) => Rc::ptr_eq(a, b),
             (JsValue::Array(a), JsValue::Array(b)) => Rc::ptr_eq(a, b),
             (JsValue::Promise(a), JsValue::Promise(b)) => Rc::ptr_eq(a, b),
+            (JsValue::Map(a), JsValue::Map(b)) => Rc::ptr_eq(a, b),
+            (JsValue::Set(a), JsValue::Set(b)) => Rc::ptr_eq(a, b),
             (
                 JsValue::NativeFunction {
                     handler: NativeFunction::Host(a),
@@ -156,6 +163,17 @@ impl Trace for JsValue {
             JsValue::Object(object) => object.borrow().trace(tracer),
             JsValue::Array(array) => array.borrow().trace(tracer),
             JsValue::Promise(promise) => promise.borrow().trace(tracer),
+            JsValue::Map(map) => {
+                for (k, v) in &map.borrow().entries {
+                    k.trace(tracer);
+                    v.trace(tracer);
+                }
+            }
+            JsValue::Set(set) => {
+                for v in &set.borrow().entries {
+                    v.trace(tracer);
+                }
+            }
             JsValue::Undefined
             | JsValue::Null
             | JsValue::Boolean(_)
