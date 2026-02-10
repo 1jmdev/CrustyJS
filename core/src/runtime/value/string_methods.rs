@@ -1,4 +1,5 @@
 use crate::errors::RuntimeError;
+use crate::runtime::value::array::JsArray;
 use crate::runtime::value::JsValue;
 
 /// Resolve a property access on a string value (e.g. `s.length`).
@@ -50,9 +51,7 @@ pub fn call_string_method(
                 .split(&sep)
                 .map(|part| JsValue::String(part.to_string()))
                 .collect();
-            // Return a string representation for now; proper arrays come in Phase 8
-            let display: Vec<String> = parts.iter().map(|v| format!("{v}")).collect();
-            Ok(JsValue::String(display.join(",")))
+            Ok(JsValue::Array(JsArray::new(parts).wrapped()))
         }
         _ => Err(RuntimeError::TypeError {
             message: format!("'{method}' is not a function"),

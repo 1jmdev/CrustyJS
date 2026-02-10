@@ -50,7 +50,10 @@ impl Parser {
         self.parse_function_decl_with_async(false)
     }
 
-    fn parse_function_decl_with_async(&mut self, is_async: bool) -> Result<Stmt, SyntaxError> {
+    pub(crate) fn parse_function_decl_with_async(
+        &mut self,
+        is_async: bool,
+    ) -> Result<Stmt, SyntaxError> {
         self.advance(); // consume 'function'
         let name = self.expect_ident()?;
         self.expect(&TokenKind::LeftParen)?;

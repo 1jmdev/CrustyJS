@@ -67,6 +67,19 @@ impl Parser {
             let stmt = self.parse_function_decl()?;
             return Ok(Stmt::Export(ExportDecl::NamedStmt(Box::new(stmt))));
         }
+        if self.check(&TokenKind::Async) {
+            self.advance();
+            if self.check(&TokenKind::Function) {
+                let stmt = self.parse_function_decl_with_async(true)?;
+                return Ok(Stmt::Export(ExportDecl::NamedStmt(Box::new(stmt))));
+            }
+            let token = self.tokens[self.pos].clone();
+            return Err(SyntaxError::new(
+                "expected function after export async",
+                token.span.start,
+                token.span.len().max(1),
+            ));
+        }
         if self.check(&TokenKind::Const) || self.check(&TokenKind::Let) {
             let stmt = self.parse_var_decl()?;
             return Ok(Stmt::Export(ExportDecl::NamedStmt(Box::new(stmt))));
