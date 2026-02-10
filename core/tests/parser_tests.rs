@@ -53,7 +53,9 @@ fn parse_function_declaration() {
     let stmts = parse_source("function fib(n) { return n; }");
     assert_eq!(stmts.len(), 1);
     match &stmts[0] {
-        Stmt::FunctionDecl { name, params, body } => {
+        Stmt::FunctionDecl {
+            name, params, body, ..
+        } => {
             assert_eq!(name, "fib");
             assert_eq!(
                 params,

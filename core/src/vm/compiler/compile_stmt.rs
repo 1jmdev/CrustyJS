@@ -77,7 +77,9 @@ impl Compiler {
                 let end = self.chunk.instructions.len() as u16;
                 self.chunk.instructions[jump_out_pos] = Opcode::JumpIfFalse(end);
             }
-            Stmt::FunctionDecl { name, params, body } => {
+            Stmt::FunctionDecl {
+                name, params, body, ..
+            } => {
                 let mut fn_compiler = Compiler::new();
                 fn_compiler.scope_depth = 1;
                 for param in params {
