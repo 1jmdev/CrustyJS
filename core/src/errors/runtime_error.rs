@@ -1,6 +1,8 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
+use crate::runtime::value::JsValue;
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum RuntimeError {
     #[error("ReferenceError: '{name}' is not defined")]
@@ -16,4 +18,7 @@ pub enum RuntimeError {
 
     #[error("TypeError: {message}")]
     TypeError { message: String },
+
+    #[error("Uncaught {value}")]
+    Thrown { value: JsValue },
 }

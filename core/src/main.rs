@@ -2,7 +2,6 @@ use std::fs;
 use std::process;
 
 use clap::Parser;
-use miette::NamedSource;
 
 #[derive(Parser)]
 #[command(name = "crustyjs", about = "A minimal JavaScript interpreter in Rust")]
@@ -31,8 +30,7 @@ fn main() {
     };
 
     if let Err(err) = crustyjs::run(&source) {
-        let report = miette::Report::new(err).with_source_code(NamedSource::new(&file, source));
-        eprintln!("{report:?}");
+        eprintln!("{err:?}");
         process::exit(1);
     }
 }

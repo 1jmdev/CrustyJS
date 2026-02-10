@@ -1,3 +1,4 @@
+use super::error_handling::JsException;
 use super::{ControlFlow, Interpreter};
 use crate::errors::RuntimeError;
 use crate::parser::ast::Stmt;
@@ -18,18 +19,7 @@ impl Interpreter {
                 self.env.define(name.clone(), value);
                 Ok(ControlFlow::None)
             }
-            Stmt::Block(stmts) => {
-                self.env.push_scope();
-                let mut result = ControlFlow::None;
-                for s in stmts {
-                    result = self.eval_stmt(s)?;
-                    if matches!(result, ControlFlow::Return(_)) {
-                        break;
-                    }
-                }
-                self.env.pop_scope();
-                Ok(result)
-            }
+            Stmt::Block(stmts) => self.eval_block(stmts),
             Stmt::If {
                 condition,
                 then_branch,
@@ -126,6 +116,80 @@ impl Interpreter {
                 self.env.pop_scope();
                 Ok(ControlFlow::None)
             }
+            Stmt::Throw(expr) => {
+                let value = self.eval_expr(expr)?;
+                Err(JsException::new(value).into_runtime_error())
+            }
+            Stmt::TryCatch {
+                try_block,
+                catch_param,
+                catch_block,
+                finally_block,
+            } => self.eval_try_catch(try_block, catch_param, catch_block, finally_block),
         }
+    }
+
+    fn eval_block(&mut self, stmts: &[Stmt]) -> Result<ControlFlow, RuntimeError> {
+        self.env.push_scope();
+        let mut result = ControlFlow::None;
+        for s in stmts {
+            result = self.eval_stmt(s)?;
+            if matches!(result, ControlFlow::Return(_)) {
+                break;
+            }
+        }
+        self.env.pop_scope();
+        Ok(result)
+    }
+
+    fn eval_try_catch(
+        &mut self,
+        try_block: &[Stmt],
+        catch_param: &Option<String>,
+        catch_block: &Option<Vec<Stmt>>,
+        finally_block: &Option<Vec<Stmt>>,
+    ) -> Result<ControlFlow, RuntimeError> {
+        let mut flow = ControlFlow::None;
+        let mut pending_error = None;
+
+        match self.eval_block(try_block) {
+            Ok(v) => flow = v,
+            Err(err) => {
+                if let RuntimeError::Thrown { value } = err {
+                    if let Some(catch_stmts) = catch_block {
+                        self.env.push_scope();
+                        if let Some(name) = catch_param {
+                            self.env.define(name.clone(), value);
+                        }
+                        let mut catch_flow = ControlFlow::None;
+                        for stmt in catch_stmts {
+                            catch_flow = self.eval_stmt(stmt)?;
+                            if matches!(catch_flow, ControlFlow::Return(_)) {
+                                break;
+                            }
+                        }
+                        self.env.pop_scope();
+                        flow = catch_flow;
+                    } else {
+                        pending_error = Some(RuntimeError::Thrown { value });
+                    }
+                } else {
+                    pending_error = Some(err);
+                }
+            }
+        }
+
+        if let Some(finally_stmts) = finally_block {
+            let finally_flow = self.eval_block(finally_stmts)?;
+            if !matches!(finally_flow, ControlFlow::None) {
+                return Ok(finally_flow);
+            }
+        }
+
+        if let Some(err) = pending_error {
+            return Err(err);
+        }
+
+        Ok(flow)
     }
 }
