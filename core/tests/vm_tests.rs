@@ -36,7 +36,7 @@ fn compile_if_else_emits_jump_opcodes() {
 
 #[test]
 fn compile_while_emits_loop_opcode() {
-    let ops = compile_source("while (false) { 1; }");
+    let ops = compile_source("let i = 0; while (i < 3) { i = i + 1; }");
     assert!(ops.iter().any(|op| matches!(op, Opcode::Loop(_))));
 }
 
@@ -99,6 +99,12 @@ fn vm_falls_back_to_single_tree_walk_for_mixed_program() {
 
     assert_eq!(ops.len(), 1);
     assert!(matches!(ops[0], Opcode::RunTreeWalk));
+}
+
+#[test]
+fn vm_compiles_assignment_without_treewalk_fallback() {
+    let ops = compile_source("let x = 1; x = x + 2; console.log(x);");
+    assert!(ops.iter().all(|op| !matches!(op, Opcode::RunTreeWalk)));
 }
 
 #[test]

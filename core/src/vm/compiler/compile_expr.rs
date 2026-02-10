@@ -34,6 +34,76 @@ impl Compiler {
                 }
                 self.chunk.write(Opcode::Call(args.len() as u8), 0);
             }
+            Expr::Assign { name, value } => {
+                self.compile_expr(value);
+                if let Some(local_idx) = self.resolve_local(name) {
+                    self.chunk.write(Opcode::SetLocal(local_idx), 0);
+                    self.chunk.write(Opcode::GetLocal(local_idx), 0);
+                } else {
+                    let idx = self.chunk.add_constant(VmValue::String(name.clone()));
+                    self.chunk.write(Opcode::SetGlobal(idx), 0);
+                    self.chunk.write(Opcode::GetGlobal(idx), 0);
+                }
+            }
+            Expr::CompoundAssign { name, op, value } => {
+                if let Some(local_idx) = self.resolve_local(name) {
+                    self.chunk.write(Opcode::GetLocal(local_idx), 0);
+                    self.compile_expr(value);
+                    match op {
+                        crate::parser::ast::AssignOp::Add => self.chunk.write(Opcode::Add, 0),
+                        crate::parser::ast::AssignOp::Sub => self.chunk.write(Opcode::Sub, 0),
+                        crate::parser::ast::AssignOp::Mul => self.chunk.write(Opcode::Mul, 0),
+                        crate::parser::ast::AssignOp::Div => self.chunk.write(Opcode::Div, 0),
+                        crate::parser::ast::AssignOp::Mod => self.chunk.write(Opcode::Mod, 0),
+                    }
+                    self.chunk.write(Opcode::SetLocal(local_idx), 0);
+                    self.chunk.write(Opcode::GetLocal(local_idx), 0);
+                } else {
+                    let idx = self.chunk.add_constant(VmValue::String(name.clone()));
+                    self.chunk.write(Opcode::GetGlobal(idx), 0);
+                    self.compile_expr(value);
+                    match op {
+                        crate::parser::ast::AssignOp::Add => self.chunk.write(Opcode::Add, 0),
+                        crate::parser::ast::AssignOp::Sub => self.chunk.write(Opcode::Sub, 0),
+                        crate::parser::ast::AssignOp::Mul => self.chunk.write(Opcode::Mul, 0),
+                        crate::parser::ast::AssignOp::Div => self.chunk.write(Opcode::Div, 0),
+                        crate::parser::ast::AssignOp::Mod => self.chunk.write(Opcode::Mod, 0),
+                    }
+                    self.chunk.write(Opcode::SetGlobal(idx), 0);
+                    self.chunk.write(Opcode::GetGlobal(idx), 0);
+                }
+            }
+            Expr::UpdateExpr { name, op, prefix } => {
+                let one = self.chunk.add_constant(VmValue::Number(1.0));
+                if let Some(local_idx) = self.resolve_local(name) {
+                    self.chunk.write(Opcode::GetLocal(local_idx), 0);
+                    if !prefix {
+                        self.require_tree_walk();
+                        return;
+                    }
+                    self.chunk.write(Opcode::Constant(one), 0);
+                    match op {
+                        crate::parser::ast::UpdateOp::Inc => self.chunk.write(Opcode::Add, 0),
+                        crate::parser::ast::UpdateOp::Dec => self.chunk.write(Opcode::Sub, 0),
+                    }
+                    self.chunk.write(Opcode::SetLocal(local_idx), 0);
+                    self.chunk.write(Opcode::GetLocal(local_idx), 0);
+                } else {
+                    let idx = self.chunk.add_constant(VmValue::String(name.clone()));
+                    self.chunk.write(Opcode::GetGlobal(idx), 0);
+                    if !prefix {
+                        self.require_tree_walk();
+                        return;
+                    }
+                    self.chunk.write(Opcode::Constant(one), 0);
+                    match op {
+                        crate::parser::ast::UpdateOp::Inc => self.chunk.write(Opcode::Add, 0),
+                        crate::parser::ast::UpdateOp::Dec => self.chunk.write(Opcode::Sub, 0),
+                    }
+                    self.chunk.write(Opcode::SetGlobal(idx), 0);
+                    self.chunk.write(Opcode::GetGlobal(idx), 0);
+                }
+            }
             Expr::MemberAccess { object, property } => {
                 self.compile_expr(object);
                 let idx = self.chunk.add_constant(VmValue::String(property.clone()));
@@ -43,6 +113,23 @@ impl Compiler {
             Expr::Typeof(inner) => {
                 self.compile_expr(inner);
                 self.chunk.write(Opcode::Typeof, 0);
+            }
+            Expr::Ternary {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
+                self.compile_expr(condition);
+                let jump_false_pos = self.chunk.instructions.len();
+                self.chunk.write(Opcode::JumpIfFalse(0), 0);
+                self.compile_expr(then_expr);
+                let jump_end_pos = self.chunk.instructions.len();
+                self.chunk.write(Opcode::Jump(0), 0);
+                let else_start = self.chunk.instructions.len() as u16;
+                self.compile_expr(else_expr);
+                let end = self.chunk.instructions.len() as u16;
+                self.chunk.instructions[jump_false_pos] = Opcode::JumpIfFalse(else_start);
+                self.chunk.instructions[jump_end_pos] = Opcode::Jump(end);
             }
             Expr::ArrayLiteral { .. } => self.require_tree_walk(),
             Expr::ObjectLiteral { .. } => self.require_tree_walk(),
