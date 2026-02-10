@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Default, Deserialize)]
+#[allow(dead_code)]
 pub struct Negative {
     pub phase: String,
     #[serde(rename = "type")]
@@ -8,6 +9,7 @@ pub struct Negative {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
+#[allow(dead_code)]
 pub struct TestMetadata {
     #[serde(default)]
     pub includes: Vec<String>,

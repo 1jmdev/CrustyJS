@@ -36,10 +36,6 @@ pub fn get_harness_cache() -> &'static HashMap<String, String> {
     HARNESS_CACHE.get_or_init(load_harness_files)
 }
 
-pub fn get_harness_file(name: &str) -> Option<&'static str> {
-    get_harness_cache().get(name).map(|s| s.as_str())
-}
-
 pub fn compose_source(includes: &[String], test_source: &str) -> String {
     let cache = get_harness_cache();
     let mut parts: Vec<&str> = Vec::new();
