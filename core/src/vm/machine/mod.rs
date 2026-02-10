@@ -3,13 +3,8 @@ mod stack;
 
 use std::collections::HashMap;
 
-use crate::diagnostics::source_map::SourceMap;
 use crate::errors::RuntimeError;
-use crate::lexer;
-use crate::parser;
-use crate::runtime::interpreter::Interpreter;
 use crate::vm::bytecode::{Chunk, Opcode, VmValue};
-use std::path::PathBuf;
 
 use call_frame::CallFrame;
 use stack::Stack;
@@ -32,8 +27,8 @@ impl VM {
     pub fn run(
         &mut self,
         chunk: Chunk,
-        source: Option<String>,
-        source_path: Option<PathBuf>,
+        _source: Option<String>,
+        _source_path: Option<std::path::PathBuf>,
     ) -> Result<(), RuntimeError> {
         self.frames.push(CallFrame::new(chunk));
 
@@ -165,34 +160,6 @@ impl VM {
                 Opcode::Loop(target) => {
                     self.current_frame_mut()?.ip = target as usize;
                 }
-                Opcode::RunTreeWalk => {
-                    if let Some(src) = source.as_ref() {
-                        let tokens = lexer::lex(src).map_err(|e| RuntimeError::TypeError {
-                            message: Self::format_bridge_syntax_error(
-                                source_path.as_ref(),
-                                src,
-                                "lex",
-                                &e,
-                            ),
-                        })?;
-                        let program =
-                            parser::parse(tokens).map_err(|e| RuntimeError::TypeError {
-                                message: Self::format_bridge_syntax_error(
-                                    source_path.as_ref(),
-                                    src,
-                                    "parse",
-                                    &e,
-                                ),
-                            })?;
-                        let mut interp = Interpreter::new_with_realtime_timers(true);
-                        let base_path = source_path.clone().unwrap_or_else(|| PathBuf::from("."));
-                        interp.run_with_path(&program, base_path)?;
-                        return Ok(());
-                    }
-                    return Err(RuntimeError::TypeError {
-                        message: "RunTreeWalk opcode requires source text".to_string(),
-                    });
-                }
                 other => {
                     return Err(RuntimeError::TypeError {
                         message: format!("unsupported opcode in VM: {other:?}"),
@@ -263,22 +230,5 @@ impl VM {
             _ => unreachable!(),
         };
         self.stack.push(out)
-    }
-
-    fn format_bridge_syntax_error(
-        source_path: Option<&PathBuf>,
-        source: &str,
-        phase: &str,
-        err: &crate::errors::SyntaxError,
-    ) -> String {
-        let map = SourceMap::from_source(source);
-        let pos = map.byte_to_pos(err.span.offset());
-        let file = source_path
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|| "<script>".to_string());
-        format!(
-            "VM bridge {phase} error at {file}:{}:{}: {}",
-            pos.line, pos.col, err.message
-        )
     }
 }

@@ -31,5 +31,4 @@ pub enum Opcode {
     CreateObject,
     CreateArray,
     Typeof,
-    RunTreeWalk,
 }
