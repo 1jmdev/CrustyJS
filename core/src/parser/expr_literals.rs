@@ -86,7 +86,7 @@ impl Parser {
         }
 
         self.pos = after_lparen;
-        let expr = self.parse_expr(0)?;
+        let expr = self.parse_expression()?;
         self.expect(&TokenKind::RightParen)?;
         Ok(expr)
     }

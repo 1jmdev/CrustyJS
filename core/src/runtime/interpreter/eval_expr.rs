@@ -326,6 +326,13 @@ impl Interpreter {
                 Ok(JsValue::RegExp(self.heap.alloc_cell(re)))
             }
             Expr::Delete(operand) => self.eval_delete_expr(operand),
+            Expr::Sequence(exprs) => {
+                let mut result = JsValue::Undefined;
+                for e in exprs {
+                    result = self.eval_expr(e)?;
+                }
+                Ok(result)
+            }
             Expr::FunctionExpr {
                 name,
                 params,

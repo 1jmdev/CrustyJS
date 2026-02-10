@@ -156,6 +156,7 @@ pub enum Expr {
         tag: Box<Expr>,
         parts: Vec<TemplatePart>,
     },
+    Sequence(Vec<Expr>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

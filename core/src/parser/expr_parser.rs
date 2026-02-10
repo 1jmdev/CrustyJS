@@ -7,6 +7,19 @@ use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
 impl Parser {
+    pub(crate) fn parse_expression(&mut self) -> Result<Expr, SyntaxError> {
+        let first = self.parse_expr(0)?;
+        if !self.check(&TokenKind::Comma) {
+            return Ok(first);
+        }
+        let mut exprs = vec![first];
+        while self.check(&TokenKind::Comma) {
+            self.advance();
+            exprs.push(self.parse_expr(0)?);
+        }
+        Ok(Expr::Sequence(exprs))
+    }
+
     pub(crate) fn parse_expr(&mut self, min_bp: u8) -> Result<Expr, SyntaxError> {
         let mut lhs = self.parse_prefix()?;
 

@@ -60,14 +60,14 @@ impl Parser {
         let condition = if self.check(&TokenKind::Semicolon) {
             None
         } else {
-            Some(self.parse_expr(0)?)
+            Some(self.parse_expression()?)
         };
         self.expect(&TokenKind::Semicolon)?;
 
         let update = if self.check(&TokenKind::RightParen) {
             None
         } else {
-            Some(self.parse_expr(0)?)
+            Some(self.parse_expression()?)
         };
         self.expect(&TokenKind::RightParen)?;
 

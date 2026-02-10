@@ -167,7 +167,10 @@ impl Parser {
             self.advance();
             return Ok(Stmt::Return(None));
         }
-        let value = self.parse_expr(0)?;
+        if self.check(&TokenKind::RightBrace) || self.is_at_end() {
+            return Ok(Stmt::Return(None));
+        }
+        let value = self.parse_expression()?;
         self.consume_stmt_terminator()?;
         Ok(Stmt::Return(Some(value)))
     }
@@ -187,7 +190,7 @@ impl Parser {
     }
 
     pub(crate) fn parse_expr_stmt(&mut self) -> Result<Stmt, SyntaxError> {
-        let expr = self.parse_expr(0)?;
+        let expr = self.parse_expression()?;
         self.consume_stmt_terminator()?;
         Ok(Stmt::ExprStmt(expr))
     }
