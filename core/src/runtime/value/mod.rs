@@ -13,13 +13,10 @@ pub mod symbol;
 
 pub use coercion::abstract_equals;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::embedding::callback::NativeFunctionBoxed;
 use crate::parser::ast::{Param, Stmt};
 use crate::runtime::environment::Scope;
-use crate::runtime::gc::{Trace, Tracer};
+use crate::runtime::gc::{Gc, GcCell, Trace, Tracer};
 use array::JsArray;
 use collections::map::JsMap;
 use collections::set::JsSet;
@@ -34,8 +31,8 @@ use symbol::JsSymbol;
 
 #[derive(Debug, Clone)]
 pub enum NativeFunction {
-    PromiseResolve(Rc<RefCell<JsPromise>>),
-    PromiseReject(Rc<RefCell<JsPromise>>),
+    PromiseResolve(Gc<GcCell<JsPromise>>),
+    PromiseReject(Gc<GcCell<JsPromise>>),
     SetTimeout,
     SetInterval,
     ClearTimeout,
@@ -44,11 +41,11 @@ pub enum NativeFunction {
     CancelAnimationFrame,
     QueueMicrotask,
     SymbolConstructor,
-    GeneratorNext(Rc<RefCell<JsGenerator>>),
-    GeneratorReturn(Rc<RefCell<JsGenerator>>),
+    GeneratorNext(Gc<GcCell<JsGenerator>>),
+    GeneratorReturn(Gc<GcCell<JsGenerator>>),
     GeneratorThrow,
     GeneratorIterator,
-    ProxyRevoke(Rc<RefCell<JsProxy>>),
+    ProxyRevoke(Gc<GcCell<JsProxy>>),
     Host(NativeFunctionBoxed),
 }
 
@@ -63,7 +60,7 @@ pub enum JsValue {
         name: String,
         params: Vec<Param>,
         body: Vec<Stmt>,
-        closure_env: Vec<Rc<RefCell<Scope>>>,
+        closure_env: Vec<Gc<GcCell<Scope>>>,
         is_async: bool,
         is_generator: bool,
         source_path: Option<String>,
@@ -74,15 +71,15 @@ pub enum JsValue {
         handler: NativeFunction,
     },
     Symbol(JsSymbol),
-    Object(Rc<RefCell<JsObject>>),
-    Array(Rc<RefCell<JsArray>>),
-    Promise(Rc<RefCell<JsPromise>>),
-    Map(Rc<RefCell<JsMap>>),
-    Set(Rc<RefCell<JsSet>>),
-    WeakMap(Rc<RefCell<JsWeakMap>>),
-    WeakSet(Rc<RefCell<JsWeakSet>>),
-    RegExp(Rc<RefCell<JsRegExp>>),
-    Proxy(Rc<RefCell<JsProxy>>),
+    Object(Gc<GcCell<JsObject>>),
+    Array(Gc<GcCell<JsArray>>),
+    Promise(Gc<GcCell<JsPromise>>),
+    Map(Gc<GcCell<JsMap>>),
+    Set(Gc<GcCell<JsSet>>),
+    WeakMap(Gc<GcCell<JsWeakMap>>),
+    WeakSet(Gc<GcCell<JsWeakSet>>),
+    RegExp(Gc<GcCell<JsRegExp>>),
+    Proxy(Gc<GcCell<JsProxy>>),
 }
 
 impl PartialEq for JsValue {
@@ -102,7 +99,7 @@ impl PartialEq for JsValue {
                     handler: NativeFunction::PromiseResolve(b),
                     ..
                 },
-            ) => Rc::ptr_eq(a, b),
+            ) => Gc::ptr_eq(*a, *b),
             (
                 JsValue::NativeFunction {
                     handler: NativeFunction::PromiseReject(a),
@@ -112,17 +109,17 @@ impl PartialEq for JsValue {
                     handler: NativeFunction::PromiseReject(b),
                     ..
                 },
-            ) => Rc::ptr_eq(a, b),
+            ) => Gc::ptr_eq(*a, *b),
             (JsValue::Symbol(a), JsValue::Symbol(b)) => a == b,
-            (JsValue::Object(a), JsValue::Object(b)) => Rc::ptr_eq(a, b),
-            (JsValue::Array(a), JsValue::Array(b)) => Rc::ptr_eq(a, b),
-            (JsValue::Promise(a), JsValue::Promise(b)) => Rc::ptr_eq(a, b),
-            (JsValue::Map(a), JsValue::Map(b)) => Rc::ptr_eq(a, b),
-            (JsValue::Set(a), JsValue::Set(b)) => Rc::ptr_eq(a, b),
-            (JsValue::WeakMap(a), JsValue::WeakMap(b)) => Rc::ptr_eq(a, b),
-            (JsValue::WeakSet(a), JsValue::WeakSet(b)) => Rc::ptr_eq(a, b),
-            (JsValue::RegExp(a), JsValue::RegExp(b)) => Rc::ptr_eq(a, b),
-            (JsValue::Proxy(a), JsValue::Proxy(b)) => Rc::ptr_eq(a, b),
+            (JsValue::Object(a), JsValue::Object(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::Array(a), JsValue::Array(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::Promise(a), JsValue::Promise(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::Map(a), JsValue::Map(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::Set(a), JsValue::Set(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::WeakMap(a), JsValue::WeakMap(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::WeakSet(a), JsValue::WeakSet(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::RegExp(a), JsValue::RegExp(b)) => Gc::ptr_eq(*a, *b),
+            (JsValue::Proxy(a), JsValue::Proxy(b)) => Gc::ptr_eq(*a, *b),
             (
                 JsValue::NativeFunction {
                     handler: NativeFunction::Host(a),
@@ -141,8 +138,8 @@ impl PartialEq for JsValue {
 impl Trace for NativeFunction {
     fn trace(&self, tracer: &mut Tracer) {
         match self {
-            NativeFunction::PromiseResolve(promise) | NativeFunction::PromiseReject(promise) => {
-                promise.borrow().trace(tracer);
+            NativeFunction::PromiseResolve(p) | NativeFunction::PromiseReject(p) => {
+                tracer.mark(*p);
             }
             NativeFunction::SetTimeout
             | NativeFunction::SetInterval
@@ -155,27 +152,11 @@ impl Trace for NativeFunction {
             | NativeFunction::GeneratorThrow
             | NativeFunction::GeneratorIterator
             | NativeFunction::Host(_) => {}
-            NativeFunction::GeneratorNext(generator)
-            | NativeFunction::GeneratorReturn(generator) => {
-                let g = generator.borrow();
-                for val in &g.yielded_values {
-                    val.trace(tracer);
-                }
-                g.return_value.trace(tracer);
-                for scope in &g.captured_env {
-                    scope.borrow().trace(tracer);
-                }
-                for arg in &g.args {
-                    arg.trace(tracer);
-                }
-                if let Some(this) = &g.this_binding {
-                    this.trace(tracer);
-                }
+            NativeFunction::GeneratorNext(g) | NativeFunction::GeneratorReturn(g) => {
+                tracer.mark(*g);
             }
-            NativeFunction::ProxyRevoke(proxy) => {
-                let p = proxy.borrow();
-                p.target.trace(tracer);
-                p.handler.borrow().trace(tracer);
+            NativeFunction::ProxyRevoke(p) => {
+                tracer.mark(*p);
             }
         }
     }
@@ -186,47 +167,25 @@ impl Trace for JsValue {
         match self {
             JsValue::Function { closure_env, .. } => {
                 for scope in closure_env {
-                    scope.borrow().trace(tracer);
+                    tracer.mark(*scope);
                 }
             }
             JsValue::NativeFunction { handler, .. } => handler.trace(tracer),
-            JsValue::Object(object) => object.borrow().trace(tracer),
-            JsValue::Array(array) => array.borrow().trace(tracer),
-            JsValue::Promise(promise) => promise.borrow().trace(tracer),
-            JsValue::Map(map) => {
-                for (k, v) in &map.borrow().entries {
-                    k.trace(tracer);
-                    v.trace(tracer);
-                }
-            }
-            JsValue::Set(set) => {
-                for v in &set.borrow().entries {
-                    v.trace(tracer);
-                }
-            }
-            JsValue::WeakMap(wm) => {
-                for (k, v) in &wm.borrow().entries {
-                    k.trace(tracer);
-                    v.trace(tracer);
-                }
-            }
-            JsValue::WeakSet(ws) => {
-                for v in &ws.borrow().entries {
-                    v.trace(tracer);
-                }
-            }
+            JsValue::Object(gc) => tracer.mark(*gc),
+            JsValue::Array(gc) => tracer.mark(*gc),
+            JsValue::Promise(gc) => tracer.mark(*gc),
+            JsValue::Map(gc) => tracer.mark(*gc),
+            JsValue::Set(gc) => tracer.mark(*gc),
+            JsValue::WeakMap(gc) => tracer.mark(*gc),
+            JsValue::WeakSet(gc) => tracer.mark(*gc),
+            JsValue::RegExp(gc) => tracer.mark(*gc),
+            JsValue::Proxy(gc) => tracer.mark(*gc),
             JsValue::Undefined
             | JsValue::Null
             | JsValue::Boolean(_)
             | JsValue::Number(_)
             | JsValue::String(_)
-            | JsValue::Symbol(_)
-            | JsValue::RegExp(_) => {}
-            JsValue::Proxy(proxy) => {
-                let p = proxy.borrow();
-                p.target.trace(tracer);
-                p.handler.borrow().trace(tracer);
-            }
+            | JsValue::Symbol(_) => {}
         }
     }
 }

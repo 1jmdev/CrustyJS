@@ -1,6 +1,7 @@
 use std::any::Any;
-use std::cell::RefCell;
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 
 use super::marker;
 use super::sweeper;
@@ -8,10 +9,21 @@ use super::trace::Trace;
 
 pub type GcCell<T> = RefCell<T>;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+struct GcHeader {
+    marked: Cell<bool>,
+    value: Box<dyn TraceAny>,
+}
+
+#[repr(transparent)]
 pub struct Gc<T> {
-    index: usize,
+    ptr: NonNull<GcHeader>,
     _marker: PhantomData<T>,
+}
+
+impl<T> std::fmt::Debug for Gc<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Gc({:p})", self.ptr.as_ptr())
+    }
 }
 
 impl<T> Copy for Gc<T> {}
@@ -22,13 +34,68 @@ impl<T> Clone for Gc<T> {
     }
 }
 
-impl<T> Gc<T> {
-    pub fn erase(self) -> ErasedGc {
-        self.index
+impl<T> PartialEq for Gc<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr == other.ptr
     }
 }
 
-pub type ErasedGc = usize;
+impl<T> Eq for Gc<T> {}
+
+impl<T> std::hash::Hash for Gc<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.ptr.hash(state);
+    }
+}
+
+impl<T> Gc<T> {
+    pub fn erase(self) -> ErasedGc {
+        ErasedGc { ptr: self.ptr }
+    }
+
+    pub fn ptr_eq(a: Gc<T>, b: Gc<T>) -> bool {
+        a.ptr == b.ptr
+    }
+}
+
+impl<T: Any> Gc<GcCell<T>> {
+    pub fn borrow(&self) -> Ref<'_, T> {
+        let header = unsafe { self.ptr.as_ref() };
+        let cell = header
+            .value
+            .as_any()
+            .downcast_ref::<GcCell<T>>()
+            .expect("Gc type mismatch");
+        cell.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<'_, T> {
+        let header = unsafe { self.ptr.as_ref() };
+        let cell = header
+            .value
+            .as_any()
+            .downcast_ref::<GcCell<T>>()
+            .expect("Gc type mismatch");
+        cell.borrow_mut()
+    }
+}
+
+pub struct ErasedGc {
+    ptr: NonNull<GcHeader>,
+}
+
+impl Copy for ErasedGc {}
+impl Clone for ErasedGc {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl ErasedGc {
+    fn header(&self) -> &GcHeader {
+        unsafe { self.ptr.as_ref() }
+    }
+}
 
 trait TraceAny: Trace + Any {
     fn as_any(&self) -> &dyn Any;
@@ -39,15 +106,9 @@ impl<T: Trace + Any> TraceAny for T {
     fn as_any(&self) -> &dyn Any {
         self
     }
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-}
-
-struct GcBox {
-    marked: bool,
-    value: Box<dyn TraceAny>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,7 +119,7 @@ pub struct CollectStats {
 }
 
 pub struct Heap {
-    slots: Vec<Option<GcBox>>,
+    objects: Vec<Box<GcHeader>>,
     live_count: usize,
     alloc_count: usize,
     collection_threshold: usize,
@@ -67,7 +128,7 @@ pub struct Heap {
 impl Heap {
     pub fn new() -> Self {
         Self {
-            slots: Vec::new(),
+            objects: Vec::new(),
             live_count: 0,
             alloc_count: 0,
             collection_threshold: 1024,
@@ -75,38 +136,22 @@ impl Heap {
     }
 
     pub fn alloc<T: Trace + Any>(&mut self, value: T) -> Gc<T> {
-        let index = self.slots.len();
-        self.slots.push(Some(GcBox {
-            marked: false,
+        let mut boxed = Box::new(GcHeader {
+            marked: Cell::new(false),
             value: Box::new(value),
-        }));
+        });
+        let ptr = NonNull::from(boxed.as_mut());
+        self.objects.push(boxed);
         self.live_count += 1;
         self.alloc_count += 1;
         Gc {
-            index,
+            ptr,
             _marker: PhantomData,
         }
     }
 
-    pub fn get<T: Trace + Any>(&self, gc: Gc<T>) -> Option<&T> {
-        self.slots
-            .get(gc.index)
-            .and_then(|slot| slot.as_ref())
-            .and_then(|boxed| boxed.value.as_any().downcast_ref::<T>())
-    }
-
-    pub fn get_mut<T: Trace + Any>(&mut self, gc: Gc<T>) -> Option<&mut T> {
-        self.slots
-            .get_mut(gc.index)
-            .and_then(|slot| slot.as_mut())
-            .and_then(|boxed| boxed.value.as_any_mut().downcast_mut::<T>())
-    }
-
-    pub fn contains<T>(&self, gc: Gc<T>) -> bool {
-        self.slots
-            .get(gc.index)
-            .and_then(|slot| slot.as_ref())
-            .is_some()
+    pub fn alloc_cell<T: Trace + Any>(&mut self, value: T) -> Gc<GcCell<T>> {
+        self.alloc(GcCell::new(value))
     }
 
     pub fn live_count(&self) -> usize {
@@ -131,46 +176,29 @@ impl Heap {
         }
     }
 
-    pub(crate) fn is_marked(&self, index: usize) -> bool {
-        self.slots
-            .get(index)
-            .and_then(|slot| slot.as_ref())
-            .map(|boxed| boxed.marked)
-            .unwrap_or(false)
+    pub(crate) fn mark_erased(&self, gc: &ErasedGc) {
+        gc.header().marked.set(true);
     }
 
-    pub(crate) fn exists(&self, index: usize) -> bool {
-        self.slots
-            .get(index)
-            .and_then(|slot| slot.as_ref())
-            .is_some()
+    pub(crate) fn is_marked_erased(&self, gc: &ErasedGc) -> bool {
+        gc.header().marked.get()
     }
 
-    pub(crate) fn mark(&mut self, index: usize) {
-        if let Some(Some(slot)) = self.slots.get_mut(index) {
-            slot.marked = true;
-        }
-    }
-
-    pub(crate) fn trace_index(&self, index: usize, tracer: &mut super::trace::Tracer) {
-        if let Some(Some(slot)) = self.slots.get(index) {
-            slot.value.trace(tracer);
-        }
+    pub(crate) fn trace_erased(&self, gc: &ErasedGc, tracer: &mut super::trace::Tracer) {
+        gc.header().value.trace(tracer);
     }
 
     pub(crate) fn sweep_unmarked(&mut self) -> usize {
-        let mut freed = 0;
-        for slot in &mut self.slots {
-            if let Some(boxed) = slot {
-                if boxed.marked {
-                    boxed.marked = false;
-                } else {
-                    *slot = None;
-                    freed += 1;
-                }
+        let before = self.objects.len();
+        self.objects.retain(|header| {
+            if header.marked.get() {
+                header.marked.set(false);
+                true
+            } else {
+                false
             }
-        }
-        freed
+        });
+        before - self.objects.len()
     }
 }
 
