@@ -46,6 +46,24 @@ impl Interpreter {
         self.event_loop.has_microtasks() || self.event_loop.has_tasks()
     }
 
+    pub(crate) fn run_microtasks_only(&mut self) -> Result<(), RuntimeError> {
+        self.drain_microtasks()
+    }
+
+    pub(crate) fn run_pending_timers(&mut self) -> Result<(), RuntimeError> {
+        while self.event_loop.has_tasks() {
+            self.event_loop.advance_to_next_task();
+            if let Some(task) = self.event_loop.pop_ready_task() {
+                if task.active {
+                    self.call_function(&task.callback, &[])?;
+                    self.event_loop.reschedule_interval(task);
+                }
+            }
+            self.drain_microtasks()?;
+        }
+        Ok(())
+    }
+
     fn drain_microtasks(&mut self) -> Result<(), RuntimeError> {
         while let Some(task) = self.event_loop.pop_microtask() {
             match task {

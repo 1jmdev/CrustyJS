@@ -79,7 +79,12 @@ impl Context {
     }
 
     pub fn run_microtasks(&mut self) -> Result<(), CrustyError> {
-        self.interpreter.run_event_loop_until_idle()?;
+        self.interpreter.run_microtasks_only()?;
+        Ok(())
+    }
+
+    pub fn run_pending_timers(&mut self) -> Result<(), CrustyError> {
+        self.interpreter.run_pending_timers()?;
         Ok(())
     }
 

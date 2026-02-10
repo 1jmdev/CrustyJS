@@ -82,3 +82,20 @@ fn register_class_constructor() {
         .expect("created should be available");
     assert_eq!(created, Value::String("section".to_string()));
 }
+
+#[test]
+fn context_exposes_event_loop_drivers() {
+    let engine = Engine::new();
+    let mut ctx = engine.new_context();
+
+    ctx.eval("let tick = 0; setTimeout(() => { tick = 1; }, 0);")
+        .expect("timer script should evaluate");
+
+    ctx.run_microtasks()
+        .expect("microtask execution should not fail");
+    ctx.run_pending_timers()
+        .expect("pending timer execution should not fail");
+
+    let tick = ctx.get_global("tick").expect("tick should exist");
+    assert_eq!(tick, Value::Number(1.0));
+}
