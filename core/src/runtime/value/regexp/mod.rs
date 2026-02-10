@@ -4,7 +4,8 @@ pub use engine::MatchResult;
 
 use regex::Regex;
 
-/// Flags for a JS RegExp.
+use crate::runtime::gc::{Trace, Tracer};
+
 #[derive(Debug, Clone, Default)]
 pub struct RegExpFlags {
     pub global: bool,
@@ -141,4 +142,8 @@ impl std::fmt::Display for JsRegExp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "/{}/{}", self.pattern, self.flag_string())
     }
+}
+
+impl Trace for JsRegExp {
+    fn trace(&self, _tracer: &mut Tracer) {}
 }

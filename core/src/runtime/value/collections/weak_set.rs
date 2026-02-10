@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
+use crate::runtime::gc::{Gc, GcCell, Trace, Tracer};
 use crate::runtime::value::JsValue;
 
 #[derive(Debug, Clone)]
@@ -13,10 +11,6 @@ impl JsWeakSet {
         Self {
             entries: Vec::new(),
         }
-    }
-
-    pub fn wrapped(self) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(self))
     }
 
     pub fn has(&self, value: &JsValue) -> bool {
@@ -36,12 +30,18 @@ impl JsWeakSet {
     }
 }
 
+impl Trace for JsWeakSet {
+    fn trace(&self, tracer: &mut Tracer) {
+        self.entries.trace(tracer);
+    }
+}
+
 fn weak_val_eq(a: &JsValue, b: &JsValue) -> bool {
     match (a, b) {
-        (JsValue::Object(x), JsValue::Object(y)) => Rc::ptr_eq(x, y),
-        (JsValue::Array(x), JsValue::Array(y)) => Rc::ptr_eq(x, y),
-        (JsValue::Map(x), JsValue::Map(y)) => Rc::ptr_eq(x, y),
-        (JsValue::Set(x), JsValue::Set(y)) => Rc::ptr_eq(x, y),
+        (JsValue::Object(x), JsValue::Object(y)) => Gc::ptr_eq(*x, *y),
+        (JsValue::Array(x), JsValue::Array(y)) => Gc::ptr_eq(*x, *y),
+        (JsValue::Map(x), JsValue::Map(y)) => Gc::ptr_eq(*x, *y),
+        (JsValue::Set(x), JsValue::Set(y)) => Gc::ptr_eq(*x, *y),
         _ => false,
     }
 }

@@ -1,6 +1,4 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
+use crate::runtime::gc::{Gc, GcCell, Trace, Tracer};
 use crate::runtime::value::JsValue;
 
 #[derive(Debug, Clone)]
@@ -13,10 +11,6 @@ impl JsMap {
         Self {
             entries: Vec::new(),
         }
-    }
-
-    pub fn wrapped(self) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(self))
     }
 
     pub fn size(&self) -> usize {
@@ -57,6 +51,15 @@ impl JsMap {
     }
 }
 
+impl Trace for JsMap {
+    fn trace(&self, tracer: &mut Tracer) {
+        for (k, v) in &self.entries {
+            k.trace(tracer);
+            v.trace(tracer);
+        }
+    }
+}
+
 fn map_key_eq(a: &JsValue, b: &JsValue) -> bool {
     match (a, b) {
         (JsValue::Number(x), JsValue::Number(y)) => {
@@ -68,8 +71,8 @@ fn map_key_eq(a: &JsValue, b: &JsValue) -> bool {
             }
             x == y
         }
-        (JsValue::Object(x), JsValue::Object(y)) => Rc::ptr_eq(x, y),
-        (JsValue::Array(x), JsValue::Array(y)) => Rc::ptr_eq(x, y),
+        (JsValue::Object(x), JsValue::Object(y)) => Gc::ptr_eq(*x, *y),
+        (JsValue::Array(x), JsValue::Array(y)) => Gc::ptr_eq(*x, *y),
         _ => a == b,
     }
 }
