@@ -3,7 +3,7 @@ use std::path::Path;
 use crustyjs_core::Context;
 
 use crate::harness;
-use crate::metadata::{strip_frontmatter, TestMetadata};
+use crate::metadata::{strip_frontmatter, Negative, TestMetadata};
 
 #[derive(Debug, Clone)]
 pub enum TestResult {
@@ -64,21 +64,30 @@ fn run_module_test(path: &Path, metadata: &TestMetadata) -> TestResult {
 }
 
 fn run_single(source: &str, metadata: &TestMetadata) -> TestResult {
+    let negative = metadata.negative.clone();
+
     let mut ctx = Context::new();
-    match ctx.eval(source) {
+    ctx.set_max_steps(1_000_000);
+    let result = ctx.eval(source);
+
+    match result {
         Ok(()) => {
-            if metadata.negative.is_some() {
+            if negative.is_some() {
                 TestResult::Failed("expected error but test passed".into())
             } else {
                 TestResult::Passed
             }
         }
-        Err(e) => evaluate_error(metadata, &e.to_string()),
+        Err(e) => evaluate_error_with_neg(&negative, &e.to_string()),
     }
 }
 
 fn evaluate_error(metadata: &TestMetadata, error_msg: &str) -> TestResult {
-    match &metadata.negative {
+    evaluate_error_with_neg(&metadata.negative, error_msg)
+}
+
+fn evaluate_error_with_neg(negative: &Option<Negative>, error_msg: &str) -> TestResult {
+    match negative {
         Some(neg) => {
             if error_msg.contains(&neg.error_type) {
                 TestResult::Passed

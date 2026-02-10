@@ -44,6 +44,13 @@ fn main() {
     let cli = Cli::parse();
     let start = Instant::now();
 
+    // Use 8MB stack, single thread to control memory usage
+    rayon::ThreadPoolBuilder::new()
+        .stack_size(8 * 1024 * 1024)
+        .num_threads(1)
+        .build_global()
+        .unwrap();
+
     harness::get_harness_cache();
 
     let files = collect_test_files(&cli.path);
