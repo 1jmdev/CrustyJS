@@ -3,10 +3,9 @@ use crate::embedding::function_args::FunctionArgs;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
 use crate::runtime::event_loop::Microtask;
+use crate::runtime::gc::{Gc, GcCell};
 use crate::runtime::value::promise::{JsPromise, PromiseReaction, PromiseState};
 use crate::runtime::value::{JsValue, NativeFunction};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 impl Interpreter {
     pub(crate) fn call_native_function(
@@ -93,7 +92,12 @@ impl Interpreter {
                 g.yielded_values.clear();
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
                 g.return_value = value.clone();
-                Ok(crate::runtime::value::iterator::iter_result(value, true))
+                drop(g);
+                Ok(crate::runtime::value::iterator::iter_result(
+                    value,
+                    true,
+                    &mut self.heap,
+                ))
             }
             NativeFunction::GeneratorThrow => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
@@ -101,6 +105,9 @@ impl Interpreter {
             }
             NativeFunction::GeneratorIterator => {
                 Ok(_this_binding.unwrap_or(JsValue::Undefined))
+            }
+            NativeFunction::NativeClassConstructor(class_name) => {
+                self.construct_native_class(class_name, args, _this_binding)
             }
             NativeFunction::ProxyRevoke(proxy) => {
                 proxy.borrow_mut().revoked = true;
@@ -110,7 +117,7 @@ impl Interpreter {
     }
 
     pub(crate) fn eval_new_promise(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {
-        let promise = Rc::new(RefCell::new(JsPromise::pending()));
+        let promise = self.heap.alloc_cell(JsPromise::pending());
         let executor_expr = args.first().ok_or_else(|| RuntimeError::TypeError {
             message: "Promise constructor requires an executor".to_string(),
         })?;
@@ -118,11 +125,11 @@ impl Interpreter {
 
         let resolve = JsValue::NativeFunction {
             name: "resolve".to_string(),
-            handler: NativeFunction::PromiseResolve(promise.clone()),
+            handler: NativeFunction::PromiseResolve(promise),
         };
         let reject = JsValue::NativeFunction {
             name: "reject".to_string(),
-            handler: NativeFunction::PromiseReject(promise.clone()),
+            handler: NativeFunction::PromiseReject(promise),
         };
 
         if let Err(err) = self.call_function(&executor, &[resolve, reject]) {
@@ -141,15 +148,15 @@ impl Interpreter {
         match property {
             "resolve" => {
                 if let Some(JsValue::Promise(promise)) = args.first() {
-                    return Ok(JsValue::Promise(promise.clone()));
+                    return Ok(JsValue::Promise(*promise));
                 }
-                let promise = Rc::new(RefCell::new(JsPromise::pending()));
+                let promise = self.heap.alloc_cell(JsPromise::pending());
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
                 let _ = self.settle_promise(&promise, false, value)?;
                 Ok(JsValue::Promise(promise))
             }
             "reject" => {
-                let promise = Rc::new(RefCell::new(JsPromise::pending()));
+                let promise = self.heap.alloc_cell(JsPromise::pending());
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
                 let _ = self.settle_promise(&promise, true, value)?;
                 Ok(JsValue::Promise(promise))
@@ -162,7 +169,7 @@ impl Interpreter {
 
     pub(crate) fn builtin_promise_instance_call(
         &mut self,
-        promise: &Rc<RefCell<JsPromise>>,
+        promise: &Gc<GcCell<JsPromise>>,
         property: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -180,12 +187,12 @@ impl Interpreter {
                 if let Some(callback) = Self::normalize_handler(args.first().cloned())
                     && let Err(err) = self.call_function(&callback, &[])
                 {
-                    let rejected = Rc::new(RefCell::new(JsPromise::pending()));
+                    let rejected = self.heap.alloc_cell(JsPromise::pending());
                     let _ =
                         self.settle_promise(&rejected, true, self.runtime_error_to_value(err))?;
                     return Ok(JsValue::Promise(rejected));
                 }
-                Ok(JsValue::Promise(promise.clone()))
+                Ok(JsValue::Promise(*promise))
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("Promise has no method '{property}'"),
@@ -195,12 +202,12 @@ impl Interpreter {
 
     pub(crate) fn settle_promise(
         &mut self,
-        promise: &Rc<RefCell<JsPromise>>,
+        promise: &Gc<GcCell<JsPromise>>,
         is_reject: bool,
         value: JsValue,
     ) -> Result<JsValue, RuntimeError> {
         if !is_reject && let JsValue::Promise(inner) = &value {
-            if Rc::ptr_eq(promise, inner) {
+            if Gc::ptr_eq(*promise, *inner) {
                 return self.settle_promise(
                     promise,
                     true,
@@ -211,7 +218,7 @@ impl Interpreter {
             let passthrough = PromiseReaction {
                 on_fulfilled: None,
                 on_rejected: None,
-                next: promise.clone(),
+                next: *promise,
             };
 
             let settled = {
@@ -263,15 +270,15 @@ impl Interpreter {
 
     fn promise_then(
         &mut self,
-        promise: &Rc<RefCell<JsPromise>>,
+        promise: &Gc<GcCell<JsPromise>>,
         on_fulfilled: Option<JsValue>,
         on_rejected: Option<JsValue>,
     ) -> Result<JsValue, RuntimeError> {
-        let next = Rc::new(RefCell::new(JsPromise::pending()));
+        let next = self.heap.alloc_cell(JsPromise::pending());
         let reaction = PromiseReaction {
             on_fulfilled: Self::normalize_handler(on_fulfilled),
             on_rejected: Self::normalize_handler(on_rejected),
-            next: next.clone(),
+            next,
         };
 
         let settled = {
@@ -327,14 +334,14 @@ impl Interpreter {
 
     fn resolve_then_result(
         &mut self,
-        next: &Rc<RefCell<JsPromise>>,
+        next: &Gc<GcCell<JsPromise>>,
         result: JsValue,
     ) -> Result<(), RuntimeError> {
         if let JsValue::Promise(inner) = result {
             let passthrough = PromiseReaction {
                 on_fulfilled: None,
                 on_rejected: None,
-                next: next.clone(),
+                next: *next,
             };
             let settled = {
                 let borrowed = inner.borrow();

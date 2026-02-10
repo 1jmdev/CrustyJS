@@ -1,6 +1,7 @@
 use super::Interpreter;
 use crate::diagnostics::stack_trace::CallFrame;
 use crate::errors::RuntimeError;
+use crate::runtime::gc::{Gc, GcCell};
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::generator::{GeneratorState, JsGenerator};
 use crate::runtime::value::object::JsObject;
@@ -10,7 +11,7 @@ use crate::runtime::value::JsValue;
 impl Interpreter {
     pub(crate) fn eval_array_callback_method(
         &mut self,
-        arr: &std::rc::Rc<std::cell::RefCell<JsArray>>,
+        arr: &Gc<GcCell<JsArray>>,
         method: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -26,7 +27,7 @@ impl Interpreter {
                     let val = self.call_function(callback, std::slice::from_ref(elem))?;
                     result.push(val);
                 }
-                Ok(JsValue::Array(JsArray::new(result).wrapped()))
+                Ok(JsValue::Array(self.heap.alloc_cell(JsArray::new(result))))
             }
             "filter" => {
                 let mut result = Vec::new();
@@ -36,7 +37,7 @@ impl Interpreter {
                         result.push(elem.clone());
                     }
                 }
-                Ok(JsValue::Array(JsArray::new(result).wrapped()))
+                Ok(JsValue::Array(self.heap.alloc_cell(JsArray::new(result))))
             }
             "forEach" => {
                 for elem in &elements {
@@ -73,7 +74,7 @@ impl Interpreter {
                     });
                 }
                 arr.borrow_mut().elements = sorted.clone();
-                Ok(JsValue::Array(JsArray::new(sorted).wrapped()))
+                Ok(JsValue::Array(self.heap.alloc_cell(JsArray::new(sorted))))
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("array has no method '{method}'"),
@@ -150,7 +151,8 @@ impl Interpreter {
                 };
                 if let Some(trap_fn) = trap {
                     let this_arg = this_binding.clone().unwrap_or(JsValue::Undefined);
-                    let args_array = JsValue::Array(JsArray::new(args.to_vec()).wrapped());
+                    let args_array =
+                        JsValue::Array(self.heap.alloc_cell(JsArray::new(args.to_vec())));
                     self.call_function(&trap_fn, &[target, this_arg, args_array])
                 } else {
                     self.call_function_with_this(&target, args, this_binding)
@@ -197,7 +199,7 @@ impl Interpreter {
         &mut self,
         params: &[crate::parser::ast::Param],
         body: &[crate::parser::ast::Stmt],
-        closure_env: &[std::rc::Rc<std::cell::RefCell<crate::runtime::environment::Scope>>],
+        closure_env: &[Gc<GcCell<crate::runtime::environment::Scope>>],
         this_binding: Option<JsValue>,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -208,7 +210,7 @@ impl Interpreter {
             this_binding,
             args.to_vec(),
         );
-        let gen_rc = gen_state.wrapped();
+        let gen_gc = self.heap.alloc_cell(gen_state);
 
         let mut obj = JsObject::new();
 
@@ -216,7 +218,7 @@ impl Interpreter {
             "next".to_string(),
             JsValue::NativeFunction {
                 name: "next".to_string(),
-                handler: crate::runtime::value::NativeFunction::GeneratorNext(gen_rc.clone()),
+                handler: crate::runtime::value::NativeFunction::GeneratorNext(gen_gc),
             },
         );
 
@@ -224,7 +226,7 @@ impl Interpreter {
             "return".to_string(),
             JsValue::NativeFunction {
                 name: "return".to_string(),
-                handler: crate::runtime::value::NativeFunction::GeneratorReturn(gen_rc),
+                handler: crate::runtime::value::NativeFunction::GeneratorReturn(gen_gc),
             },
         );
 
@@ -237,8 +239,8 @@ impl Interpreter {
         );
 
         let iter_sym = symbol::symbol_iterator();
-        let obj_rc = obj.wrapped();
-        obj_rc.borrow_mut().set_symbol(
+        let obj_gc = self.heap.alloc_cell(obj);
+        obj_gc.borrow_mut().set_symbol(
             iter_sym,
             JsValue::NativeFunction {
                 name: "[Symbol.iterator]".to_string(),
@@ -246,12 +248,12 @@ impl Interpreter {
             },
         );
 
-        Ok(JsValue::Object(obj_rc))
+        Ok(JsValue::Object(obj_gc))
     }
 
     pub(crate) fn step_generator(
         &mut self,
-        generator: &std::rc::Rc<std::cell::RefCell<JsGenerator>>,
+        generator: &Gc<GcCell<JsGenerator>>,
     ) -> Result<JsValue, RuntimeError> {
         {
             let g = generator.borrow();
@@ -259,6 +261,7 @@ impl Interpreter {
                 return Ok(crate::runtime::value::iterator::iter_result(
                     g.return_value.clone(),
                     true,
+                    &mut self.heap,
                 ));
             }
         }
@@ -297,10 +300,83 @@ impl Interpreter {
 
         let mut g = generator.borrow_mut();
         if let Some(value) = g.yielded_values.pop_front() {
-            Ok(crate::runtime::value::iterator::iter_result(value, false))
+            drop(g);
+            Ok(crate::runtime::value::iterator::iter_result(
+                value,
+                false,
+                &mut self.heap,
+            ))
         } else {
             let ret = g.return_value.clone();
-            Ok(crate::runtime::value::iterator::iter_result(ret, true))
+            drop(g);
+            Ok(crate::runtime::value::iterator::iter_result(
+                ret,
+                true,
+                &mut self.heap,
+            ))
         }
+    }
+
+    pub(crate) fn construct_native_class(
+        &mut self,
+        class_name: &str,
+        args: &[JsValue],
+        _this_binding: Option<JsValue>,
+    ) -> Result<JsValue, RuntimeError> {
+        let class_def = self
+            .native_classes
+            .get(class_name)
+            .cloned()
+            .ok_or_else(|| RuntimeError::TypeError {
+                message: format!("native class '{class_name}' not found"),
+            })?;
+
+        let this_obj = self.heap.alloc_cell(JsObject::new());
+        let this = JsValue::Object(this_obj);
+        let fn_args =
+            crate::embedding::function_args::FunctionArgs::new(this.clone(), args.to_vec());
+
+        let mut instance = if let Some(constructor) = &class_def.constructor {
+            let result = constructor.call(fn_args)?;
+            match result {
+                JsValue::Undefined => this,
+                other => other,
+            }
+        } else {
+            this
+        };
+
+        if let JsValue::Object(object) = &mut instance {
+            let mut obj = object.borrow_mut();
+            for (name, callback) in &class_def.methods {
+                obj.set(
+                    name.clone(),
+                    JsValue::NativeFunction {
+                        name: name.clone(),
+                        handler: crate::runtime::value::NativeFunction::Host(callback.clone()),
+                    },
+                );
+            }
+            for (name, callback) in &class_def.getters {
+                obj.set_getter(
+                    name.clone(),
+                    JsValue::NativeFunction {
+                        name: format!("get {name}"),
+                        handler: crate::runtime::value::NativeFunction::Host(callback.clone()),
+                    },
+                );
+            }
+            for (name, callback) in &class_def.setters {
+                obj.set_setter(
+                    name.clone(),
+                    JsValue::NativeFunction {
+                        name: format!("set {name}"),
+                        handler: crate::runtime::value::NativeFunction::Host(callback.clone()),
+                    },
+                );
+            }
+        }
+
+        Ok(instance)
     }
 }

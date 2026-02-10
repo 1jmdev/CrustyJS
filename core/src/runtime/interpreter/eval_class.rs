@@ -1,16 +1,14 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{ClassDecl, ClassMethod, ClassMethodKind, Expr, Param, Pattern};
+use crate::runtime::gc::{Gc, GcCell};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
 #[derive(Clone)]
 pub(crate) struct RuntimeClass {
     pub constructor: JsValue,
-    pub prototype: Rc<RefCell<JsObject>>,
+    pub prototype: Gc<GcCell<JsObject>>,
     pub parent: Option<String>,
 }
 
@@ -31,7 +29,7 @@ impl Interpreter {
 
         let mut prototype = JsObject::new();
         if let Some(parent_class) = &parent {
-            prototype.prototype = Some(parent_class.prototype.clone());
+            prototype.prototype = Some(parent_class.prototype);
         }
 
         for method in &class_decl.methods {
@@ -46,7 +44,7 @@ impl Interpreter {
             }
         }
 
-        let prototype = prototype.wrapped();
+        let prototype = self.heap.alloc_cell(prototype);
         let constructor = match &class_decl.constructor {
             Some(method) => self.method_to_function(method, &class_decl.name),
             None => JsValue::Function {
@@ -95,7 +93,10 @@ impl Interpreter {
                 .map(|expr| self.eval_expr(expr))
                 .transpose()?
                 .unwrap_or(JsValue::Undefined);
-            return Ok(super::error_handling::create_error_object(message));
+            return Ok(super::error_handling::create_error_object(
+                message,
+                &mut self.heap,
+            ));
         }
 
         if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Map") {
@@ -122,7 +123,6 @@ impl Interpreter {
             return self.eval_new_proxy(args);
         }
 
-        // Check if callee resolves to a Proxy with a construct trap
         if let crate::parser::ast::Expr::Identifier(name) = callee {
             if let Ok(val) = self.env.get(name) {
                 if let JsValue::Proxy(proxy) = &val {
@@ -138,17 +138,18 @@ impl Interpreter {
                         .collect::<Result<_, _>>()?;
                     if let Some(trap_fn) = trap {
                         let args_array = JsValue::Array(
-                            crate::runtime::value::array::JsArray::new(arg_values).wrapped(),
+                            self.heap
+                                .alloc_cell(crate::runtime::value::array::JsArray::new(arg_values)),
                         );
                         return self.call_function(&trap_fn, &[target, args_array, val]);
                     }
-                    // No construct trap — try normal class instantiation via target
                     if let JsValue::Function { name: fn_name, .. } = &target {
                         if let Some(class_name) = fn_name.strip_suffix("::constructor") {
                             if let Some(class) = self.classes.get(class_name).cloned() {
                                 let mut instance = crate::runtime::value::object::JsObject::new();
-                                instance.prototype = Some(class.prototype.clone());
-                                let instance_value = JsValue::Object(instance.wrapped());
+                                instance.prototype = Some(class.prototype);
+                                let instance_value =
+                                    JsValue::Object(self.heap.alloc_cell(instance));
                                 self.call_function_with_this(
                                     &class.constructor,
                                     &arg_values,
@@ -185,8 +186,8 @@ impl Interpreter {
             .collect::<Result<_, _>>()?;
 
         let mut instance = JsObject::new();
-        instance.prototype = Some(class.prototype.clone());
-        let instance_value = JsValue::Object(instance.wrapped());
+        instance.prototype = Some(class.prototype);
+        let instance_value = JsValue::Object(self.heap.alloc_cell(instance));
 
         self.super_stack.push(class.parent.clone());
         let ctor_result = self.call_function_with_this(
@@ -255,12 +256,12 @@ impl Interpreter {
             return Ok(JsValue::Boolean(false));
         };
 
-        let mut current = object.borrow().prototype.clone();
+        let mut current = object.borrow().prototype;
         while let Some(proto) = current {
-            if Rc::ptr_eq(&proto, &class.prototype) {
+            if Gc::ptr_eq(proto, class.prototype) {
                 return Ok(JsValue::Boolean(true));
             }
-            current = proto.borrow().prototype.clone();
+            current = proto.borrow().prototype;
         }
 
         Ok(JsValue::Boolean(false))
@@ -275,13 +276,13 @@ impl Interpreter {
         let target = self.eval_expr(right)?;
         match &target {
             JsValue::Object(obj) => {
-                let mut current = Some(std::rc::Rc::clone(obj));
+                let mut current = Some(*obj);
                 while let Some(candidate) = current {
                     let borrowed = candidate.borrow();
                     if borrowed.properties.contains_key(&key) {
                         return Ok(JsValue::Boolean(true));
                     }
-                    current = borrowed.prototype.clone();
+                    current = borrowed.prototype;
                 }
                 Ok(JsValue::Boolean(false))
             }
@@ -324,13 +325,13 @@ impl Interpreter {
     ) -> Result<JsValue, RuntimeError> {
         match target {
             JsValue::Object(obj) => {
-                let mut current = Some(std::rc::Rc::clone(obj));
+                let mut current = Some(*obj);
                 while let Some(candidate) = current {
                     let borrowed = candidate.borrow();
                     if borrowed.properties.contains_key(key) {
                         return Ok(JsValue::Boolean(true));
                     }
-                    current = borrowed.prototype.clone();
+                    current = borrowed.prototype;
                 }
                 Ok(JsValue::Boolean(false))
             }

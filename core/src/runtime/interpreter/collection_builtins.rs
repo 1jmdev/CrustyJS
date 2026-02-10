@@ -1,6 +1,7 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
+use crate::runtime::gc::{Gc, GcCell};
 use crate::runtime::value::collections::map::JsMap;
 use crate::runtime::value::collections::set::JsSet;
 use crate::runtime::value::collections::weak_map::{is_valid_weak_key, JsWeakMap};
@@ -21,7 +22,7 @@ impl Interpreter {
                 }
             }
         }
-        Ok(JsValue::Map(map.wrapped()))
+        Ok(JsValue::Map(self.heap.alloc_cell(map)))
     }
 
     pub(crate) fn eval_new_set(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {
@@ -35,12 +36,12 @@ impl Interpreter {
                 }
             }
         }
-        Ok(JsValue::Set(set.wrapped()))
+        Ok(JsValue::Set(self.heap.alloc_cell(set)))
     }
 
     pub(crate) fn call_map_method(
         &mut self,
-        map_rc: &std::rc::Rc<std::cell::RefCell<JsMap>>,
+        map_gc: &Gc<GcCell<JsMap>>,
         method: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -48,27 +49,27 @@ impl Interpreter {
             "set" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
                 let value = args.get(1).cloned().unwrap_or(JsValue::Undefined);
-                map_rc.borrow_mut().set(key, value);
-                Ok(JsValue::Map(map_rc.clone()))
+                map_gc.borrow_mut().set(key, value);
+                Ok(JsValue::Map(*map_gc))
             }
             "get" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(map_rc.borrow().get(&key))
+                Ok(map_gc.borrow().get(&key))
             }
             "has" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(map_rc.borrow().has(&key)))
+                Ok(JsValue::Boolean(map_gc.borrow().has(&key)))
             }
             "delete" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(map_rc.borrow_mut().delete(&key)))
+                Ok(JsValue::Boolean(map_gc.borrow_mut().delete(&key)))
             }
             "clear" => {
-                map_rc.borrow_mut().clear();
+                map_gc.borrow_mut().clear();
                 Ok(JsValue::Undefined)
             }
             "keys" => {
-                let keys: Vec<JsValue> = map_rc
+                let keys: Vec<JsValue> = map_gc
                     .borrow()
                     .entries
                     .iter()
@@ -77,7 +78,7 @@ impl Interpreter {
                 Ok(self.create_array_iterator(keys))
             }
             "values" => {
-                let values: Vec<JsValue> = map_rc
+                let values: Vec<JsValue> = map_gc
                     .borrow()
                     .entries
                     .iter()
@@ -86,14 +87,18 @@ impl Interpreter {
                 Ok(self.create_array_iterator(values))
             }
             "entries" => {
-                let entries: Vec<JsValue> = map_rc
+                let pairs: Vec<Vec<JsValue>> = map_gc
                     .borrow()
                     .entries
                     .iter()
-                    .map(|(k, v)| {
+                    .map(|(k, v)| vec![k.clone(), v.clone()])
+                    .collect();
+                let entries: Vec<JsValue> = pairs
+                    .into_iter()
+                    .map(|pair| {
                         JsValue::Array(
-                            crate::runtime::value::array::JsArray::new(vec![k.clone(), v.clone()])
-                                .wrapped(),
+                            self.heap
+                                .alloc_cell(crate::runtime::value::array::JsArray::new(pair)),
                         )
                     })
                     .collect();
@@ -101,7 +106,7 @@ impl Interpreter {
             }
             "forEach" => {
                 let callback = args.first().cloned().unwrap_or(JsValue::Undefined);
-                let entries: Vec<(JsValue, JsValue)> = map_rc.borrow().entries.clone();
+                let entries: Vec<(JsValue, JsValue)> = map_gc.borrow().entries.clone();
                 for (key, value) in entries {
                     self.call_function(&callback, &[value, key])?;
                 }
@@ -115,49 +120,47 @@ impl Interpreter {
 
     pub(crate) fn call_set_method(
         &mut self,
-        set_rc: &std::rc::Rc<std::cell::RefCell<JsSet>>,
+        set_gc: &Gc<GcCell<JsSet>>,
         method: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
         match method {
             "add" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                set_rc.borrow_mut().add(value);
-                Ok(JsValue::Set(set_rc.clone()))
+                set_gc.borrow_mut().add(value);
+                Ok(JsValue::Set(*set_gc))
             }
             "has" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(set_rc.borrow().has(&value)))
+                Ok(JsValue::Boolean(set_gc.borrow().has(&value)))
             }
             "delete" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(set_rc.borrow_mut().delete(&value)))
+                Ok(JsValue::Boolean(set_gc.borrow_mut().delete(&value)))
             }
             "clear" => {
-                set_rc.borrow_mut().clear();
+                set_gc.borrow_mut().clear();
                 Ok(JsValue::Undefined)
             }
             "keys" | "values" => {
-                let values: Vec<JsValue> = set_rc.borrow().entries.clone();
+                let values: Vec<JsValue> = set_gc.borrow().entries.clone();
                 Ok(self.create_array_iterator(values))
             }
             "entries" => {
-                let entries: Vec<JsValue> = set_rc
-                    .borrow()
-                    .entries
-                    .iter()
+                let raw: Vec<JsValue> = set_gc.borrow().entries.clone();
+                let entries: Vec<JsValue> = raw
+                    .into_iter()
                     .map(|v| {
-                        JsValue::Array(
-                            crate::runtime::value::array::JsArray::new(vec![v.clone(), v.clone()])
-                                .wrapped(),
-                        )
+                        JsValue::Array(self.heap.alloc_cell(
+                            crate::runtime::value::array::JsArray::new(vec![v.clone(), v]),
+                        ))
                     })
                     .collect();
                 Ok(self.create_array_iterator(entries))
             }
             "forEach" => {
                 let callback = args.first().cloned().unwrap_or(JsValue::Undefined);
-                let entries: Vec<JsValue> = set_rc.borrow().entries.clone();
+                let entries: Vec<JsValue> = set_gc.borrow().entries.clone();
                 for value in entries {
                     self.call_function(&callback, &[value.clone(), value])?;
                 }
@@ -187,7 +190,7 @@ impl Interpreter {
                 }
             }
         }
-        Ok(JsValue::WeakMap(wm.wrapped()))
+        Ok(JsValue::WeakMap(self.heap.alloc_cell(wm)))
     }
 
     pub(crate) fn eval_new_weak_set(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {
@@ -206,12 +209,12 @@ impl Interpreter {
                 }
             }
         }
-        Ok(JsValue::WeakSet(ws.wrapped()))
+        Ok(JsValue::WeakSet(self.heap.alloc_cell(ws)))
     }
 
     pub(crate) fn call_weak_map_method(
         &mut self,
-        wm_rc: &std::rc::Rc<std::cell::RefCell<JsWeakMap>>,
+        wm_gc: &Gc<GcCell<JsWeakMap>>,
         method: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -224,20 +227,20 @@ impl Interpreter {
                     });
                 }
                 let value = args.get(1).cloned().unwrap_or(JsValue::Undefined);
-                wm_rc.borrow_mut().set(key, value);
-                Ok(JsValue::WeakMap(wm_rc.clone()))
+                wm_gc.borrow_mut().set(key, value);
+                Ok(JsValue::WeakMap(*wm_gc))
             }
             "get" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(wm_rc.borrow().get(&key))
+                Ok(wm_gc.borrow().get(&key))
             }
             "has" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(wm_rc.borrow().has(&key)))
+                Ok(JsValue::Boolean(wm_gc.borrow().has(&key)))
             }
             "delete" => {
                 let key = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(wm_rc.borrow_mut().delete(&key)))
+                Ok(JsValue::Boolean(wm_gc.borrow_mut().delete(&key)))
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("weakMap.{method} is not a function"),
@@ -247,7 +250,7 @@ impl Interpreter {
 
     pub(crate) fn call_weak_set_method(
         &mut self,
-        ws_rc: &std::rc::Rc<std::cell::RefCell<JsWeakSet>>,
+        ws_gc: &Gc<GcCell<JsWeakSet>>,
         method: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -259,16 +262,16 @@ impl Interpreter {
                         message: "Invalid value used as weak set value".to_string(),
                     });
                 }
-                ws_rc.borrow_mut().add(value);
-                Ok(JsValue::WeakSet(ws_rc.clone()))
+                ws_gc.borrow_mut().add(value);
+                Ok(JsValue::WeakSet(*ws_gc))
             }
             "has" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(ws_rc.borrow().has(&value)))
+                Ok(JsValue::Boolean(ws_gc.borrow().has(&value)))
             }
             "delete" => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
-                Ok(JsValue::Boolean(ws_rc.borrow_mut().delete(&value)))
+                Ok(JsValue::Boolean(ws_gc.borrow_mut().delete(&value)))
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("weakSet.{method} is not a function"),
@@ -282,27 +285,27 @@ impl Interpreter {
         use crate::runtime::value::symbol;
 
         let gen_state = JsGenerator::from_values(items.into());
-        let gen_rc = gen_state.wrapped();
+        let gen_gc = self.heap.alloc_cell(gen_state);
 
         let mut obj = JsObject::new();
         obj.set(
             "next".to_string(),
             JsValue::NativeFunction {
                 name: "next".to_string(),
-                handler: crate::runtime::value::NativeFunction::GeneratorNext(gen_rc.clone()),
+                handler: crate::runtime::value::NativeFunction::GeneratorNext(gen_gc),
             },
         );
         obj.set(
             "return".to_string(),
             JsValue::NativeFunction {
                 name: "return".to_string(),
-                handler: crate::runtime::value::NativeFunction::GeneratorReturn(gen_rc),
+                handler: crate::runtime::value::NativeFunction::GeneratorReturn(gen_gc),
             },
         );
 
         let iter_sym = symbol::symbol_iterator();
-        let obj_rc = obj.wrapped();
-        obj_rc.borrow_mut().set_symbol(
+        let obj_gc = self.heap.alloc_cell(obj);
+        obj_gc.borrow_mut().set_symbol(
             iter_sym,
             JsValue::NativeFunction {
                 name: "[Symbol.iterator]".to_string(),
@@ -310,6 +313,6 @@ impl Interpreter {
             },
         );
 
-        JsValue::Object(obj_rc)
+        JsValue::Object(obj_gc)
     }
 }

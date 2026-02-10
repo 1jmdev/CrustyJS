@@ -1,17 +1,16 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{Expr, Param, Stmt};
+use crate::runtime::gc::{Gc, GcCell};
 use crate::runtime::value::JsValue;
 use crate::runtime::value::promise::{JsPromise, PromiseState};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 impl Interpreter {
     pub(crate) fn execute_function_body(
         &mut self,
         params: &[Param],
         body: &[Stmt],
-        closure_env: &[Rc<RefCell<crate::runtime::environment::Scope>>],
+        closure_env: &[Gc<GcCell<crate::runtime::environment::Scope>>],
         this_binding: Option<JsValue>,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -20,7 +19,7 @@ impl Interpreter {
         let captured = closure_env.to_vec();
         let saved_scopes = self.env.replace_scopes(captured);
 
-        self.env.push_scope_with_this(this_binding);
+        self.env.push_scope_with_this(&mut self.heap, this_binding);
         for (idx, param) in params.iter().enumerate() {
             let mut value = args.get(idx).cloned().unwrap_or(JsValue::Undefined);
             if matches!(value, JsValue::Undefined)
@@ -60,11 +59,11 @@ impl Interpreter {
         &mut self,
         params: &[Param],
         body: &[Stmt],
-        closure_env: &[Rc<RefCell<crate::runtime::environment::Scope>>],
+        closure_env: &[Gc<GcCell<crate::runtime::environment::Scope>>],
         this_binding: Option<JsValue>,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
-        let promise = Rc::new(RefCell::new(JsPromise::pending()));
+        let promise = self.heap.alloc_cell(JsPromise::pending());
         self.async_depth += 1;
         let result = self.execute_function_body(params, body, closure_env, this_binding, args);
         self.async_depth = self.async_depth.saturating_sub(1);

@@ -1,5 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
+use crate::runtime::gc::Gc;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
@@ -16,31 +17,37 @@ impl Interpreter {
         match property {
             "keys" => {
                 let keys = self.object_keys(args.first().cloned().unwrap_or(JsValue::Undefined))?;
-                Ok(JsValue::Array(
-                    JsArray::new(keys.into_iter().map(JsValue::String).collect()).wrapped(),
-                ))
+                Ok(JsValue::Array(self.heap.alloc_cell(JsArray::new(
+                    keys.into_iter().map(JsValue::String).collect(),
+                ))))
             }
             "values" => {
                 let values =
                     self.object_values(args.first().cloned().unwrap_or(JsValue::Undefined))?;
-                Ok(JsValue::Array(JsArray::new(values).wrapped()))
+                Ok(JsValue::Array(self.heap.alloc_cell(JsArray::new(values))))
             }
             "entries" => {
                 let entries =
                     self.object_entries(args.first().cloned().unwrap_or(JsValue::Undefined))?;
-                let pairs = entries
+                let pairs: Vec<(String, JsValue)> = entries;
+                let pair_values: Vec<JsValue> = pairs
                     .into_iter()
                     .map(|(k, v)| {
-                        JsValue::Array(JsArray::new(vec![JsValue::String(k), v]).wrapped())
+                        JsValue::Array(
+                            self.heap
+                                .alloc_cell(JsArray::new(vec![JsValue::String(k), v])),
+                        )
                     })
                     .collect();
-                Ok(JsValue::Array(JsArray::new(pairs).wrapped()))
+                Ok(JsValue::Array(
+                    self.heap.alloc_cell(JsArray::new(pair_values)),
+                ))
             }
             "assign" => {
                 let target = args
                     .first()
                     .cloned()
-                    .unwrap_or(JsValue::Object(JsObject::new().wrapped()));
+                    .unwrap_or_else(|| JsValue::Object(self.heap.alloc_cell(JsObject::new())));
                 let JsValue::Object(target_obj) = target.clone() else {
                     return Err(RuntimeError::TypeError {
                         message: "Object.assign target must be object".to_string(),
@@ -67,7 +74,7 @@ impl Interpreter {
     }
 
     pub(crate) fn builtin_json_call(
-        &self,
+        &mut self,
         property: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
@@ -171,8 +178,8 @@ impl Interpreter {
         value: &JsValue,
     ) -> Result<JsValue, RuntimeError> {
         match value {
-            JsValue::Object(obj) => match &obj.borrow().prototype {
-                Some(proto) => Ok(JsValue::Object(proto.clone())),
+            JsValue::Object(obj) => match obj.borrow().prototype {
+                Some(proto) => Ok(JsValue::Object(proto)),
                 None => Ok(JsValue::Null),
             },
             JsValue::Proxy(proxy) => {
@@ -208,7 +215,7 @@ impl Interpreter {
             JsValue::Function { .. } => JsonValue::Null,
             JsValue::NativeFunction { .. } => JsonValue::Null,
             JsValue::Array(arr) => {
-                let ptr = std::rc::Rc::as_ptr(arr) as usize;
+                let ptr = Gc::as_usize(*arr);
                 if !seen.insert(ptr) {
                     return Err(RuntimeError::TypeError {
                         message: "Converting circular structure to JSON".to_string(),
@@ -223,7 +230,7 @@ impl Interpreter {
                 JsonValue::Array(out)
             }
             JsValue::Object(obj) => {
-                let ptr = std::rc::Rc::as_ptr(obj) as usize;
+                let ptr = Gc::as_usize(*obj);
                 if !seen.insert(ptr) {
                     return Err(RuntimeError::TypeError {
                         message: "Converting circular structure to JSON".to_string(),
@@ -254,21 +261,23 @@ impl Interpreter {
         })
     }
 
-    fn convert_json_value(&self, value: &JsonValue) -> JsValue {
+    fn convert_json_value(&mut self, value: &JsonValue) -> JsValue {
         match value {
             JsonValue::Null => JsValue::Null,
             JsonValue::Bool(b) => JsValue::Boolean(*b),
             JsonValue::Number(n) => JsValue::Number(n.as_f64().unwrap_or(0.0)),
             JsonValue::String(s) => JsValue::String(s.clone()),
-            JsonValue::Array(items) => JsValue::Array(
-                JsArray::new(items.iter().map(|v| self.convert_json_value(v)).collect()).wrapped(),
-            ),
+            JsonValue::Array(items) => {
+                let elements: Vec<JsValue> =
+                    items.iter().map(|v| self.convert_json_value(v)).collect();
+                JsValue::Array(self.heap.alloc_cell(JsArray::new(elements)))
+            }
             JsonValue::Object(map) => {
                 let mut obj = JsObject::new();
                 for (k, v) in map {
                     obj.set(k.clone(), self.convert_json_value(v));
                 }
-                JsValue::Object(obj.wrapped())
+                JsValue::Object(self.heap.alloc_cell(obj))
             }
         }
     }
