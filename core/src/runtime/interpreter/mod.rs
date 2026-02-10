@@ -36,7 +36,8 @@ use std::time::Instant;
 pub(crate) enum ControlFlow {
     None,
     Return(crate::runtime::value::JsValue),
-    Break,
+    Break(Option<String>),
+    Continue(Option<String>),
     Yield(crate::runtime::value::JsValue),
 }
 

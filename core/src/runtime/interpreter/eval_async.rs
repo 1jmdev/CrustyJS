@@ -38,9 +38,14 @@ impl Interpreter {
                         result = val;
                         break;
                     }
-                    super::ControlFlow::Break => {
+                    super::ControlFlow::Break(_) => {
                         return Err(RuntimeError::TypeError {
                             message: "illegal break statement".to_string(),
+                        });
+                    }
+                    super::ControlFlow::Continue(_) => {
+                        return Err(RuntimeError::TypeError {
+                            message: "illegal continue statement".to_string(),
                         });
                     }
                     super::ControlFlow::Yield(_) | super::ControlFlow::None => {}

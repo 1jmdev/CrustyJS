@@ -94,6 +94,7 @@ impl Parser {
             TokenKind::Case => Ok("case".to_string()),
             TokenKind::Switch => Ok("switch".to_string()),
             TokenKind::Break => Ok("break".to_string()),
+            TokenKind::Continue => Ok("continue".to_string()),
             TokenKind::Return => Ok("return".to_string()),
             TokenKind::Class => Ok("class".to_string()),
             TokenKind::Function => Ok("function".to_string()),

@@ -320,6 +320,34 @@ impl Interpreter {
                 Ok(JsValue::RegExp(self.heap.alloc_cell(re)))
             }
             Expr::Delete(operand) => self.eval_delete_expr(operand),
+            Expr::TaggedTemplate { tag, parts } => {
+                let func = self.eval_expr(tag)?;
+                let mut strings = Vec::new();
+                let mut raw_strings = Vec::new();
+                let mut exprs = Vec::new();
+                for part in parts {
+                    match part {
+                        TemplatePart::Str(s) => {
+                            raw_strings.push(JsValue::String(s.clone()));
+                            let cooked = s
+                                .replace("\\n", "\n")
+                                .replace("\\t", "\t")
+                                .replace("\\\\", "\\");
+                            strings.push(JsValue::String(cooked));
+                        }
+                        TemplatePart::Expression(expr) => {
+                            exprs.push(self.eval_expr(expr)?);
+                        }
+                    }
+                }
+                let raw_arr = JsValue::Array(self.heap.alloc_cell(JsArray::new(raw_strings)));
+                let tmpl_arr_gc = self.heap.alloc_cell(JsArray::new(strings));
+                let tmpl_obj = JsValue::Array(tmpl_arr_gc);
+                self.set_property(&tmpl_obj, "raw", raw_arr)?;
+                let mut call_args = vec![tmpl_obj];
+                call_args.extend(exprs);
+                self.call_function(&func, &call_args)
+            }
         }
     }
 

@@ -51,7 +51,10 @@ impl Interpreter {
                     match self.eval_stmt(body)? {
                         ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
                         ControlFlow::Yield(v) => return Ok(ControlFlow::Yield(v)),
-                        ControlFlow::Break => break,
+                        ControlFlow::Break(None) => break,
+                        ControlFlow::Break(label) => return Ok(ControlFlow::Break(label)),
+                        ControlFlow::Continue(None) => {}
+                        ControlFlow::Continue(label) => return Ok(ControlFlow::Continue(label)),
                         ControlFlow::None => {}
                     }
                 }
@@ -85,7 +88,15 @@ impl Interpreter {
                 };
                 Ok(ControlFlow::Return(value))
             }
-            Stmt::Break => Ok(ControlFlow::Break),
+            Stmt::Break { label } => Ok(ControlFlow::Break(label.clone())),
+            Stmt::Continue { label } => Ok(ControlFlow::Continue(label.clone())),
+            Stmt::Labeled { label, body } => {
+                let flow = self.eval_stmt(body)?;
+                match flow {
+                    ControlFlow::Break(Some(ref l)) if l == label => Ok(ControlFlow::None),
+                    other => Ok(other),
+                }
+            }
             Stmt::ForLoop {
                 init,
                 condition,
@@ -111,7 +122,16 @@ impl Interpreter {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Yield(v));
                         }
-                        ControlFlow::Break => break,
+                        ControlFlow::Break(None) => break,
+                        ControlFlow::Break(label) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Break(label));
+                        }
+                        ControlFlow::Continue(None) => {}
+                        ControlFlow::Continue(label) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Continue(label));
+                        }
                         ControlFlow::None => {}
                     }
                     if let Some(upd) = update {
@@ -141,7 +161,16 @@ impl Interpreter {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Yield(v));
                         }
-                        ControlFlow::Break => break,
+                        ControlFlow::Break(None) => break,
+                        ControlFlow::Break(label) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Break(label));
+                        }
+                        ControlFlow::Continue(None) => {}
+                        ControlFlow::Continue(label) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Continue(label));
+                        }
                         ControlFlow::None => {}
                     }
                 }
@@ -175,7 +204,16 @@ impl Interpreter {
                             self.env.pop_scope();
                             return Ok(ControlFlow::Yield(v));
                         }
-                        ControlFlow::Break => break,
+                        ControlFlow::Break(None) => break,
+                        ControlFlow::Break(label) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Break(label));
+                        }
+                        ControlFlow::Continue(None) => {}
+                        ControlFlow::Continue(label) => {
+                            self.env.pop_scope();
+                            return Ok(ControlFlow::Continue(label));
+                        }
                         ControlFlow::None => {}
                     }
                 }
@@ -219,7 +257,10 @@ impl Interpreter {
             result = self.eval_stmt(s)?;
             if matches!(
                 result,
-                ControlFlow::Return(_) | ControlFlow::Break | ControlFlow::Yield(_)
+                ControlFlow::Return(_)
+                    | ControlFlow::Break(_)
+                    | ControlFlow::Continue(_)
+                    | ControlFlow::Yield(_)
             ) {
                 break;
             }
