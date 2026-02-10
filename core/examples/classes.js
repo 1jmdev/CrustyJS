@@ -23,3 +23,5 @@ const names = dogs.map(d => d.name);
 console.log(names);
 console.log(dogs[0].speak());
 console.log(typeof dogs[0]);
+console.log(dogs[0] instanceof Dog);
+console.log(dogs[0] instanceof Animal);

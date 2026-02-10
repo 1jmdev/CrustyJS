@@ -24,7 +24,7 @@ fn lex_error_handling_keywords() {
 
 #[test]
 fn lex_class_keywords() {
-    let kinds: Vec<TokenKind> = lex("class Dog extends Animal { super }")
+    let kinds: Vec<TokenKind> = lex("class Dog extends Animal { super instanceof }")
         .expect("lexing should succeed")
         .into_iter()
         .map(|t| t.kind)
@@ -39,6 +39,7 @@ fn lex_class_keywords() {
             TokenKind::Ident("Animal".into()),
             TokenKind::LeftBrace,
             TokenKind::Super,
+            TokenKind::Instanceof,
             TokenKind::RightBrace,
             TokenKind::Eof,
         ]

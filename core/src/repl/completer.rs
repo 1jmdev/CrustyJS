@@ -22,5 +22,6 @@ pub fn keywords() -> &'static [&'static str] {
         "class",
         "extends",
         "super",
+        "instanceof",
     ]
 }
