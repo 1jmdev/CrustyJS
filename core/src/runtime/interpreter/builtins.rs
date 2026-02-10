@@ -50,9 +50,29 @@ impl Interpreter {
             if name == "performance" && is_call {
                 return self.builtin_performance_call(property);
             }
+            if name == "Symbol" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_symbol_static_call(property, &arg_values);
+            }
+            if name == "Symbol" && !is_call {
+                return self.builtin_symbol_property(property);
+            }
         }
 
         let obj_val = self.eval_expr(object)?;
+
+        if let JsValue::Symbol(ref sym) = obj_val {
+            return match property {
+                "toString" if is_call => Ok(JsValue::String(sym.to_string())),
+                "description" if !is_call => Ok(match &sym.description {
+                    Some(desc) => JsValue::String(desc.clone()),
+                    None => JsValue::Undefined,
+                }),
+                _ => Err(RuntimeError::TypeError {
+                    message: format!("cannot access '{property}' on symbol"),
+                }),
+            };
+        }
 
         if let JsValue::String(ref s) = obj_val {
             if is_call {

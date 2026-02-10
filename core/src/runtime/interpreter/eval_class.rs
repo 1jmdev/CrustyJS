@@ -82,6 +82,12 @@ impl Interpreter {
             return self.eval_new_promise(args);
         }
 
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Symbol") {
+            return Err(RuntimeError::TypeError {
+                message: "Symbol is not a constructor".to_string(),
+            });
+        }
+
         if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Error") {
             let message = args
                 .first()

@@ -2,6 +2,7 @@ use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{Param, Pattern};
 use crate::runtime::value::object::JsObject;
+use crate::runtime::value::symbol;
 use crate::runtime::value::{JsValue, NativeFunction};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -68,6 +69,13 @@ impl Interpreter {
             JsValue::NativeFunction {
                 name: "queueMicrotask".to_string(),
                 handler: NativeFunction::QueueMicrotask,
+            },
+        );
+        self.env.define(
+            "Symbol".to_string(),
+            JsValue::NativeFunction {
+                name: "Symbol".to_string(),
+                handler: NativeFunction::SymbolConstructor,
             },
         );
     }
@@ -169,6 +177,49 @@ impl Interpreter {
             )),
             _ => Err(RuntimeError::TypeError {
                 message: format!("performance has no method '{property}'"),
+            }),
+        }
+    }
+
+    pub(crate) fn builtin_symbol_static_call(
+        &mut self,
+        method: &str,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        match method {
+            "for" => {
+                let key = args.first().map(|v| v.to_js_string()).unwrap_or_default();
+                let sym = self.symbol_registry.for_key(key);
+                Ok(JsValue::Symbol(sym))
+            }
+            "keyFor" => {
+                let sym = args.first().ok_or_else(|| RuntimeError::TypeError {
+                    message: "Symbol.keyFor requires a symbol argument".to_string(),
+                })?;
+                match sym {
+                    JsValue::Symbol(s) => match self.symbol_registry.key_for(s) {
+                        Some(key) => Ok(JsValue::String(key)),
+                        None => Ok(JsValue::Undefined),
+                    },
+                    _ => Err(RuntimeError::TypeError {
+                        message: "Symbol.keyFor requires a symbol argument".to_string(),
+                    }),
+                }
+            }
+            _ => Err(RuntimeError::TypeError {
+                message: format!("Symbol.{method} is not a function"),
+            }),
+        }
+    }
+
+    pub(crate) fn builtin_symbol_property(&self, property: &str) -> Result<JsValue, RuntimeError> {
+        match property {
+            "iterator" => Ok(JsValue::Symbol(symbol::symbol_iterator())),
+            "toPrimitive" => Ok(JsValue::Symbol(symbol::symbol_to_primitive())),
+            "hasInstance" => Ok(JsValue::Symbol(symbol::symbol_has_instance())),
+            "toStringTag" => Ok(JsValue::Symbol(symbol::symbol_to_string_tag())),
+            _ => Err(RuntimeError::TypeError {
+                message: format!("Symbol has no property '{property}'"),
             }),
         }
     }

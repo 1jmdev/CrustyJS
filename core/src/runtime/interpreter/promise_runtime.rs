@@ -69,6 +69,16 @@ impl Interpreter {
                     .enqueue_microtask(Microtask::Callback { callback });
                 Ok(JsValue::Undefined)
             }
+            NativeFunction::SymbolConstructor => {
+                let desc = args.first().and_then(|v| match v {
+                    JsValue::String(s) => Some(s.clone()),
+                    JsValue::Undefined => None,
+                    other => Some(other.to_js_string()),
+                });
+                Ok(JsValue::Symbol(
+                    crate::runtime::value::symbol::JsSymbol::new(desc),
+                ))
+            }
             NativeFunction::Host(callback) => {
                 let this = _this_binding.unwrap_or(JsValue::Undefined);
                 let args = FunctionArgs::new(this, args.to_vec());

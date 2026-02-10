@@ -188,6 +188,7 @@ impl Interpreter {
                 JsonValue::Object(map)
             }
             JsValue::Promise(_) => JsonValue::Null,
+            JsValue::Symbol(_) => JsonValue::Null,
         })
     }
 
