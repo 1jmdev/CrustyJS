@@ -1,4 +1,5 @@
 mod property;
+pub mod prototype;
 
 pub use property::Property;
 

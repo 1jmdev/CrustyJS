@@ -3,6 +3,8 @@ use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
 use crate::runtime::value::array::methods::call_array_method;
 use crate::runtime::value::array::JsArray;
+use crate::runtime::value::object::prototype;
+use crate::runtime::value::object::JsObject;
 use crate::runtime::value::string_methods;
 use crate::runtime::value::JsValue;
 
@@ -27,6 +29,9 @@ impl Interpreter {
         if let Expr::Identifier(name) = object {
             if name == "console" && property == "log" {
                 return self.builtin_console_log(args);
+            }
+            if name == "Object" && property == "create" && is_call {
+                return self.builtin_object_create(args);
             }
         }
 
@@ -169,8 +174,7 @@ impl Interpreter {
     ) -> Result<JsValue, RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                let borrowed = obj.borrow();
-                Ok(borrowed.get(key).unwrap_or(JsValue::Undefined))
+                Ok(prototype::get_property(obj, key).unwrap_or(JsValue::Undefined))
             }
             JsValue::Array(arr) => {
                 let borrowed = arr.borrow();
@@ -197,7 +201,7 @@ impl Interpreter {
     ) -> Result<(), RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                obj.borrow_mut().set(key.to_string(), value);
+                prototype::set_property(obj, key, value);
                 Ok(())
             }
             JsValue::Array(arr) => {
@@ -226,5 +230,24 @@ impl Interpreter {
         println!("{line}");
         self.output.push(line);
         Ok(JsValue::Undefined)
+    }
+
+    fn builtin_object_create(&mut self, args: &[Expr]) -> Result<JsValue, RuntimeError> {
+        let proto = args
+            .first()
+            .map(|arg| self.eval_expr(arg))
+            .transpose()?
+            .unwrap_or(JsValue::Null);
+        let mut obj = JsObject::new();
+        obj.prototype = match proto {
+            JsValue::Object(parent) => Some(parent),
+            JsValue::Null | JsValue::Undefined => None,
+            _ => {
+                return Err(RuntimeError::TypeError {
+                    message: "Object.create prototype must be object or null".to_string(),
+                });
+            }
+        };
+        Ok(JsValue::Object(obj.wrapped()))
     }
 }

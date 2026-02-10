@@ -90,3 +90,27 @@ fn object_bracket_assign_new_key() {
     let out = run_and_capture(src);
     assert_eq!(out, vec!["blue"]);
 }
+
+#[test]
+fn prototype_chain_lookup_via_object_create() {
+    let src = r#"
+        let proto = { greet: "hello" };
+        let child = Object.create(proto);
+        console.log(child.greet);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["hello"]);
+}
+
+#[test]
+fn prototype_shadowing_prefers_own_property() {
+    let src = r#"
+        let proto = { name: "proto" };
+        let child = Object.create(proto);
+        child.name = "own";
+        console.log(child.name);
+        console.log(proto.name);
+    "#;
+    let out = run_and_capture(src);
+    assert_eq!(out, vec!["own", "proto"]);
+}
