@@ -1,10 +1,12 @@
 mod builtins;
 mod error_handling;
+mod eval_async;
 mod eval_class;
 mod eval_expr;
 mod eval_expr_helpers;
 mod eval_pattern;
 mod eval_stmt;
+mod event_loop_driver;
 mod function_call;
 mod global_builtins;
 mod object_json_date_builtins;
@@ -14,6 +16,7 @@ mod property_access;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Program;
 use crate::runtime::environment::Environment;
+use crate::runtime::event_loop::EventLoop;
 use std::collections::HashMap;
 
 /// Control flow signal from statement evaluation.
@@ -29,6 +32,8 @@ pub struct Interpreter {
     pub(crate) output: Vec<String>,
     pub(crate) classes: HashMap<String, eval_class::RuntimeClass>,
     pub(crate) super_stack: Vec<Option<String>>,
+    pub(crate) event_loop: EventLoop,
+    pub(crate) async_depth: usize,
 }
 
 impl Interpreter {
@@ -38,6 +43,8 @@ impl Interpreter {
             output: Vec::new(),
             classes: HashMap::new(),
             super_stack: Vec::new(),
+            event_loop: EventLoop::new(),
+            async_depth: 0,
         };
         interp.init_builtins();
         interp
@@ -50,6 +57,7 @@ impl Interpreter {
                 break;
             }
         }
+        self.run_event_loop_until_idle()?;
         Ok(())
     }
 

@@ -1,6 +1,7 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
+use crate::runtime::event_loop::Microtask;
 use crate::runtime::value::promise::{JsPromise, PromiseReaction, PromiseState};
 use crate::runtime::value::{JsValue, NativeFunction};
 use std::cell::RefCell;
@@ -21,6 +22,19 @@ impl Interpreter {
             NativeFunction::PromiseReject(promise) => {
                 let value = args.first().cloned().unwrap_or(JsValue::Undefined);
                 self.settle_promise(promise, true, value)
+            }
+            NativeFunction::SetTimeout => self.native_set_timeout(args, false),
+            NativeFunction::SetInterval => self.native_set_timeout(args, true),
+            NativeFunction::ClearTimeout | NativeFunction::ClearInterval => {
+                let id = args
+                    .first()
+                    .cloned()
+                    .unwrap_or(JsValue::Undefined)
+                    .to_number();
+                if id.is_finite() && id >= 0.0 {
+                    self.event_loop.clear_timer(id as u64);
+                }
+                Ok(JsValue::Undefined)
             }
         }
     }
@@ -129,7 +143,12 @@ impl Interpreter {
         };
 
         for reaction in reactions {
-            self.run_promise_reaction(reaction, is_reject, value.clone())?;
+            self.event_loop
+                .enqueue_microtask(Microtask::PromiseReaction {
+                    reaction,
+                    is_reject,
+                    value: value.clone(),
+                });
         }
 
         Ok(JsValue::Undefined)
@@ -158,7 +177,12 @@ impl Interpreter {
         };
 
         if let Some((is_reject, settled_value)) = settled {
-            self.run_promise_reaction(reaction, is_reject, settled_value)?;
+            self.event_loop
+                .enqueue_microtask(Microtask::PromiseReaction {
+                    reaction,
+                    is_reject,
+                    value: settled_value,
+                });
         } else {
             promise.borrow_mut().reactions.push(reaction);
         }
@@ -166,7 +190,7 @@ impl Interpreter {
         Ok(JsValue::Promise(next))
     }
 
-    fn run_promise_reaction(
+    pub(crate) fn run_promise_reaction(
         &mut self,
         reaction: PromiseReaction,
         is_reject: bool,
@@ -238,5 +262,30 @@ impl Interpreter {
             RuntimeError::Thrown { value } => value,
             other => JsValue::String(other.to_string()),
         }
+    }
+
+    fn native_set_timeout(
+        &mut self,
+        args: &[JsValue],
+        interval: bool,
+    ) -> Result<JsValue, RuntimeError> {
+        let callback = args
+            .first()
+            .cloned()
+            .ok_or_else(|| RuntimeError::TypeError {
+                message: "timer requires callback".to_string(),
+            })?;
+        let delay = args
+            .get(1)
+            .cloned()
+            .unwrap_or(JsValue::Number(0.0))
+            .to_number();
+        let delay_ms = if delay.is_nan() || delay <= 0.0 {
+            0
+        } else {
+            delay as u64
+        };
+        let id = self.event_loop.schedule_timer(callback, delay_ms, interval);
+        Ok(JsValue::Number(id as f64))
     }
 }
