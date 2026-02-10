@@ -72,6 +72,12 @@ impl Interpreter {
         &mut self,
         path: PathBuf,
     ) -> Result<HashMap<String, JsValue>, RuntimeError> {
+        if self.module_stack.iter().any(|p| p == &path) {
+            return Err(RuntimeError::TypeError {
+                message: format!("circular import detected for '{}'", path.display()),
+            });
+        }
+
         let key = path.to_string_lossy().to_string();
         if let Some(cached) = self.module_cache.get(&key) {
             return Ok(cached);
