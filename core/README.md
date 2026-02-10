@@ -29,6 +29,20 @@ Run with bytecode VM:
 cargo run -- --vm examples/fib.js
 ```
 
+Inspect tokens/AST/bytecode:
+
+```sh
+cargo run -- --tokens examples/fib.js
+cargo run -- --ast examples/fib.js
+cargo run -- --bytecode examples/fib.js
+```
+
+Inline evaluation:
+
+```sh
+cargo run -- --eval "console.log(1 + 2)"
+```
+
 ## VM Architecture
 
 - Lexer/Parser builds AST
