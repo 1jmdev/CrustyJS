@@ -51,3 +51,15 @@ fn interval_can_be_cleared() {
 
     assert_eq!(output, vec!["1", "2", "3"]);
 }
+
+#[test]
+fn queue_microtask_runs_before_timeout() {
+    let output = run_and_capture(
+        r#"
+        setTimeout(() => console.log("timeout"), 0);
+        queueMicrotask(() => console.log("microtask"));
+        "#,
+    );
+
+    assert_eq!(output, vec!["microtask", "timeout"]);
+}

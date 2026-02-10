@@ -271,3 +271,15 @@ fn accessor_assignment_and_read() {
     );
     assert_eq!(output, vec!["9"]);
 }
+
+#[test]
+fn queue_microtask_executes_callback() {
+    let output = run_and_capture(
+        r#"
+        let done = false;
+        queueMicrotask(() => { done = true; });
+        setTimeout(() => console.log(done), 0);
+        "#,
+    );
+    assert_eq!(output, vec!["true"]);
+}

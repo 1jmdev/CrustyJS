@@ -1,6 +1,7 @@
 use crustyjs::lexer::lex;
 use crustyjs::parser::parse;
 use crustyjs::runtime::interpreter::Interpreter;
+use crustyjs::{Engine, Value};
 use std::path::PathBuf;
 
 #[test]
@@ -25,4 +26,16 @@ fn kitchen_sink_example_runs() {
     assert!(out[2].contains("role"));
     assert!(out[2].contains("active"));
     assert_eq!(out[3], "1");
+}
+
+#[test]
+fn engine_context_animation_frame_flow() {
+    let engine = Engine::new();
+    let mut ctx = engine.new_context();
+    ctx.eval("let frame = 0; requestAnimationFrame((t) => { frame = t; });")
+        .expect("script should evaluate");
+    ctx.run_animation_callbacks(16.0)
+        .expect("frame callbacks should run");
+    let frame = ctx.get_global("frame").expect("frame should exist");
+    assert_eq!(frame, Value::Number(16.0));
 }

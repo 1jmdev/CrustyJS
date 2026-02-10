@@ -93,3 +93,15 @@ fn array_reduce_and_sort() {
 
     assert_eq!(output, vec!["14", "1", "5"]);
 }
+
+#[test]
+fn queue_microtask_builtin_works() {
+    let output = run_and_capture(
+        r#"
+        let x = 0;
+        queueMicrotask(() => { x = 1; console.log(x); });
+        "#,
+    );
+
+    assert_eq!(output, vec!["1"]);
+}

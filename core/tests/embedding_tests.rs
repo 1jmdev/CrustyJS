@@ -174,3 +174,30 @@ fn register_class_getter_setter_and_inheritance() {
     assert_eq!(a, Value::String("next".to_string()));
     assert_eq!(b, Value::String("base".to_string()));
 }
+
+#[test]
+fn context_drives_animation_callbacks() {
+    let engine = Engine::new();
+    let mut ctx = engine.new_context();
+
+    ctx.eval(
+        "let calls = 0; let ts = 0; const id = requestAnimationFrame((t) => { calls = calls + 1; ts = t; });",
+    )
+    .expect("requestAnimationFrame should schedule callback");
+
+    ctx.run_animation_callbacks(123.0)
+        .expect("animation callbacks should run");
+
+    let calls = ctx.get_global("calls").expect("calls should exist");
+    let ts = ctx.get_global("ts").expect("ts should exist");
+    assert_eq!(calls, Value::Number(1.0));
+    assert_eq!(ts, Value::Number(123.0));
+
+    ctx.eval("cancelAnimationFrame(requestAnimationFrame(() => { calls = calls + 1; }));")
+        .expect("cancelAnimationFrame call should succeed");
+    ctx.run_animation_callbacks(200.0)
+        .expect("animation callbacks should run");
+
+    let calls_after = ctx.get_global("calls").expect("calls should exist");
+    assert_eq!(calls_after, Value::Number(1.0));
+}
