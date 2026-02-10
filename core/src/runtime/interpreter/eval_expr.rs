@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{BinOp, Expr, Literal, TemplatePart, UnaryOp};
+use crate::parser::ast::{ArrowBody, BinOp, Expr, Literal, Stmt, TemplatePart, UnaryOp};
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
@@ -71,6 +71,17 @@ impl Interpreter {
                 let val = self.eval_expr(value)?;
                 self.set_property(&obj_val, &key, val.clone())?;
                 Ok(val)
+            }
+            Expr::ArrowFunction { params, body } => {
+                let body = match body {
+                    ArrowBody::Block(stmts) => stmts.clone(),
+                    ArrowBody::Expr(expr) => vec![Stmt::Return(Some(*expr.clone()))],
+                };
+                Ok(JsValue::Function {
+                    name: "<arrow>".to_string(),
+                    params: params.clone(),
+                    body,
+                })
             }
         }
     }
