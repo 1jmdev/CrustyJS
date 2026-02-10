@@ -118,18 +118,20 @@ impl JsRegExp {
 /// Build a Rust `Regex` from a JS pattern + flags.
 fn compile_regex(pattern: &str, flags: &RegExpFlags) -> Result<Regex, String> {
     let mut rust_pattern = String::new();
-    // Prepend inline flags
-    rust_pattern.push_str("(?");
-    if flags.ignore_case {
-        rust_pattern.push('i');
+    let has_inline = flags.ignore_case || flags.multiline || flags.dotall;
+    if has_inline {
+        rust_pattern.push_str("(?");
+        if flags.ignore_case {
+            rust_pattern.push('i');
+        }
+        if flags.multiline {
+            rust_pattern.push('m');
+        }
+        if flags.dotall {
+            rust_pattern.push('s');
+        }
+        rust_pattern.push(')');
     }
-    if flags.multiline {
-        rust_pattern.push('m');
-    }
-    if flags.dotall {
-        rust_pattern.push('s');
-    }
-    rust_pattern.push(')');
     rust_pattern.push_str(pattern);
 
     Regex::new(&rust_pattern).map_err(|e| format!("invalid regex: {e}"))

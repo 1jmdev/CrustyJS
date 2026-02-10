@@ -133,6 +133,14 @@ impl Interpreter {
             return Ok(JsValue::Undefined);
         }
 
+        if let JsValue::RegExp(ref re) = obj_val {
+            if is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.call_regexp_method(re, property, &arg_values);
+            }
+            return self.get_regexp_property(re, property);
+        }
+
         if !is_call {
             return self.get_property(&obj_val, property);
         }

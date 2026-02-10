@@ -114,6 +114,10 @@ impl Interpreter {
             return self.eval_new_weak_set(args);
         }
 
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "RegExp") {
+            return self.eval_new_regexp(args);
+        }
+
         let class_name = if let crate::parser::ast::Expr::Identifier(name) = callee {
             name
         } else {
