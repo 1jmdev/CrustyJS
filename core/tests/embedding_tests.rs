@@ -132,3 +132,45 @@ fn context_exposes_event_loop_drivers() {
     let tick = ctx.get_global("tick").expect("tick should exist");
     assert_eq!(tick, Value::Number(1.0));
 }
+
+#[test]
+fn register_class_getter_setter_and_inheritance() {
+    let engine = Engine::new();
+    let mut ctx = engine.new_context();
+
+    let parent = ClassBuilder::new("Base")
+        .method("base", |_| Ok(Value::String("base".to_string())))
+        .build();
+    ctx.register_class(parent);
+
+    let child = ClassBuilder::new("Element")
+        .inherit("Base")
+        .constructor(|_| {
+            let mut obj = crustyjs::runtime::value::object::JsObject::new();
+            obj.set("_html".to_string(), Value::String("init".to_string()));
+            Ok(Value::Object(obj.wrapped()))
+        })
+        .property_getter("innerHTML", |args| {
+            if let Value::Object(object) = args.this() {
+                return Ok(object.borrow().get("_html").unwrap_or(Value::Undefined));
+            }
+            Ok(Value::Undefined)
+        })
+        .property_setter("innerHTML", |args| {
+            if let Value::Object(object) = args.this() {
+                let val = args.get(0).cloned().unwrap_or(Value::Undefined);
+                object.borrow_mut().set("_html".to_string(), val);
+            }
+            Ok(Value::Undefined)
+        })
+        .build();
+    ctx.register_class(child);
+
+    ctx.eval("let el = Element(); el.innerHTML = 'next'; let a = el.innerHTML; let b = el.base();")
+        .expect("native getter, setter and inherited method should work");
+
+    let a = ctx.get_global("a").expect("a should exist");
+    let b = ctx.get_global("b").expect("b should exist");
+    assert_eq!(a, Value::String("next".to_string()));
+    assert_eq!(b, Value::String("base".to_string()));
+}

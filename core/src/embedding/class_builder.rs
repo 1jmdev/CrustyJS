@@ -5,6 +5,7 @@ use crate::embedding::function_args::FunctionArgs;
 use crate::errors::RuntimeError;
 use crate::runtime::value::JsValue;
 
+#[derive(Clone)]
 pub struct NativeClassDef {
     pub name: String,
     pub constructor: Option<NativeFunctionBoxed>,

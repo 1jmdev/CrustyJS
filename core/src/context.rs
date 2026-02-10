@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -13,12 +14,14 @@ use crate::runtime::value::{JsValue, NativeFunction};
 /// A single JavaScript execution context.
 pub struct Context {
     interpreter: Interpreter,
+    native_classes: HashMap<String, NativeClassDef>,
 }
 
 impl Context {
     pub fn new() -> Self {
         Self {
             interpreter: Interpreter::new_with_realtime_timers(true),
+            native_classes: HashMap::new(),
         }
     }
 
@@ -69,8 +72,27 @@ impl Context {
 
     pub fn register_class(&mut self, class_def: NativeClassDef) {
         let class_name = class_def.name.clone();
-        let constructor = class_def.constructor;
-        let methods = class_def.methods;
+
+        let mut merged_methods = HashMap::new();
+        let mut merged_getters = HashMap::new();
+        let mut merged_setters = HashMap::new();
+
+        if let Some(parent_name) = &class_def.parent {
+            if let Some(parent) = self.native_classes.get(parent_name) {
+                merged_methods.extend(parent.methods.clone());
+                merged_getters.extend(parent.getters.clone());
+                merged_setters.extend(parent.setters.clone());
+            }
+        }
+
+        merged_methods.extend(class_def.methods.clone());
+        merged_getters.extend(class_def.getters.clone());
+        merged_setters.extend(class_def.setters.clone());
+
+        let constructor = class_def.constructor.clone();
+        let methods = merged_methods;
+        let getters = merged_getters;
+        let setters = merged_setters;
         self.set_global_function(class_name, move |args| {
             let mut instance = if let Some(constructor) = &constructor {
                 constructor.call(args)?
@@ -89,10 +111,31 @@ impl Context {
                         },
                     );
                 }
+                for (name, callback) in &getters {
+                    object.set_getter(
+                        name.clone(),
+                        JsValue::NativeFunction {
+                            name: format!("get {name}"),
+                            handler: NativeFunction::Host(callback.clone()),
+                        },
+                    );
+                }
+                for (name, callback) in &setters {
+                    object.set_setter(
+                        name.clone(),
+                        JsValue::NativeFunction {
+                            name: format!("set {name}"),
+                            handler: NativeFunction::Host(callback.clone()),
+                        },
+                    );
+                }
             }
 
             Ok(instance)
         });
+
+        self.native_classes
+            .insert(class_def.name.clone(), class_def);
     }
 
     pub fn run_microtasks(&mut self) -> Result<(), CrustyError> {
