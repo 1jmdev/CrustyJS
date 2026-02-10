@@ -18,8 +18,10 @@ impl JsValue {
                 }
             }
             JsValue::Function { .. } => f64::NAN,
+            JsValue::NativeFunction { .. } => f64::NAN,
             JsValue::Object(_) => f64::NAN,
             JsValue::Array(_) => f64::NAN,
+            JsValue::Promise(_) => f64::NAN,
         }
     }
 
@@ -31,8 +33,10 @@ impl JsValue {
             JsValue::Number(n) => *n != 0.0 && !n.is_nan(),
             JsValue::String(s) => !s.is_empty(),
             JsValue::Function { .. } => true,
+            JsValue::NativeFunction { .. } => true,
             JsValue::Object(_) => true,
             JsValue::Array(_) => true,
+            JsValue::Promise(_) => true,
         }
     }
 
@@ -53,12 +57,16 @@ impl JsValue {
             JsValue::Function { name, .. } => {
                 format!("function {name}() {{ [native code] }}")
             }
+            JsValue::NativeFunction { name, .. } => {
+                format!("function {name}() {{ [native code] }}")
+            }
             JsValue::Object(_) => "[object Object]".to_string(),
             JsValue::Array(arr) => {
                 let arr = arr.borrow();
                 let items: Vec<String> = arr.elements.iter().map(|v| v.to_js_string()).collect();
                 items.join(",")
             }
+            JsValue::Promise(_) => "[object Promise]".to_string(),
         }
     }
 }

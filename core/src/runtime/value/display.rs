@@ -18,6 +18,9 @@ impl fmt::Display for JsValue {
             JsValue::Function { name, .. } => {
                 write!(f, "function {name}() {{ [native code] }}")
             }
+            JsValue::NativeFunction { name, .. } => {
+                write!(f, "function {name}() {{ [native code] }}")
+            }
             JsValue::Object(obj) => {
                 let obj = obj.borrow();
                 let mut pairs: Vec<String> = obj
@@ -32,6 +35,18 @@ impl fmt::Display for JsValue {
                 let arr = arr.borrow();
                 let items: Vec<String> = arr.elements.iter().map(|v| v.to_js_string()).collect();
                 write!(f, "[{}]", items.join(", "))
+            }
+            JsValue::Promise(promise) => {
+                use crate::runtime::value::promise::PromiseState;
+                match &promise.borrow().state {
+                    PromiseState::Pending => write!(f, "Promise {{ <pending> }}"),
+                    PromiseState::Fulfilled(value) => {
+                        write!(f, "Promise {{ <fulfilled>: {} }}", value)
+                    }
+                    PromiseState::Rejected(value) => {
+                        write!(f, "Promise {{ <rejected>: {} }}", value)
+                    }
+                }
             }
         }
     }

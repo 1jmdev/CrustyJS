@@ -156,6 +156,7 @@ impl Interpreter {
                 .unwrap_or(JsonValue::Null),
             JsValue::String(s) => JsonValue::String(s.clone()),
             JsValue::Function { .. } => JsonValue::Null,
+            JsValue::NativeFunction { .. } => JsonValue::Null,
             JsValue::Array(arr) => {
                 let ptr = std::rc::Rc::as_ptr(arr) as usize;
                 if !seen.insert(ptr) {
@@ -186,6 +187,7 @@ impl Interpreter {
                 seen.remove(&ptr);
                 JsonValue::Object(map)
             }
+            JsValue::Promise(_) => JsonValue::Null,
         })
     }
 

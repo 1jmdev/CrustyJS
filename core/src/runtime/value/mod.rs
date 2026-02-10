@@ -2,6 +2,7 @@ pub mod array;
 mod coercion;
 mod display;
 pub mod object;
+pub mod promise;
 pub mod string_methods;
 
 pub use coercion::abstract_equals;
@@ -13,6 +14,13 @@ use crate::parser::ast::{Param, Stmt};
 use crate::runtime::environment::Scope;
 use array::JsArray;
 use object::JsObject;
+use promise::JsPromise;
+
+#[derive(Debug, Clone)]
+pub enum NativeFunction {
+    PromiseResolve(Rc<RefCell<JsPromise>>),
+    PromiseReject(Rc<RefCell<JsPromise>>),
+}
 
 #[derive(Debug, Clone)]
 pub enum JsValue {
@@ -27,8 +35,13 @@ pub enum JsValue {
         body: Vec<Stmt>,
         closure_env: Vec<Rc<RefCell<Scope>>>,
     },
+    NativeFunction {
+        name: String,
+        handler: NativeFunction,
+    },
     Object(Rc<RefCell<JsObject>>),
     Array(Rc<RefCell<JsArray>>),
+    Promise(Rc<RefCell<JsPromise>>),
 }
 
 impl PartialEq for JsValue {
@@ -39,8 +52,29 @@ impl PartialEq for JsValue {
             (JsValue::Boolean(a), JsValue::Boolean(b)) => a == b,
             (JsValue::Number(a), JsValue::Number(b)) => a == b,
             (JsValue::String(a), JsValue::String(b)) => a == b,
+            (
+                JsValue::NativeFunction {
+                    handler: NativeFunction::PromiseResolve(a),
+                    ..
+                },
+                JsValue::NativeFunction {
+                    handler: NativeFunction::PromiseResolve(b),
+                    ..
+                },
+            ) => Rc::ptr_eq(a, b),
+            (
+                JsValue::NativeFunction {
+                    handler: NativeFunction::PromiseReject(a),
+                    ..
+                },
+                JsValue::NativeFunction {
+                    handler: NativeFunction::PromiseReject(b),
+                    ..
+                },
+            ) => Rc::ptr_eq(a, b),
             (JsValue::Object(a), JsValue::Object(b)) => Rc::ptr_eq(a, b),
             (JsValue::Array(a), JsValue::Array(b)) => Rc::ptr_eq(a, b),
+            (JsValue::Promise(a), JsValue::Promise(b)) => Rc::ptr_eq(a, b),
             _ => false,
         }
     }
