@@ -100,6 +100,81 @@ impl Interpreter {
             ));
         }
 
+        if let crate::parser::ast::Expr::Identifier(name) = callee {
+            match name.as_str() {
+                "TypeError" | "ReferenceError" | "SyntaxError" | "RangeError" | "URIError"
+                | "EvalError" => {
+                    let message = args
+                        .first()
+                        .map(|expr| self.eval_expr(expr))
+                        .transpose()?
+                        .unwrap_or(JsValue::Undefined);
+                    let mut obj = JsObject::new();
+                    obj.set("name".to_string(), JsValue::String(name.clone()));
+                    obj.set(
+                        "message".to_string(),
+                        JsValue::String(message.to_js_string()),
+                    );
+                    obj.set("[[ErrorType]]".to_string(), JsValue::String(name.clone()));
+                    return Ok(JsValue::Object(self.heap.alloc_cell(obj)));
+                }
+                "Number" => {
+                    let val = args
+                        .first()
+                        .map(|expr| self.eval_expr(expr))
+                        .transpose()?
+                        .unwrap_or(JsValue::Number(0.0));
+                    let mut obj = JsObject::new();
+                    obj.set(
+                        "[[PrimitiveValue]]".to_string(),
+                        JsValue::Number(val.to_number()),
+                    );
+                    return Ok(JsValue::Object(self.heap.alloc_cell(obj)));
+                }
+                "Boolean" => {
+                    let val = args
+                        .first()
+                        .map(|expr| self.eval_expr(expr))
+                        .transpose()?
+                        .unwrap_or(JsValue::Boolean(false));
+                    let mut obj = JsObject::new();
+                    obj.set(
+                        "[[PrimitiveValue]]".to_string(),
+                        JsValue::Boolean(val.to_boolean()),
+                    );
+                    return Ok(JsValue::Object(self.heap.alloc_cell(obj)));
+                }
+                "String" => {
+                    let val = args
+                        .first()
+                        .map(|expr| self.eval_expr(expr))
+                        .transpose()?
+                        .unwrap_or(JsValue::String(String::new()));
+                    let mut obj = JsObject::new();
+                    obj.set(
+                        "[[PrimitiveValue]]".to_string(),
+                        JsValue::String(val.to_js_string()),
+                    );
+                    return Ok(JsValue::Object(self.heap.alloc_cell(obj)));
+                }
+                "Object" => {
+                    let val = args
+                        .first()
+                        .map(|expr| self.eval_expr(expr))
+                        .transpose()?
+                        .unwrap_or(JsValue::Undefined);
+                    return match val {
+                        JsValue::Object(_) => Ok(val),
+                        JsValue::Null | JsValue::Undefined => {
+                            Ok(JsValue::Object(self.heap.alloc_cell(JsObject::new())))
+                        }
+                        _ => Ok(JsValue::Object(self.heap.alloc_cell(JsObject::new()))),
+                    };
+                }
+                _ => {}
+            }
+        }
+
         if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Map") {
             return self.eval_new_map(args);
         }
@@ -118,6 +193,56 @@ impl Interpreter {
 
         if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "RegExp") {
             return self.eval_new_regexp(args);
+        }
+
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Date") {
+            // new Date() returns a Date-like object with a timestamp
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default();
+            let timestamp = if args.is_empty() {
+                now.as_millis() as f64
+            } else {
+                let val = self.eval_expr(&args[0])?;
+                val.to_number()
+            };
+            let mut obj = JsObject::new();
+            obj.set("[[PrimitiveValue]]".to_string(), JsValue::Number(timestamp));
+            obj.set("[[DateValue]]".to_string(), JsValue::Number(timestamp));
+            return Ok(JsValue::Object(self.heap.alloc_cell(obj)));
+        }
+
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Array") {
+            let arg_values = self.eval_call_args(args)?;
+            let elements = if arg_values.len() == 1 {
+                if let JsValue::Number(n) = &arg_values[0] {
+                    let len = (*n as usize).min(1 << 20);
+                    vec![JsValue::Undefined; len]
+                } else {
+                    arg_values
+                }
+            } else {
+                arg_values
+            };
+            return Ok(JsValue::Array(
+                self.heap
+                    .alloc_cell(crate::runtime::value::array::JsArray::new(elements)),
+            ));
+        }
+
+        if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Function") {
+            // new Function() - stub
+            return Ok(JsValue::Function {
+                name: "anonymous".to_string(),
+                params: vec![],
+                body: vec![],
+                closure_env: self.env.capture(),
+                is_async: false,
+                is_generator: false,
+                source_path: None,
+                source_offset: 0,
+                properties: None,
+            });
         }
 
         if matches!(callee, crate::parser::ast::Expr::Identifier(name) if name == "Proxy") {
@@ -279,6 +404,16 @@ impl Interpreter {
             Expr::Identifier(name) => name,
             _ => return Ok(JsValue::Boolean(false)),
         };
+
+        // Check for error type objects created by the runtime
+        if let JsValue::Object(obj) = &instance {
+            let borrowed = obj.borrow();
+            if let Some(prop) = borrowed.properties.get("[[ErrorType]]") {
+                if let JsValue::String(error_type) = &prop.value {
+                    return Ok(JsValue::Boolean(error_type == class_name));
+                }
+            }
+        }
 
         let class = match self.classes.get(class_name) {
             Some(class) => class,

@@ -17,6 +17,29 @@ impl Interpreter {
         match self.eval_block(try_block) {
             Ok(v) => flow = v,
             Err(err) => {
+                // Convert catchable runtime errors to Thrown values
+                let err = match err {
+                    RuntimeError::TypeError { ref message } => {
+                        let err_obj = self.create_typed_error_object("TypeError", message);
+                        RuntimeError::Thrown { value: err_obj }
+                    }
+                    RuntimeError::UndefinedVariable { ref name } => {
+                        let msg = format!("'{name}' is not defined");
+                        let err_obj = self.create_typed_error_object("ReferenceError", &msg);
+                        RuntimeError::Thrown { value: err_obj }
+                    }
+                    RuntimeError::NotAFunction { ref name } => {
+                        let msg = format!("'{name}' is not a function");
+                        let err_obj = self.create_typed_error_object("TypeError", &msg);
+                        RuntimeError::Thrown { value: err_obj }
+                    }
+                    RuntimeError::ConstReassignment { ref name } => {
+                        let msg = format!("Assignment to constant variable '{name}'");
+                        let err_obj = self.create_typed_error_object("TypeError", &msg);
+                        RuntimeError::Thrown { value: err_obj }
+                    }
+                    other => other,
+                };
                 if let RuntimeError::Thrown { value } = err {
                     if let Some(catch_stmts) = catch_block {
                         self.env.push_scope(&mut self.heap);
