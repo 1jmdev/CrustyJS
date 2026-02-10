@@ -2,6 +2,7 @@ mod builtins;
 mod error_handling;
 mod eval_class;
 mod eval_expr;
+mod eval_expr_helpers;
 mod eval_pattern;
 mod eval_stmt;
 mod function_call;
