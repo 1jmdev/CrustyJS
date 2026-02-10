@@ -87,6 +87,9 @@ impl Interpreter {
                     is_reject,
                     value,
                 } => self.run_promise_reaction(reaction, is_reject, value)?,
+                Microtask::Callback { callback } => {
+                    self.call_function(&callback, &[])?;
+                }
             }
         }
         Ok(())

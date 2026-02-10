@@ -17,6 +17,9 @@ pub enum Microtask {
         is_reject: bool,
         value: JsValue,
     },
+    Callback {
+        callback: JsValue,
+    },
 }
 
 pub struct EventLoop {

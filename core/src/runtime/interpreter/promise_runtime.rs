@@ -58,6 +58,17 @@ impl Interpreter {
                 }
                 Ok(JsValue::Undefined)
             }
+            NativeFunction::QueueMicrotask => {
+                let callback = args
+                    .first()
+                    .cloned()
+                    .ok_or_else(|| RuntimeError::TypeError {
+                        message: "queueMicrotask requires callback".to_string(),
+                    })?;
+                self.event_loop
+                    .enqueue_microtask(Microtask::Callback { callback });
+                Ok(JsValue::Undefined)
+            }
             NativeFunction::Host(callback) => {
                 let this = _this_binding.unwrap_or(JsValue::Undefined);
                 let args = FunctionArgs::new(this, args.to_vec());

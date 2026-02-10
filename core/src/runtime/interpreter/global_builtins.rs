@@ -63,6 +63,13 @@ impl Interpreter {
                 handler: NativeFunction::CancelAnimationFrame,
             },
         );
+        self.env.define(
+            "queueMicrotask".to_string(),
+            JsValue::NativeFunction {
+                name: "queueMicrotask".to_string(),
+                handler: NativeFunction::QueueMicrotask,
+            },
+        );
     }
 
     pub(crate) fn builtin_console_log_values(
