@@ -57,7 +57,7 @@ impl Interpreter {
             _ => {
                 return Err(RuntimeError::TypeError {
                     message: format!("Math has no property '{property}'"),
-                })
+                });
             }
         };
         Ok(JsValue::Number(value))
@@ -102,7 +102,7 @@ impl Interpreter {
             _ => {
                 return Err(RuntimeError::TypeError {
                     message: format!("Math has no method '{property}'"),
-                })
+                });
             }
         };
 

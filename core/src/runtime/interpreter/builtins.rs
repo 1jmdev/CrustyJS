@@ -24,6 +24,18 @@ impl Interpreter {
                 let arg_values = self.eval_call_args(args)?;
                 return self.builtin_object_create_values(&arg_values);
             }
+            if name == "Object" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_object_static_call(property, &arg_values);
+            }
+            if name == "JSON" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_json_call(property, &arg_values);
+            }
+            if name == "Date" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_date_call(property, &arg_values);
+            }
             if name == "Math" {
                 let arg_values = self.eval_call_args(args)?;
                 return if is_call {
@@ -99,6 +111,37 @@ impl Interpreter {
                     self.call_function(callback, std::slice::from_ref(elem))?;
                 }
                 Ok(JsValue::Undefined)
+            }
+            "reduce" => {
+                let init = args.get(1).cloned().unwrap_or(JsValue::Undefined);
+                let mut acc = init;
+                for elem in &elements {
+                    acc = self.call_function(callback, &[acc, elem.clone()])?;
+                }
+                Ok(acc)
+            }
+            "sort" => {
+                let mut sorted = arr.borrow().elements.clone();
+                if matches!(callback, JsValue::Undefined) {
+                    sorted.sort_by(|a, b| a.to_js_string().cmp(&b.to_js_string()));
+                } else {
+                    sorted.sort_by(|a, b| {
+                        let res = self
+                            .call_function(callback, &[a.clone(), b.clone()])
+                            .ok()
+                            .map(|v| v.to_number())
+                            .unwrap_or(0.0);
+                        if res < 0.0 {
+                            std::cmp::Ordering::Less
+                        } else if res > 0.0 {
+                            std::cmp::Ordering::Greater
+                        } else {
+                            std::cmp::Ordering::Equal
+                        }
+                    });
+                }
+                arr.borrow_mut().elements = sorted.clone();
+                Ok(JsValue::Array(JsArray::new(sorted).wrapped()))
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("array has no method '{method}'"),

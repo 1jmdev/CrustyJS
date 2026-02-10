@@ -39,3 +39,57 @@ fn math_methods_basic() {
 
     assert_eq!(output, vec!["4", "5", "5", "4", "1024", "5"]);
 }
+
+#[test]
+fn json_stringify_and_parse() {
+    let output = run_and_capture(
+        r#"
+        const str = JSON.stringify({ a: 1, b: [2, 3] });
+        console.log(str);
+        const obj = JSON.parse(str);
+        console.log(obj.a);
+        console.log(obj.b[1]);
+        "#,
+    );
+
+    assert_eq!(output[0], "{\"a\":1.0,\"b\":[2.0,3.0]}");
+    assert_eq!(output[1], "1");
+    assert_eq!(output[2], "3");
+}
+
+#[test]
+fn object_statics_and_date_now() {
+    let output = run_and_capture(
+        r#"
+        const obj = { a: 1, b: 2 };
+        console.log(Object.keys(obj).length);
+        console.log(Object.values(obj)[0]);
+        console.log(Object.entries(obj)[1][0]);
+        const merged = Object.assign({}, obj, { c: 3 });
+        console.log(merged.c);
+        console.log(Date.now() > 0);
+        "#,
+    );
+
+    assert_eq!(output[0], "2");
+    assert!(output[1] == "1" || output[1] == "2");
+    assert!(output[2] == "a" || output[2] == "b");
+    assert_eq!(output[3], "3");
+    assert_eq!(output[4], "true");
+}
+
+#[test]
+fn array_reduce_and_sort() {
+    let output = run_and_capture(
+        r#"
+        const nums = [3, 1, 4, 1, 5];
+        const sum = nums.reduce((acc, n) => acc + n, 0);
+        const sorted = [...nums].sort((a, b) => a - b);
+        console.log(sum);
+        console.log(sorted[0]);
+        console.log(sorted[4]);
+        "#,
+    );
+
+    assert_eq!(output, vec!["14", "1", "5"]);
+}
