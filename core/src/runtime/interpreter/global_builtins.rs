@@ -3,6 +3,7 @@ use crate::errors::RuntimeError;
 use crate::parser::ast::{Param, Pattern};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 impl Interpreter {
     pub(crate) fn init_builtins(&mut self) {
@@ -45,5 +46,66 @@ impl Interpreter {
             }
         };
         Ok(JsValue::Object(obj.wrapped()))
+    }
+
+    pub(crate) fn builtin_math_constant(&self, property: &str) -> Result<JsValue, RuntimeError> {
+        let value = match property {
+            "PI" => std::f64::consts::PI,
+            "E" => std::f64::consts::E,
+            "LN2" => std::f64::consts::LN_2,
+            "LN10" => std::f64::consts::LN_10,
+            _ => {
+                return Err(RuntimeError::TypeError {
+                    message: format!("Math has no property '{property}'"),
+                })
+            }
+        };
+        Ok(JsValue::Number(value))
+    }
+
+    pub(crate) fn builtin_math_call(
+        &self,
+        property: &str,
+        args: &[JsValue],
+    ) -> Result<JsValue, RuntimeError> {
+        let n = |idx: usize| {
+            args.get(idx)
+                .cloned()
+                .unwrap_or(JsValue::Undefined)
+                .to_number()
+        };
+        let value = match property {
+            "floor" => n(0).floor(),
+            "ceil" => n(0).ceil(),
+            "round" => n(0).round(),
+            "abs" => n(0).abs(),
+            "max" => args
+                .iter()
+                .map(|v| v.to_number())
+                .fold(f64::NEG_INFINITY, f64::max),
+            "min" => args
+                .iter()
+                .map(|v| v.to_number())
+                .fold(f64::INFINITY, f64::min),
+            "sqrt" => n(0).sqrt(),
+            "pow" => n(0).powf(n(1)),
+            "sign" => n(0).signum(),
+            "trunc" => n(0).trunc(),
+            "log" => n(0).ln(),
+            "random" => {
+                let nanos = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.subsec_nanos())
+                    .unwrap_or(0);
+                (nanos as f64) / (u32::MAX as f64)
+            }
+            _ => {
+                return Err(RuntimeError::TypeError {
+                    message: format!("Math has no method '{property}'"),
+                })
+            }
+        };
+
+        Ok(JsValue::Number(value))
     }
 }

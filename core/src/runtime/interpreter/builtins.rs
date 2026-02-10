@@ -24,6 +24,14 @@ impl Interpreter {
                 let arg_values = self.eval_call_args(args)?;
                 return self.builtin_object_create_values(&arg_values);
             }
+            if name == "Math" {
+                let arg_values = self.eval_call_args(args)?;
+                return if is_call {
+                    self.builtin_math_call(property, &arg_values)
+                } else {
+                    self.builtin_math_constant(property)
+                };
+            }
         }
 
         let obj_val = self.eval_expr(object)?;
