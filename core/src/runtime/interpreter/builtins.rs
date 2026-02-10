@@ -61,6 +61,10 @@ impl Interpreter {
                 let arg_values = self.eval_call_args(args)?;
                 return self.builtin_proxy_revocable(&arg_values);
             }
+            if name == "Reflect" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                return self.builtin_reflect_call(property, &arg_values);
+            }
         }
 
         let obj_val = self.eval_expr(object)?;

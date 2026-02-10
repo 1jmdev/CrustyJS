@@ -1,5 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
+use crate::parser::ast::Expr;
 use crate::runtime::value::string_methods;
 use crate::runtime::value::symbol::JsSymbol;
 use crate::runtime::value::JsValue;
@@ -185,6 +186,50 @@ impl Interpreter {
             _ => Err(RuntimeError::TypeError {
                 message: format!("cannot set symbol property on {obj_val}"),
             }),
+        }
+    }
+
+    pub(crate) fn delete_property(
+        &mut self,
+        obj_val: &JsValue,
+        key: &str,
+    ) -> Result<JsValue, RuntimeError> {
+        match obj_val {
+            JsValue::Object(obj) => {
+                let removed = obj.borrow_mut().properties.remove(key).is_some();
+                Ok(JsValue::Boolean(removed))
+            }
+            JsValue::Proxy(proxy) => {
+                let (trap, target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("deleteProperty"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    let result =
+                        self.call_function(&trap_fn, &[target, JsValue::String(key.to_string())])?;
+                    Ok(JsValue::Boolean(result.to_boolean()))
+                } else {
+                    self.delete_property(&target, key)
+                }
+            }
+            _ => Ok(JsValue::Boolean(true)),
+        }
+    }
+
+    pub(crate) fn eval_delete_expr(&mut self, operand: &Expr) -> Result<JsValue, RuntimeError> {
+        match operand {
+            Expr::MemberAccess { object, property } => {
+                let obj_val = self.eval_expr(object)?;
+                self.delete_property(&obj_val, property)
+            }
+            Expr::ComputedMemberAccess { object, property } => {
+                let obj_val = self.eval_expr(object)?;
+                let key = self.eval_expr(property)?.to_js_string();
+                self.delete_property(&obj_val, &key)
+            }
+            _ => Ok(JsValue::Boolean(true)),
         }
     }
 }

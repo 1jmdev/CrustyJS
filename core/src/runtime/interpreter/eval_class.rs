@@ -122,6 +122,47 @@ impl Interpreter {
             return self.eval_new_proxy(args);
         }
 
+        // Check if callee resolves to a Proxy with a construct trap
+        if let crate::parser::ast::Expr::Identifier(name) = callee {
+            if let Ok(val) = self.env.get(name) {
+                if let JsValue::Proxy(proxy) = &val {
+                    let (trap, target) = {
+                        let p = proxy.borrow();
+                        p.check_revoked()
+                            .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                        (p.get_trap("construct"), p.target.clone())
+                    };
+                    let arg_values: Vec<JsValue> = args
+                        .iter()
+                        .map(|arg| self.eval_expr(arg))
+                        .collect::<Result<_, _>>()?;
+                    if let Some(trap_fn) = trap {
+                        let args_array = JsValue::Array(
+                            crate::runtime::value::array::JsArray::new(arg_values).wrapped(),
+                        );
+                        return self.call_function(&trap_fn, &[target, args_array, val]);
+                    }
+                    // No construct trap — try normal class instantiation via target
+                    if let JsValue::Function { name: fn_name, .. } = &target {
+                        if let Some(class_name) = fn_name.strip_suffix("::constructor") {
+                            if let Some(class) = self.classes.get(class_name).cloned() {
+                                let mut instance = crate::runtime::value::object::JsObject::new();
+                                instance.prototype = Some(class.prototype.clone());
+                                let instance_value = JsValue::Object(instance.wrapped());
+                                self.call_function_with_this(
+                                    &class.constructor,
+                                    &arg_values,
+                                    Some(instance_value.clone()),
+                                )?;
+                                return Ok(instance_value);
+                            }
+                        }
+                    }
+                    return self.call_function(&target, &arg_values);
+                }
+            }
+        }
+
         let class_name = if let crate::parser::ast::Expr::Identifier(name) = callee {
             name
         } else {
@@ -276,7 +317,11 @@ impl Interpreter {
         }
     }
 
-    fn eval_in_value(&mut self, key: &str, target: &JsValue) -> Result<JsValue, RuntimeError> {
+    pub(crate) fn eval_in_value(
+        &mut self,
+        key: &str,
+        target: &JsValue,
+    ) -> Result<JsValue, RuntimeError> {
         match target {
             JsValue::Object(obj) => {
                 let mut current = Some(std::rc::Rc::clone(obj));
@@ -294,6 +339,23 @@ impl Interpreter {
                     Ok(JsValue::Boolean(idx < arr.borrow().len()))
                 } else {
                     Ok(JsValue::Boolean(false))
+                }
+            }
+            JsValue::Proxy(proxy) => {
+                let (trap, proxy_target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("has"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    let result = self.call_function(
+                        &trap_fn,
+                        &[proxy_target, JsValue::String(key.to_string())],
+                    )?;
+                    Ok(JsValue::Boolean(result.to_boolean()))
+                } else {
+                    self.eval_in_value(key, &proxy_target)
                 }
             }
             _ => Ok(JsValue::Boolean(false)),

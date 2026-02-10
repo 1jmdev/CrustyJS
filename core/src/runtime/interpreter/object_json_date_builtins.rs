@@ -9,25 +9,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 impl Interpreter {
     pub(crate) fn builtin_object_static_call(
-        &self,
+        &mut self,
         property: &str,
         args: &[JsValue],
     ) -> Result<JsValue, RuntimeError> {
         match property {
             "keys" => {
-                let keys = self.object_keys(args.first().cloned().unwrap_or(JsValue::Undefined));
+                let keys = self.object_keys(args.first().cloned().unwrap_or(JsValue::Undefined))?;
                 Ok(JsValue::Array(
                     JsArray::new(keys.into_iter().map(JsValue::String).collect()).wrapped(),
                 ))
             }
             "values" => {
                 let values =
-                    self.object_values(args.first().cloned().unwrap_or(JsValue::Undefined));
+                    self.object_values(args.first().cloned().unwrap_or(JsValue::Undefined))?;
                 Ok(JsValue::Array(JsArray::new(values).wrapped()))
             }
             "entries" => {
                 let entries =
-                    self.object_entries(args.first().cloned().unwrap_or(JsValue::Undefined));
+                    self.object_entries(args.first().cloned().unwrap_or(JsValue::Undefined))?;
                 let pairs = entries
                     .into_iter()
                     .map(|(k, v)| {
@@ -55,6 +55,10 @@ impl Interpreter {
                     }
                 }
                 Ok(target)
+            }
+            "getPrototypeOf" => {
+                let target = args.first().cloned().unwrap_or(JsValue::Undefined);
+                self.object_get_prototype_of(&target)
             }
             _ => Err(RuntimeError::TypeError {
                 message: format!("Object has no static method '{property}'"),
@@ -111,34 +115,80 @@ impl Interpreter {
         }
     }
 
-    fn object_keys(&self, value: JsValue) -> Vec<String> {
-        match value {
-            JsValue::Object(obj) => obj.borrow().properties.keys().cloned().collect(),
-            _ => Vec::new(),
+    pub(crate) fn object_keys(&mut self, value: JsValue) -> Result<Vec<String>, RuntimeError> {
+        match &value {
+            JsValue::Object(obj) => Ok(obj.borrow().properties.keys().cloned().collect()),
+            JsValue::Proxy(proxy) => {
+                let (trap, target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("ownKeys"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    let result = self.call_function(&trap_fn, &[target])?;
+                    if let JsValue::Array(arr) = result {
+                        Ok(arr
+                            .borrow()
+                            .elements
+                            .iter()
+                            .map(|v| v.to_js_string())
+                            .collect())
+                    } else {
+                        Err(RuntimeError::TypeError {
+                            message: "ownKeys trap must return an array".to_string(),
+                        })
+                    }
+                } else {
+                    self.object_keys(target)
+                }
+            }
+            _ => Ok(Vec::new()),
         }
     }
 
-    fn object_values(&self, value: JsValue) -> Vec<JsValue> {
-        match value {
-            JsValue::Object(obj) => obj
-                .borrow()
-                .properties
-                .values()
-                .map(|p| p.value.clone())
-                .collect(),
-            _ => Vec::new(),
+    fn object_values(&mut self, value: JsValue) -> Result<Vec<JsValue>, RuntimeError> {
+        let keys = self.object_keys(value.clone())?;
+        let mut values = Vec::new();
+        for key in &keys {
+            values.push(self.get_property(&value, key)?);
         }
+        Ok(values)
     }
 
-    fn object_entries(&self, value: JsValue) -> Vec<(String, JsValue)> {
+    fn object_entries(&mut self, value: JsValue) -> Result<Vec<(String, JsValue)>, RuntimeError> {
+        let keys = self.object_keys(value.clone())?;
+        let mut entries = Vec::new();
+        for key in &keys {
+            let val = self.get_property(&value, key)?;
+            entries.push((key.clone(), val));
+        }
+        Ok(entries)
+    }
+
+    pub(crate) fn object_get_prototype_of(
+        &mut self,
+        value: &JsValue,
+    ) -> Result<JsValue, RuntimeError> {
         match value {
-            JsValue::Object(obj) => obj
-                .borrow()
-                .properties
-                .iter()
-                .map(|(k, p)| (k.clone(), p.value.clone()))
-                .collect(),
-            _ => Vec::new(),
+            JsValue::Object(obj) => match &obj.borrow().prototype {
+                Some(proto) => Ok(JsValue::Object(proto.clone())),
+                None => Ok(JsValue::Null),
+            },
+            JsValue::Proxy(proxy) => {
+                let (trap, target) = {
+                    let p = proxy.borrow();
+                    p.check_revoked()
+                        .map_err(|msg| RuntimeError::TypeError { message: msg })?;
+                    (p.get_trap("getPrototypeOf"), p.target.clone())
+                };
+                if let Some(trap_fn) = trap {
+                    self.call_function(&trap_fn, &[target])
+                } else {
+                    self.object_get_prototype_of(&target)
+                }
+            }
+            _ => Ok(JsValue::Null),
         }
     }
 
