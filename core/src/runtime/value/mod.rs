@@ -49,6 +49,7 @@ pub enum JsValue {
         body: Vec<Stmt>,
         closure_env: Vec<Rc<RefCell<Scope>>>,
         is_async: bool,
+        is_generator: bool,
         source_path: Option<String>,
         source_offset: usize,
     },

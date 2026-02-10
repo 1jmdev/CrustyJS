@@ -61,6 +61,7 @@ impl Interpreter {
                 params,
                 body,
                 is_async,
+                is_generator,
                 decl_offset,
             } => {
                 let func = JsValue::Function {
@@ -69,6 +70,7 @@ impl Interpreter {
                     body: body.clone(),
                     closure_env: self.env.capture(),
                     is_async: *is_async,
+                    is_generator: *is_generator,
                     source_path: self.module_stack.last().map(|p| p.display().to_string()),
                     source_offset: *decl_offset,
                 };

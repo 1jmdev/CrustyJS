@@ -1,12 +1,12 @@
-use super::Interpreter;
 use super::eval_expr_helpers::{eval_binary, eval_compound, eval_literal, eval_unary};
+use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
     ArrowBody, BinOp, Expr, LogicalOp, ObjectProperty, OptionalOp, Stmt, TemplatePart, UpdateOp,
 };
-use crate::runtime::value::JsValue;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
+use crate::runtime::value::JsValue;
 impl Interpreter {
     pub(crate) fn eval_expr(&mut self, expr: &Expr) -> Result<JsValue, RuntimeError> {
         match expr {
@@ -45,7 +45,11 @@ impl Interpreter {
                     UpdateOp::Dec => JsValue::Number(num - 1.0),
                 };
                 self.env.set(name, next.clone())?;
-                if *prefix { Ok(next) } else { Ok(current) }
+                if *prefix {
+                    Ok(next)
+                } else {
+                    Ok(current)
+                }
             }
             Expr::MemberAccess { object, property } => {
                 self.eval_member_call(object, property, &[], false)
@@ -80,6 +84,7 @@ impl Interpreter {
                                 body: body.clone(),
                                 closure_env: self.env.capture(),
                                 is_async: false,
+                                is_generator: false,
                                 source_path: self
                                     .module_stack
                                     .last()
@@ -99,6 +104,7 @@ impl Interpreter {
                                 body: body.clone(),
                                 closure_env: self.env.capture(),
                                 is_async: false,
+                                is_generator: false,
                                 source_path: self
                                     .module_stack
                                     .last()
@@ -226,6 +232,10 @@ impl Interpreter {
             Expr::New { callee, args } => self.eval_new(callee, args),
             Expr::SuperCall { args } => self.eval_super_call(args),
             Expr::Await(expr) => self.eval_await_expr(expr),
+            Expr::Yield { .. } => {
+                // Phase 34.2: Runtime support for generators
+                todo!("implement yield evaluation")
+            }
             Expr::ArrowFunction {
                 params,
                 body,
@@ -241,6 +251,7 @@ impl Interpreter {
                     body,
                     closure_env: self.env.capture(),
                     is_async: *is_async,
+                    is_generator: false,
                     source_path: self.module_stack.last().map(|p| p.display().to_string()),
                     source_offset: 0,
                 })

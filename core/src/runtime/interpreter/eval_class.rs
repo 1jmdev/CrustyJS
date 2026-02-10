@@ -4,8 +4,8 @@ use std::rc::Rc;
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{ClassDecl, ClassMethod, ClassMethodKind, Expr, Param, Pattern};
-use crate::runtime::value::JsValue;
 use crate::runtime::value::object::JsObject;
+use crate::runtime::value::JsValue;
 
 #[derive(Clone)]
 pub(crate) struct RuntimeClass {
@@ -55,6 +55,7 @@ impl Interpreter {
                 body: Vec::new(),
                 closure_env: self.env.capture(),
                 is_async: false,
+                is_generator: false,
                 source_path: self.module_stack.last().map(|p| p.display().to_string()),
                 source_offset: 0,
             },
@@ -215,6 +216,7 @@ impl Interpreter {
             body: method.body.clone(),
             closure_env: self.env.capture(),
             is_async: false,
+            is_generator: false,
             source_path: self.module_stack.last().map(|p| p.display().to_string()),
             source_offset: 0,
         }
