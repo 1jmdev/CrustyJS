@@ -1,0 +1,18 @@
+pub fn keywords() -> &'static [&'static str] {
+    &[
+        "let",
+        "const",
+        "function",
+        "if",
+        "else",
+        "while",
+        "for",
+        "of",
+        "return",
+        "true",
+        "false",
+        "null",
+        "undefined",
+        "typeof",
+    ]
+}

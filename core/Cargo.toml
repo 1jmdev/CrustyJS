@@ -7,3 +7,4 @@ edition = "2024"
 clap = { version = "4.5.57", features = ["derive"] }
 miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0.18"
+rustyline = "14"
