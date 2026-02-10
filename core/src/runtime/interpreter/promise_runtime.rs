@@ -1,4 +1,5 @@
 use super::Interpreter;
+use crate::embedding::function_args::FunctionArgs;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Expr;
 use crate::runtime::event_loop::Microtask;
@@ -35,6 +36,11 @@ impl Interpreter {
                     self.event_loop.clear_timer(id as u64);
                 }
                 Ok(JsValue::Undefined)
+            }
+            NativeFunction::Host(callback) => {
+                let this = _this_binding.unwrap_or(JsValue::Undefined);
+                let args = FunctionArgs::new(this, args.to_vec());
+                callback.call(args)
             }
         }
     }

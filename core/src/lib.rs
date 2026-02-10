@@ -1,10 +1,17 @@
+pub mod context;
 pub mod diagnostics;
+pub mod embedding;
+pub mod engine;
 pub mod errors;
 pub mod lexer;
 pub mod parser;
-pub mod repl;
 pub mod runtime;
 pub mod vm;
+
+pub use context::Context;
+pub use embedding::class_builder::ClassBuilder;
+pub use engine::Engine;
+pub use runtime::value::JsValue as Value;
 
 use errors::CrustyError;
 use runtime::interpreter::Interpreter;

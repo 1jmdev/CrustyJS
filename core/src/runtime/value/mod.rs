@@ -10,6 +10,7 @@ pub use coercion::abstract_equals;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::embedding::callback::NativeFunctionBoxed;
 use crate::parser::ast::{Param, Stmt};
 use crate::runtime::environment::Scope;
 use array::JsArray;
@@ -24,6 +25,7 @@ pub enum NativeFunction {
     SetInterval,
     ClearTimeout,
     ClearInterval,
+    Host(NativeFunctionBoxed),
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +84,16 @@ impl PartialEq for JsValue {
             (JsValue::Object(a), JsValue::Object(b)) => Rc::ptr_eq(a, b),
             (JsValue::Array(a), JsValue::Array(b)) => Rc::ptr_eq(a, b),
             (JsValue::Promise(a), JsValue::Promise(b)) => Rc::ptr_eq(a, b),
+            (
+                JsValue::NativeFunction {
+                    handler: NativeFunction::Host(a),
+                    ..
+                },
+                JsValue::NativeFunction {
+                    handler: NativeFunction::Host(b),
+                    ..
+                },
+            ) => a.ptr_eq(b),
             _ => false,
         }
     }
