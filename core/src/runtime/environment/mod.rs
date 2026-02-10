@@ -1,40 +1,31 @@
 mod scope;
 
 use crate::errors::RuntimeError;
-use crate::runtime::gc::{Trace, Tracer};
+use crate::runtime::gc::{Gc, GcCell, Heap, Trace, Tracer};
 use crate::runtime::value::JsValue;
 pub(crate) use scope::Binding;
 pub(crate) use scope::{BindingKind, Scope};
-use std::cell::RefCell;
 use std::mem;
-use std::rc::Rc;
 
-/// The environment manages a stack of scopes for variable lookup.
 #[derive(Debug, Clone)]
 pub struct Environment {
-    scopes: Vec<Rc<RefCell<Scope>>>,
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        Self::new()
-    }
+    scopes: Vec<Gc<GcCell<Scope>>>,
 }
 
 impl Environment {
-    pub fn new() -> Self {
+    pub fn new(heap: &mut Heap) -> Self {
         Self {
-            scopes: vec![Rc::new(RefCell::new(Scope::new()))],
+            scopes: vec![heap.alloc_cell(Scope::new())],
         }
     }
 
-    pub fn push_scope(&mut self) {
-        self.scopes.push(Rc::new(RefCell::new(Scope::new())));
+    pub fn push_scope(&mut self, heap: &mut Heap) {
+        self.scopes.push(heap.alloc_cell(Scope::new()));
     }
 
-    pub fn push_scope_with_this(&mut self, this_binding: Option<JsValue>) {
+    pub fn push_scope_with_this(&mut self, heap: &mut Heap, this_binding: Option<JsValue>) {
         self.scopes
-            .push(Rc::new(RefCell::new(Scope::new_with_this(this_binding))));
+            .push(heap.alloc_cell(Scope::new_with_this(this_binding)));
     }
 
     pub fn pop_scope(&mut self) {
@@ -43,7 +34,6 @@ impl Environment {
         }
     }
 
-    /// Define a new variable in the current (innermost) scope.
     pub fn define(&mut self, name: String, value: JsValue) {
         self.define_with_kind(name, value, BindingKind::Let);
     }
@@ -56,7 +46,6 @@ impl Environment {
             .define_with_kind(name, value, kind);
     }
 
-    /// Look up a variable by walking the scope chain outward.
     pub fn get(&self, name: &str) -> Result<JsValue, RuntimeError> {
         if name == "this" {
             for scope in self.scopes.iter().rev() {
@@ -79,7 +68,6 @@ impl Environment {
         })
     }
 
-    /// Set an existing variable by walking the scope chain outward.
     pub fn set(&mut self, name: &str, value: JsValue) -> Result<(), RuntimeError> {
         for scope in self.scopes.iter_mut().rev() {
             let mut borrowed = scope.borrow_mut();
@@ -98,11 +86,11 @@ impl Environment {
         })
     }
 
-    pub fn capture(&self) -> Vec<Rc<RefCell<Scope>>> {
+    pub fn capture(&self) -> Vec<Gc<GcCell<Scope>>> {
         self.scopes.clone()
     }
 
-    pub fn replace_scopes(&mut self, scopes: Vec<Rc<RefCell<Scope>>>) -> Vec<Rc<RefCell<Scope>>> {
+    pub fn replace_scopes(&mut self, scopes: Vec<Gc<GcCell<Scope>>>) -> Vec<Gc<GcCell<Scope>>> {
         mem::replace(&mut self.scopes, scopes)
     }
 
@@ -119,7 +107,7 @@ impl Environment {
 impl Trace for Environment {
     fn trace(&self, tracer: &mut Tracer) {
         for scope in &self.scopes {
-            scope.borrow().trace(tracer);
+            tracer.mark(*scope);
         }
     }
 }

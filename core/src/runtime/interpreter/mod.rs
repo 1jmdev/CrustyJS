@@ -25,13 +25,13 @@ use crate::errors::RuntimeError;
 use crate::parser::ast::Program;
 use crate::runtime::environment::Environment;
 use crate::runtime::event_loop::EventLoop;
+use crate::runtime::gc::Heap;
 use crate::runtime::modules::cache::ModuleCache;
 use crate::runtime::value::symbol::SymbolRegistry;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Instant;
 
-/// Control flow signal from statement evaluation.
 pub(crate) enum ControlFlow {
     None,
     Return(crate::runtime::value::JsValue),
@@ -39,9 +39,9 @@ pub(crate) enum ControlFlow {
     Yield(crate::runtime::value::JsValue),
 }
 
-/// The tree-walk interpreter.
 pub struct Interpreter {
     pub(crate) env: Environment,
+    pub(crate) heap: Heap,
     pub(crate) output: Vec<String>,
     pub(crate) classes: HashMap<String, eval_class::RuntimeClass>,
     pub(crate) super_stack: Vec<Option<String>>,
@@ -69,8 +69,11 @@ impl Interpreter {
     }
 
     pub fn new_with_realtime_timers(realtime_timers: bool) -> Self {
+        let mut heap = Heap::new();
+        let env = Environment::new(&mut heap);
         let mut interp = Self {
-            env: Environment::new(),
+            env,
+            heap,
             output: Vec::new(),
             classes: HashMap::new(),
             super_stack: Vec::new(),
@@ -89,7 +92,6 @@ impl Interpreter {
         interp
     }
 
-    /// Run a parsed program.
     pub fn run(&mut self, program: &Program) -> Result<(), RuntimeError> {
         for stmt in &program.body {
             if let ControlFlow::Return(_) = self.eval_stmt(stmt)? {
@@ -100,7 +102,11 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn run_with_path(&mut self, program: &Program, path: PathBuf) -> Result<(), RuntimeError> {
+    pub fn run_with_path(
+        &mut self,
+        program: &Program,
+        path: PathBuf,
+    ) -> Result<(), RuntimeError> {
         let file = path.display().to_string();
         self.ensure_source_map_for_path(&path);
         self.module_stack.push(path);
@@ -120,7 +126,6 @@ impl Interpreter {
         out
     }
 
-    /// Get captured output lines (from console.log calls).
     pub fn output(&self) -> &[String] {
         &self.output
     }
