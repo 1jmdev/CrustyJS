@@ -28,6 +28,12 @@ impl Environment {
             .push(heap.alloc_cell(Scope::new_with_this(this_binding)));
     }
 
+    pub fn set_global_this(&mut self, value: JsValue) {
+        if let Some(scope) = self.scopes.first() {
+            scope.borrow_mut().this_binding = Some(value);
+        }
+    }
+
     pub fn pop_scope(&mut self) {
         if self.scopes.len() > 1 {
             self.scopes.pop();

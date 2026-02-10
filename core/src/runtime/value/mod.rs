@@ -48,6 +48,20 @@ pub enum NativeFunction {
     ProxyRevoke(Gc<GcCell<JsProxy>>),
     Host(NativeFunctionBoxed),
     NativeClassConstructor(String),
+    IsNaN,
+    IsFinite,
+    ParseInt,
+    ParseFloat,
+    NumberCtor,
+    BooleanCtor,
+    StringCtor,
+    ObjectCtor,
+    ErrorCtor(String),
+    MathMethod(String),
+    DateCtor,
+    RegExpCtor,
+    FunctionCtor,
+    ArrayCtor,
 }
 
 #[derive(Debug, Clone)]
@@ -154,7 +168,21 @@ impl Trace for NativeFunction {
             | NativeFunction::GeneratorThrow
             | NativeFunction::GeneratorIterator
             | NativeFunction::Host(_)
-            | NativeFunction::NativeClassConstructor(_) => {}
+            | NativeFunction::NativeClassConstructor(_)
+            | NativeFunction::IsNaN
+            | NativeFunction::IsFinite
+            | NativeFunction::ParseInt
+            | NativeFunction::ParseFloat
+            | NativeFunction::NumberCtor
+            | NativeFunction::BooleanCtor
+            | NativeFunction::StringCtor
+            | NativeFunction::ObjectCtor
+            | NativeFunction::ErrorCtor(_)
+            | NativeFunction::MathMethod(_)
+            | NativeFunction::DateCtor
+            | NativeFunction::RegExpCtor
+            | NativeFunction::FunctionCtor
+            | NativeFunction::ArrayCtor => {}
             NativeFunction::GeneratorNext(g) | NativeFunction::GeneratorReturn(g) => {
                 tracer.mark(*g);
             }

@@ -113,6 +113,114 @@ impl Interpreter {
                 proxy.borrow_mut().revoked = true;
                 Ok(JsValue::Undefined)
             }
+            NativeFunction::IsNaN => {
+                let val = args.first().cloned().unwrap_or(JsValue::Undefined).to_number();
+                Ok(JsValue::Boolean(val.is_nan()))
+            }
+            NativeFunction::IsFinite => {
+                let val = args.first().cloned().unwrap_or(JsValue::Undefined).to_number();
+                Ok(JsValue::Boolean(val.is_finite()))
+            }
+            NativeFunction::ParseInt => {
+                let s = args.first().cloned().unwrap_or(JsValue::Undefined).to_js_string();
+                let radix = args.get(1).map(|v| v.to_number() as i32).unwrap_or(0);
+                Ok(JsValue::Number(parse_int_impl(&s, radix)))
+            }
+            NativeFunction::ParseFloat => {
+                let s = args.first().cloned().unwrap_or(JsValue::Undefined).to_js_string();
+                let trimmed = s.trim();
+                Ok(JsValue::Number(
+                    trimmed.parse::<f64>().unwrap_or(f64::NAN),
+                ))
+            }
+            NativeFunction::NumberCtor => {
+                let val = args.first().cloned().unwrap_or(JsValue::Number(0.0));
+                Ok(JsValue::Number(val.to_number()))
+            }
+            NativeFunction::BooleanCtor => {
+                let val = args.first().cloned().unwrap_or(JsValue::Undefined);
+                Ok(JsValue::Boolean(val.to_boolean()))
+            }
+            NativeFunction::StringCtor => {
+                let val = args.first().cloned().unwrap_or(JsValue::String(String::new()));
+                Ok(JsValue::String(val.to_js_string()))
+            }
+            NativeFunction::ObjectCtor => {
+                let val = args.first().cloned().unwrap_or(JsValue::Undefined);
+                match val {
+                    JsValue::Null | JsValue::Undefined => {
+                        let obj = crate::runtime::value::object::JsObject::new();
+                        Ok(JsValue::Object(self.heap.alloc_cell(obj)))
+                    }
+                    JsValue::Object(_) => Ok(val),
+                    _ => {
+                        let obj = crate::runtime::value::object::JsObject::new();
+                        Ok(JsValue::Object(self.heap.alloc_cell(obj)))
+                    }
+                }
+            }
+            NativeFunction::ErrorCtor(kind) => {
+                let message = args.first().cloned().unwrap_or(JsValue::Undefined);
+                let mut obj = crate::runtime::value::object::JsObject::new();
+                obj.set("name".to_string(), JsValue::String(kind.clone()));
+                obj.set(
+                    "message".to_string(),
+                    JsValue::String(message.to_js_string()),
+                );
+                obj.set("[[ErrorType]]".to_string(), JsValue::String(kind.clone()));
+                Ok(JsValue::Object(self.heap.alloc_cell(obj)))
+            }
+            NativeFunction::MathMethod(method) => {
+                self.builtin_math_call(method, args)
+            }
+            NativeFunction::DateCtor => {
+                Ok(JsValue::String(
+                    "Thu Jan 01 1970 00:00:00 GMT+0000".to_string(),
+                ))
+            }
+            NativeFunction::RegExpCtor => {
+                // RegExp(pattern) creates a RegExp object
+                let pattern = args.first().cloned().unwrap_or(JsValue::String(String::new()));
+                let flags_str = args.get(1).map(|v| v.to_js_string()).unwrap_or_default();
+                let flags = crate::runtime::value::regexp::RegExpFlags::from_str(&flags_str)
+                    .map_err(|e| RuntimeError::TypeError { message: e })?;
+                let re = crate::runtime::value::regexp::JsRegExp::new(
+                    &pattern.to_js_string(),
+                    flags,
+                ).map_err(|e| RuntimeError::TypeError { message: e })?;
+                Ok(JsValue::RegExp(self.heap.alloc_cell(re)))
+            }
+            NativeFunction::FunctionCtor => {
+                // Function() constructor - stub, return empty function
+                Ok(JsValue::Function {
+                    name: "anonymous".to_string(),
+                    params: vec![],
+                    body: vec![],
+                    closure_env: self.env.capture(),
+                    is_async: false,
+                    is_generator: false,
+                    source_path: None,
+                    source_offset: 0,
+                    properties: None,
+                })
+            }
+            NativeFunction::ArrayCtor => {
+                // Array(n) or Array(a, b, c)
+                let elements = if args.len() == 1 {
+                    if let JsValue::Number(n) = &args[0] {
+                        let len = (*n as usize).min(1 << 20);
+                        vec![JsValue::Undefined; len]
+                    } else {
+                        args.to_vec()
+                    }
+                } else {
+                    args.to_vec()
+                };
+                Ok(JsValue::Array(
+                    self.heap
+                        .alloc_cell(crate::runtime::value::array::JsArray::new(elements)),
+                ))
+            }
         }
     }
 
@@ -401,5 +509,56 @@ impl Interpreter {
         };
         let id = self.event_loop.schedule_timer(callback, delay_ms, interval);
         Ok(JsValue::Number(id as f64))
+    }
+}
+
+pub(crate) fn parse_int_impl(s: &str, radix: i32) -> f64 {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return f64::NAN;
+    }
+    let (negative, rest) = if let Some(s) = trimmed.strip_prefix('-') {
+        (true, s)
+    } else if let Some(s) = trimmed.strip_prefix('+') {
+        (false, s)
+    } else {
+        (false, trimmed)
+    };
+    let radix = if radix == 0 {
+        if rest.starts_with("0x") || rest.starts_with("0X") {
+            16
+        } else {
+            10
+        }
+    } else {
+        radix
+    };
+    if !(2..=36).contains(&radix) {
+        return f64::NAN;
+    }
+    let digits = if radix == 16 {
+        rest.strip_prefix("0x")
+            .or_else(|| rest.strip_prefix("0X"))
+            .unwrap_or(rest)
+    } else {
+        rest
+    };
+    let mut result: f64 = 0.0;
+    let mut found = false;
+    for ch in digits.chars() {
+        let d = match ch.to_digit(radix as u32) {
+            Some(d) => d,
+            None => break,
+        };
+        found = true;
+        result = result * (radix as f64) + (d as f64);
+    }
+    if !found {
+        return f64::NAN;
+    }
+    if negative {
+        -result
+    } else {
+        result
     }
 }

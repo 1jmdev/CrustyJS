@@ -36,12 +36,18 @@ impl Interpreter {
                 return self.builtin_date_call(property, &arg_values);
             }
             if name == "Math" {
-                let arg_values = self.eval_call_args(args)?;
-                return if is_call {
-                    self.builtin_math_call(property, &arg_values)
+                if is_call {
+                    let arg_values = self.eval_call_args(args)?;
+                    return self.builtin_math_call(property, &arg_values);
                 } else {
-                    self.builtin_math_constant(property)
-                };
+                    return match self.builtin_math_constant(property) {
+                        Ok(v) => Ok(v),
+                        Err(_) => {
+                            let obj_val = self.env.get("Math")?;
+                            self.get_property(&obj_val, property)
+                        }
+                    };
+                }
             }
             if name == "Promise" && is_call {
                 let arg_values = self.eval_call_args(args)?;
@@ -64,6 +70,19 @@ impl Interpreter {
             if name == "Reflect" && is_call {
                 let arg_values = self.eval_call_args(args)?;
                 return self.builtin_reflect_call(property, &arg_values);
+            }
+            if name == "Number" {
+                if is_call {
+                    let arg_values = self.eval_call_args(args)?;
+                    return self.builtin_number_static_call(property, &arg_values);
+                } else {
+                    return self.builtin_number_static_property(property);
+                }
+            }
+            if name == "Array" && property == "isArray" && is_call {
+                let arg_values = self.eval_call_args(args)?;
+                let val = arg_values.first().cloned().unwrap_or(JsValue::Undefined);
+                return Ok(JsValue::Boolean(matches!(val, JsValue::Array(_))));
             }
         }
 
