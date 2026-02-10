@@ -10,8 +10,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::JsValue;
 use super::symbol::JsSymbol;
+use super::JsValue;
 use crate::runtime::gc::{Trace, Tracer};
 
 #[derive(Debug, Clone)]

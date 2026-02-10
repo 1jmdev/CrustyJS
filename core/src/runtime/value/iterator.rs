@@ -1,5 +1,5 @@
-use crate::runtime::value::JsValue;
 use crate::runtime::value::object::JsObject;
+use crate::runtime::value::JsValue;
 
 pub fn iter_result(value: JsValue, done: bool) -> JsValue {
     let mut obj = JsObject::new();
