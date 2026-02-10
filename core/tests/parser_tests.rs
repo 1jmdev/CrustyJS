@@ -1,0 +1,126 @@
+use crustyjs::lexer::lex;
+use crustyjs::parser::ast::{BinOp, Expr, Literal, Stmt};
+use crustyjs::parser::parse;
+
+fn parse_source(source: &str) -> Vec<Stmt> {
+    let tokens = lex(source).expect("lexing should succeed");
+    let program = parse(tokens).expect("parsing should succeed");
+    program.body
+}
+
+#[test]
+fn parse_variable_declaration() {
+    let stmts = parse_source("let x = 42;");
+    assert_eq!(stmts.len(), 1);
+    assert_eq!(
+        stmts[0],
+        Stmt::VarDecl {
+            name: "x".into(),
+            init: Some(Expr::Literal(Literal::Number(42.0))),
+        }
+    );
+}
+
+#[test]
+fn parse_if_else() {
+    let stmts = parse_source("if (x <= 1) return x; else return 0;");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            assert!(matches!(
+                condition,
+                Expr::Binary {
+                    op: BinOp::LessEq,
+                    ..
+                }
+            ));
+            assert!(matches!(**then_branch, Stmt::Return(Some(_))));
+            assert!(else_branch.is_some());
+        }
+        other => panic!("expected If statement, got {:?}", other),
+    }
+}
+
+#[test]
+fn parse_function_declaration() {
+    let stmts = parse_source("function fib(n) { return n; }");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::FunctionDecl { name, params, body } => {
+            assert_eq!(name, "fib");
+            assert_eq!(params, &["n".to_string()]);
+            assert_eq!(body.len(), 1);
+        }
+        other => panic!("expected FunctionDecl, got {:?}", other),
+    }
+}
+
+#[test]
+fn parse_call_expression() {
+    let stmts = parse_source("fib(10);");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::Call { callee, args }) => {
+            assert_eq!(**callee, Expr::Identifier("fib".into()));
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0], Expr::Literal(Literal::Number(10.0)));
+        }
+        other => panic!("expected call ExprStmt, got {:?}", other),
+    }
+}
+
+#[test]
+fn parse_binary_precedence() {
+    // 1 + 2 * 3 should parse as 1 + (2 * 3)
+    let stmts = parse_source("1 + 2 * 3;");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::Binary {
+            left,
+            op: BinOp::Add,
+            right,
+        }) => {
+            assert_eq!(**left, Expr::Literal(Literal::Number(1.0)));
+            assert!(matches!(**right, Expr::Binary { op: BinOp::Mul, .. }));
+        }
+        other => panic!("expected binary Add, got {:?}", other),
+    }
+}
+
+#[test]
+fn parse_member_access_call() {
+    let stmts = parse_source("console.log(42);");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::Call { callee, args }) => {
+            assert!(matches!(
+                **callee,
+                Expr::MemberAccess {
+                    ref property,
+                    ..
+                } if property == "log"
+            ));
+            assert_eq!(args.len(), 1);
+        }
+        other => panic!("expected member call, got {:?}", other),
+    }
+}
+
+#[test]
+fn parse_full_fib_program() {
+    let source = r#"
+        function fib(n) {
+            if (n <= 1) return n;
+            return fib(n - 1) + fib(n - 2);
+        }
+        console.log(fib(10));
+    "#;
+    let stmts = parse_source(source);
+    assert_eq!(stmts.len(), 2);
+    assert!(matches!(stmts[0], Stmt::FunctionDecl { .. }));
+    assert!(matches!(stmts[1], Stmt::ExprStmt(Expr::Call { .. })));
+}
