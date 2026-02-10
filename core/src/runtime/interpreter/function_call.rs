@@ -1,4 +1,5 @@
 use super::Interpreter;
+use crate::diagnostics::stack_trace::CallFrame;
 use crate::errors::RuntimeError;
 use crate::runtime::value::array::JsArray;
 use crate::runtime::value::JsValue;
@@ -93,17 +94,34 @@ impl Interpreter {
     ) -> Result<JsValue, RuntimeError> {
         match func {
             JsValue::Function {
+                name,
                 params,
                 body,
                 closure_env,
                 is_async,
                 ..
             } => {
-                if *is_async {
+                let file = self
+                    .module_stack
+                    .last()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "<script>".to_string());
+                self.call_stack.push_frame(CallFrame {
+                    function_name: name.clone(),
+                    file,
+                    line: 0,
+                    col: 0,
+                });
+
+                let result = if *is_async {
                     self.execute_async_function_body(params, body, closure_env, this_binding, args)
                 } else {
                     self.execute_function_body(params, body, closure_env, this_binding, args)
-                }
+                };
+
+                let trace = self.call_stack.format_trace();
+                self.call_stack.pop_frame();
+                result.map_err(|err| self.attach_stack_to_error(err, &trace))
             }
             JsValue::NativeFunction { handler, .. } => {
                 self.call_native_function(handler, args, this_binding)
@@ -111,6 +129,37 @@ impl Interpreter {
             other => Err(RuntimeError::NotAFunction {
                 name: format!("{other}"),
             }),
+        }
+    }
+
+    fn attach_stack_to_error(&self, err: RuntimeError, trace: &str) -> RuntimeError {
+        if trace.is_empty() {
+            return err;
+        }
+
+        match err {
+            RuntimeError::TypeError { message } => {
+                if message.contains("\n    at ") {
+                    RuntimeError::TypeError { message }
+                } else {
+                    RuntimeError::TypeError {
+                        message: format!("{message}\n{trace}"),
+                    }
+                }
+            }
+            RuntimeError::UndefinedVariable { name } => RuntimeError::TypeError {
+                message: format!("ReferenceError: '{name}' is not defined\n{trace}"),
+            },
+            RuntimeError::NotAFunction { name } => RuntimeError::TypeError {
+                message: format!("TypeError: '{name}' is not a function\n{trace}"),
+            },
+            RuntimeError::ArityMismatch { expected, got } => RuntimeError::TypeError {
+                message: format!("TypeError: expected {expected} arguments but got {got}\n{trace}"),
+            },
+            RuntimeError::ConstReassignment { name } => RuntimeError::TypeError {
+                message: format!("TypeError: Assignment to constant variable '{name}'\n{trace}"),
+            },
+            RuntimeError::Thrown { .. } => err,
         }
     }
 }

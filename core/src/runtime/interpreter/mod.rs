@@ -15,6 +15,7 @@ mod object_json_date_builtins;
 mod promise_runtime;
 mod property_access;
 
+use crate::diagnostics::stack_trace::CallStack;
 use crate::errors::RuntimeError;
 use crate::parser::ast::Program;
 use crate::runtime::environment::Environment;
@@ -40,6 +41,7 @@ pub struct Interpreter {
     pub(crate) async_depth: usize,
     pub(crate) module_cache: ModuleCache,
     pub(crate) module_stack: Vec<PathBuf>,
+    pub(crate) call_stack: CallStack,
 }
 
 impl Interpreter {
@@ -57,6 +59,7 @@ impl Interpreter {
             async_depth: 0,
             module_cache: ModuleCache::default(),
             module_stack: Vec::new(),
+            call_stack: CallStack::default(),
         };
         interp.init_builtins();
         interp
@@ -83,5 +86,9 @@ impl Interpreter {
     /// Get captured output lines (from console.log calls).
     pub fn output(&self) -> &[String] {
         &self.output
+    }
+
+    pub fn current_stack_trace(&self) -> String {
+        self.call_stack.format_trace()
     }
 }
