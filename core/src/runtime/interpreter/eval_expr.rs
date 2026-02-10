@@ -90,7 +90,7 @@ impl Interpreter {
                                     .map(|p| p.display().to_string()),
                                 source_offset: 0,
                             };
-                            obj.set(key, getter);
+                            obj.set_getter(key, getter);
                         }
                         ObjectProperty::Setter(key, param, body) => {
                             let key = self.eval_property_key(key)?;
@@ -109,7 +109,7 @@ impl Interpreter {
                                     .map(|p| p.display().to_string()),
                                 source_offset: 0,
                             };
-                            obj.set(key, setter);
+                            obj.set_setter(key, setter);
                         }
                         ObjectProperty::Spread(expr) => {
                             let spread_val = self.eval_expr(expr)?;

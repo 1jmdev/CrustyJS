@@ -32,7 +32,27 @@ impl JsObject {
     }
 
     pub fn set(&mut self, key: String, value: JsValue) {
+        if let Some(existing) = self.properties.get_mut(&key) {
+            existing.value = value;
+            return;
+        }
         self.properties.insert(key, Property::new(value));
+    }
+
+    pub fn set_getter(&mut self, key: String, getter: JsValue) {
+        if let Some(existing) = self.properties.get_mut(&key) {
+            existing.getter = Some(getter);
+            return;
+        }
+        self.properties.insert(key, Property::with_getter(getter));
+    }
+
+    pub fn set_setter(&mut self, key: String, setter: JsValue) {
+        if let Some(existing) = self.properties.get_mut(&key) {
+            existing.setter = Some(setter);
+            return;
+        }
+        self.properties.insert(key, Property::with_setter(setter));
     }
 
     pub fn wrapped(self) -> Rc<RefCell<Self>> {

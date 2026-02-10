@@ -1,18 +1,33 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::runtime::value::object::prototype;
 use crate::runtime::value::string_methods;
 use crate::runtime::value::JsValue;
+use std::rc::Rc;
 
 impl Interpreter {
     pub(crate) fn get_property(
-        &self,
+        &mut self,
         obj_val: &JsValue,
         key: &str,
     ) -> Result<JsValue, RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                Ok(prototype::get_property(obj, key).unwrap_or(JsValue::Undefined))
+                let mut current = Some(Rc::clone(obj));
+                while let Some(candidate) = current {
+                    let borrowed = candidate.borrow();
+                    if let Some(prop) = borrowed.properties.get(key) {
+                        if let Some(getter) = &prop.getter {
+                            return self.call_function_with_this(
+                                getter,
+                                &[],
+                                Some(obj_val.clone()),
+                            );
+                        }
+                        return Ok(prop.value.clone());
+                    }
+                    current = borrowed.prototype.clone();
+                }
+                Ok(JsValue::Undefined)
             }
             JsValue::Array(arr) => {
                 let borrowed = arr.borrow();
@@ -32,14 +47,31 @@ impl Interpreter {
     }
 
     pub(crate) fn set_property(
-        &self,
+        &mut self,
         obj_val: &JsValue,
         key: &str,
         value: JsValue,
     ) -> Result<(), RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                prototype::set_property(obj, key, value);
+                let mut current = Some(Rc::clone(obj));
+                while let Some(candidate) = current {
+                    let borrowed = candidate.borrow();
+                    if let Some(prop) = borrowed.properties.get(key) {
+                        if let Some(setter) = &prop.setter {
+                            self.call_function_with_this(
+                                setter,
+                                std::slice::from_ref(&value),
+                                Some(obj_val.clone()),
+                            )?;
+                            return Ok(());
+                        }
+                        break;
+                    }
+                    current = borrowed.prototype.clone();
+                }
+
+                obj.borrow_mut().set(key.to_string(), value);
                 Ok(())
             }
             JsValue::Array(arr) => {

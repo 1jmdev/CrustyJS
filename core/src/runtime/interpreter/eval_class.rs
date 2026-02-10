@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{ClassDecl, ClassMethod, Expr, Param, Pattern};
+use crate::parser::ast::{ClassDecl, ClassMethod, ClassMethodKind, Expr, Param, Pattern};
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::JsValue;
 
@@ -39,7 +39,11 @@ impl Interpreter {
                 continue;
             }
             let method_value = self.method_to_function(method, &class_decl.name);
-            prototype.set(method.name.clone(), method_value);
+            match method.kind {
+                ClassMethodKind::Method => prototype.set(method.name.clone(), method_value),
+                ClassMethodKind::Getter => prototype.set_getter(method.name.clone(), method_value),
+                ClassMethodKind::Setter => prototype.set_setter(method.name.clone(), method_value),
+            }
         }
 
         let prototype = prototype.wrapped();
