@@ -31,7 +31,8 @@ impl<'src> Scanner<'src> {
             if self.cursor.is_at_end() {
                 break;
             }
-            let token = self.scan_token()?;
+            let prev_kind = tokens.last().map(|t: &Token| &t.kind).cloned();
+            let token = self.scan_token_with_context(prev_kind.as_ref())?;
             tokens.push(token);
         }
 
@@ -51,7 +52,6 @@ impl<'src> Scanner<'src> {
                     self.cursor.advance();
                 }
                 Some(b'/') if self.cursor.peek_next() == Some(b'/') => {
-                    // Line comment: skip until newline
                     while let Some(ch) = self.cursor.peek() {
                         if ch == b'\n' {
                             break;
@@ -60,9 +60,8 @@ impl<'src> Scanner<'src> {
                     }
                 }
                 Some(b'/') if self.cursor.peek_next() == Some(b'*') => {
-                    // Block comment: skip until */
-                    self.cursor.advance(); // skip /
-                    self.cursor.advance(); // skip *
+                    self.cursor.advance();
+                    self.cursor.advance();
                     loop {
                         match self.cursor.advance() {
                             Some(b'*') if self.cursor.peek() == Some(b'/') => {
@@ -79,7 +78,80 @@ impl<'src> Scanner<'src> {
         }
     }
 
-    fn scan_token(&mut self) -> Result<Token, SyntaxError> {
+    fn scan_token_with_context(&mut self, prev: Option<&TokenKind>) -> Result<Token, SyntaxError> {
+        let start = self.cursor.pos();
+
+        // Regex literal disambiguation: if we see '/' and the previous
+        // token is NOT a value-producing token, treat as regex.
+        if self.cursor.peek() == Some(b'/') && !is_division_context(prev) {
+            return self.scan_regex_literal(start);
+        }
+
+        self.scan_token()
+    }
+
+    fn scan_regex_literal(&mut self, start: usize) -> Result<Token, SyntaxError> {
+        self.cursor.advance(); // consume opening '/'
+
+        let mut pattern = String::new();
+        let mut in_char_class = false;
+
+        loop {
+            match self.cursor.peek() {
+                None | Some(b'\n') => {
+                    return Err(SyntaxError::new(
+                        "unterminated regex literal",
+                        start,
+                        self.cursor.pos() - start,
+                    ));
+                }
+                Some(b'\\') => {
+                    self.cursor.advance();
+                    pattern.push('\\');
+                    if let Some(escaped) = self.cursor.advance() {
+                        pattern.push(escaped as char);
+                    }
+                }
+                Some(b'[') => {
+                    in_char_class = true;
+                    self.cursor.advance();
+                    pattern.push('[');
+                }
+                Some(b']') if in_char_class => {
+                    in_char_class = false;
+                    self.cursor.advance();
+                    pattern.push(']');
+                }
+                Some(b'/') if !in_char_class => {
+                    self.cursor.advance(); // consume closing '/'
+                    break;
+                }
+                Some(ch) => {
+                    self.cursor.advance();
+                    pattern.push(ch as char);
+                }
+            }
+        }
+
+        // Scan flags
+        let mut flags = String::new();
+        while let Some(ch) = self.cursor.peek() {
+            if ch.is_ascii_alphabetic() {
+                flags.push(ch as char);
+                self.cursor.advance();
+            } else {
+                break;
+            }
+        }
+
+        let end = self.cursor.pos();
+        Ok(Token {
+            kind: TokenKind::RegexLiteral { pattern, flags },
+            span: Span::new(start, end),
+        })
+    }
+
+    pub(super) fn scan_token(&mut self) -> Result<Token, SyntaxError> {
         let start = self.cursor.pos();
         let ch = self.cursor.advance().unwrap();
 
@@ -184,16 +256,14 @@ impl<'src> Scanner<'src> {
             b'=' => {
                 if self.cursor.match_char(b'>') {
                     TokenKind::Arrow
-                } else {
+                } else if self.cursor.match_char(b'=') {
                     if self.cursor.match_char(b'=') {
-                        if self.cursor.match_char(b'=') {
-                            TokenKind::EqEqEq
-                        } else {
-                            TokenKind::EqEq
-                        }
+                        TokenKind::EqEqEq
                     } else {
-                        TokenKind::Assign
+                        TokenKind::EqEq
                     }
+                } else {
+                    TokenKind::Assign
                 }
             }
             b'!' => {
@@ -226,4 +296,29 @@ impl<'src> Scanner<'src> {
             span: Span::new(start, end),
         })
     }
+}
+
+/// Returns true when the previous token indicates that `/` should be
+/// parsed as division rather than the start of a regex literal.
+fn is_division_context(prev: Option<&TokenKind>) -> bool {
+    matches!(
+        prev,
+        Some(
+            TokenKind::Number(_)
+                | TokenKind::String(_)
+                | TokenKind::True
+                | TokenKind::False
+                | TokenKind::Null
+                | TokenKind::Undefined
+                | TokenKind::Ident(_)
+                | TokenKind::RightParen
+                | TokenKind::RightBracket
+                | TokenKind::RightBrace
+                | TokenKind::PlusPlus
+                | TokenKind::MinusMinus
+                | TokenKind::NoSubTemplate(_)
+                | TokenKind::TemplateTail(_)
+                | TokenKind::RegexLiteral { .. }
+        )
+    )
 }
