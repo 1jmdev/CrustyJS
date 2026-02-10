@@ -5,13 +5,13 @@ This document tracks known deviations and gaps from full ECMAScript behavior.
 ## Language Coverage
 
 - Parsing supports a practical subset of modern JavaScript, not the full spec grammar.
-- AST nodes do not yet carry full source spans for all diagnostics paths.
-- `await` support is implemented for async functions in the interpreter, but VM parity is partial.
+- AST nodes do not yet carry full source spans for every diagnostics path.
+- `await` support is implemented for async functions in the interpreter, but VM bytecode parity remains partial.
 
 ## Runtime Semantics
 
 - Promise callbacks use deterministic queueing; edge cases around host integration are simplified.
-- Error objects and stack traces are lightweight compared to browser/Node stacks.
+- Runtime stack traces include function names and mapped file:line:col locations, but they are still lighter than browser/Node stacks.
 - Numeric behavior is `f64`-based and may differ in formatting details from major JS engines.
 
 ## Modules
@@ -23,6 +23,7 @@ This document tracks known deviations and gaps from full ECMAScript behavior.
 ## VM
 
 - VM executes a supported opcode subset and bridges unsupported regions back to tree-walk mode.
+- Unsupported constructs now fall back as a single whole-program bridge to avoid mixed partial execution.
 - Full bytecode parity for all high-level features is still in progress.
 
 ## REPL and Tooling
