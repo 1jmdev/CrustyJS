@@ -145,6 +145,10 @@ impl Parser {
             return Ok(Expr::Typeof(Box::new(operand)));
         }
 
+        if self.check(&TokenKind::New) {
+            return self.parse_new_expr();
+        }
+
         if matches!(self.peek(), TokenKind::PlusPlus | TokenKind::MinusMinus) {
             let op_tok = self.advance().clone();
             let ident_tok = self.advance().clone();

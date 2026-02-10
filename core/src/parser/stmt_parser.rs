@@ -12,6 +12,8 @@ impl Parser {
             TokenKind::While => self.parse_while(),
             TokenKind::For => self.parse_for(),
             TokenKind::Return => self.parse_return(),
+            TokenKind::Try => self.parse_try_catch(),
+            TokenKind::Throw => self.parse_throw(),
             TokenKind::LeftBrace => self.parse_block_stmt(),
             _ => self.parse_expr_stmt(),
         }
@@ -173,5 +175,52 @@ impl Parser {
             update,
             body,
         })
+    }
+
+    fn parse_try_catch(&mut self) -> Result<Stmt, SyntaxError> {
+        self.advance(); // consume 'try'
+        let try_block = self.parse_block()?;
+
+        let mut catch_param = None;
+        let mut catch_block = None;
+        let mut finally_block = None;
+
+        if self.check(&TokenKind::Catch) {
+            self.advance(); // consume 'catch'
+            if self.check(&TokenKind::LeftParen) {
+                self.advance();
+                catch_param = Some(self.expect_ident()?);
+                self.expect(&TokenKind::RightParen)?;
+            }
+            catch_block = Some(self.parse_block()?);
+        }
+
+        if self.check(&TokenKind::Finally) {
+            self.advance(); // consume 'finally'
+            finally_block = Some(self.parse_block()?);
+        }
+
+        if catch_block.is_none() && finally_block.is_none() {
+            let token = self.tokens[self.pos].clone();
+            return Err(SyntaxError::new(
+                "try requires catch and/or finally",
+                token.span.start,
+                token.span.len().max(1),
+            ));
+        }
+
+        Ok(Stmt::TryCatch {
+            try_block,
+            catch_param,
+            catch_block,
+            finally_block,
+        })
+    }
+
+    fn parse_throw(&mut self) -> Result<Stmt, SyntaxError> {
+        self.advance(); // consume 'throw'
+        let expr = self.parse_expr(0)?;
+        self.expect(&TokenKind::Semicolon)?;
+        Ok(Stmt::Throw(expr))
     }
 }

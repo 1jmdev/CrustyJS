@@ -113,6 +113,10 @@ pub enum Expr {
         else_expr: Box<Expr>,
     },
     Typeof(Box<Expr>),
+    New {
+        callee: Box<Expr>,
+        args: Vec<Expr>,
+    },
     ArrowFunction {
         params: Vec<String>,
         body: ArrowBody,

@@ -4,6 +4,18 @@ use crate::errors::SyntaxError;
 use crate::lexer::token::TokenKind;
 
 impl Parser {
+    pub(crate) fn parse_new_expr(&mut self) -> Result<Expr, SyntaxError> {
+        self.advance(); // consume 'new'
+        let callee_expr = self.parse_expr(12)?;
+        match callee_expr {
+            Expr::Call { callee, args } => Ok(Expr::New { callee, args }),
+            callee => Ok(Expr::New {
+                callee: Box::new(callee),
+                args: Vec::new(),
+            }),
+        }
+    }
+
     pub(crate) fn parse_ident_or_arrow(&mut self, name: String) -> Result<Expr, SyntaxError> {
         if self.check(&TokenKind::Arrow) {
             self.advance();

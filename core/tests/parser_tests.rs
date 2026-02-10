@@ -124,3 +124,36 @@ fn parse_full_fib_program() {
     assert!(matches!(stmts[0], Stmt::FunctionDecl { .. }));
     assert!(matches!(stmts[1], Stmt::ExprStmt(Expr::Call { .. })));
 }
+
+#[test]
+fn parse_try_catch_finally_statement() {
+    let stmts =
+        parse_source("try { throw 1; } catch (e) { console.log(e); } finally { console.log(2); }");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::TryCatch {
+            catch_param,
+            catch_block,
+            finally_block,
+            ..
+        } => {
+            assert_eq!(catch_param.as_deref(), Some("e"));
+            assert!(catch_block.is_some());
+            assert!(finally_block.is_some());
+        }
+        other => panic!("expected TryCatch, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_new_expression() {
+    let stmts = parse_source("new Error(\"oops\");");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::New { callee, args }) => {
+            assert_eq!(**callee, Expr::Identifier("Error".into()));
+            assert_eq!(args.len(), 1);
+        }
+        other => panic!("expected New expression, got {other:?}"),
+    }
+}

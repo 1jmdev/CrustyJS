@@ -35,4 +35,11 @@ pub enum Stmt {
         iterable: Expr,
         body: Box<Stmt>,
     },
+    TryCatch {
+        try_block: Vec<Stmt>,
+        catch_param: Option<String>,
+        catch_block: Option<Vec<Stmt>>,
+        finally_block: Option<Vec<Stmt>>,
+    },
+    Throw(Expr),
 }
