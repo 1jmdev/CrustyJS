@@ -1,6 +1,7 @@
 mod class;
 mod expression;
 mod literal;
+mod module;
 mod pattern;
 mod statement;
 
@@ -10,6 +11,7 @@ pub use expression::{
     UnaryOp, UpdateOp,
 };
 pub use literal::Literal;
+pub use module::{ExportDecl, ExportSpecifier, ImportDecl, ImportSpecifier};
 pub use pattern::{ObjectPatternProp, Param, Pattern};
 pub use statement::{Stmt, SwitchCase, VarDeclKind};
 

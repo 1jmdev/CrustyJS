@@ -18,6 +18,8 @@ impl Parser {
             TokenKind::Throw => self.parse_throw(),
             TokenKind::Switch => self.parse_switch(),
             TokenKind::Class => self.parse_class_decl(),
+            TokenKind::Import => self.parse_import_decl(),
+            TokenKind::Export => self.parse_export_decl(),
             TokenKind::LeftBrace => self.parse_block_stmt(),
             _ => self.parse_expr_stmt(),
         }
@@ -44,7 +46,7 @@ impl Parser {
         })
     }
 
-    fn parse_function_decl(&mut self) -> Result<Stmt, SyntaxError> {
+    pub(crate) fn parse_function_decl(&mut self) -> Result<Stmt, SyntaxError> {
         self.parse_function_decl_with_async(false)
     }
 

@@ -1,5 +1,6 @@
 use super::class::ClassDecl;
 use super::expression::Expr;
+use super::module::{ExportDecl, ImportDecl};
 use super::pattern::{Param, Pattern};
 
 /// Statement AST nodes.
@@ -57,6 +58,8 @@ pub enum Stmt {
         cases: Vec<SwitchCase>,
     },
     Class(ClassDecl),
+    Import(ImportDecl),
+    Export(ExportDecl),
 }
 
 #[derive(Debug, Clone, PartialEq)]
