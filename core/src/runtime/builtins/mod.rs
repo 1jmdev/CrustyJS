@@ -1,0 +1,13 @@
+pub(crate) mod collections;
+pub(crate) mod console;
+pub(crate) mod date;
+pub(crate) mod global;
+pub(crate) mod json;
+pub(crate) mod math;
+pub(crate) mod number;
+pub(crate) mod object;
+pub(crate) mod promise;
+pub(crate) mod proxy;
+pub(crate) mod reflect;
+pub(crate) mod regexp;
+pub(crate) mod symbol;

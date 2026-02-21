@@ -1,5 +1,4 @@
-mod builtins;
-mod collection_builtins;
+mod dispatch;
 mod error_handling;
 mod eval_async;
 mod eval_class;
@@ -10,14 +9,8 @@ mod eval_stmt;
 mod eval_stmt_control;
 mod event_loop_driver;
 mod function_call;
-mod global_builtins;
 mod module_runtime;
-mod object_json_date_builtins;
-mod promise_runtime;
 mod property_access;
-mod proxy_builtins;
-mod reflect_builtins;
-mod regexp_builtins;
 
 use crate::embedding::class_builder::NativeClassDef;
 use crate::diagnostics::source_map::{SourceMap, SourcePos};
