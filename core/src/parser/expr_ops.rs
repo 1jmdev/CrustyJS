@@ -5,6 +5,7 @@ pub(super) fn infix_binding_power(kind: &TokenKind) -> Option<(u8, u8)> {
     match kind {
         TokenKind::PipePipe | TokenKind::NullishCoalescing => Some((1, 2)),
         TokenKind::AmpAmp => Some((2, 3)),
+        TokenKind::Amp => Some((3, 4)),
         TokenKind::EqEq | TokenKind::NotEq | TokenKind::EqEqEq | TokenKind::NotEqEq => Some((4, 5)),
         TokenKind::Less | TokenKind::LessEq | TokenKind::Greater | TokenKind::GreaterEq => {
             Some((6, 7))
@@ -48,6 +49,7 @@ pub(super) fn token_to_binop(kind: &TokenKind) -> BinOp {
         TokenKind::LessEq => BinOp::LessEq,
         TokenKind::Greater => BinOp::Greater,
         TokenKind::GreaterEq => BinOp::GreaterEq,
+        TokenKind::Amp => BinOp::BitAnd,
         TokenKind::Instanceof => BinOp::Instanceof,
         TokenKind::In => BinOp::In,
         _ => unreachable!("not a binary operator: {:?}", kind),

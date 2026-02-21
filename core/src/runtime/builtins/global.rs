@@ -267,6 +267,8 @@ impl Interpreter {
                 let mut obj = JsObject::new();
                 obj.set("name".into(), JsValue::String(kind.clone()));
                 obj.set("message".into(), JsValue::String(msg));
+                let constructor = self.env.get(kind).unwrap_or(JsValue::Undefined);
+                obj.set("constructor".into(), constructor);
                 obj.set("[[ErrorType]]".into(), JsValue::String(kind.clone()));
                 Ok(JsValue::Object(self.heap.alloc_cell(obj)))
             }

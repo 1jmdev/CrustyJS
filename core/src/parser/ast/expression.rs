@@ -18,6 +18,7 @@ pub enum BinOp {
     LessEq,
     Greater,
     GreaterEq,
+    BitAnd,
     Instanceof,
     In,
 }

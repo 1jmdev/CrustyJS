@@ -220,9 +220,7 @@ impl Interpreter {
                     }
                 }
             }
-            RuntimeError::UndefinedVariable { name } => RuntimeError::TypeError {
-                message: format!("ReferenceError: '{name}' is not defined\n{trace}"),
-            },
+            RuntimeError::UndefinedVariable { name } => RuntimeError::UndefinedVariable { name },
             RuntimeError::NotAFunction { name } => RuntimeError::TypeError {
                 message: format!("TypeError: '{name}' is not a function\n{trace}"),
             },

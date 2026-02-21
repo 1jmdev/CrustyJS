@@ -112,7 +112,7 @@ impl Parser {
     fn parse_async_or_expr_stmt(&mut self) -> Result<Stmt, SyntaxError> {
         let saved = self.pos;
         self.advance(); // async
-        if self.check(&TokenKind::Function) {
+        if self.check(&TokenKind::Function) && !self.has_line_terminator_before_current() {
             return self.parse_function_decl_with_async(true);
         }
         self.pos = saved;
@@ -157,12 +157,17 @@ impl Parser {
         self.expect(&TokenKind::LeftParen)?;
         let condition = self.parse_expr(0)?;
         self.expect(&TokenKind::RightParen)?;
-        self.consume_stmt_terminator()?;
+        if self.check(&TokenKind::Semicolon) {
+            self.advance();
+        }
         Ok(Stmt::DoWhile { body, condition })
     }
 
     fn parse_return(&mut self) -> Result<Stmt, SyntaxError> {
         self.advance(); // consume 'return'
+        if self.has_line_terminator_before_current() {
+            return Ok(Stmt::Return(None));
+        }
         if self.check(&TokenKind::Semicolon) {
             self.advance();
             return Ok(Stmt::Return(None));
@@ -236,7 +241,14 @@ impl Parser {
     }
 
     fn parse_throw(&mut self) -> Result<Stmt, SyntaxError> {
-        self.advance(); // consume 'throw'
+        let throw_token = self.advance().clone(); // consume 'throw'
+        if self.has_line_terminator_before_current() {
+            return Err(SyntaxError::new(
+                "illegal newline after throw",
+                throw_token.span.start,
+                throw_token.span.len().max(1),
+            ));
+        }
         let expr = self.parse_expr(0)?;
         self.consume_stmt_terminator()?;
         Ok(Stmt::Throw(expr))
@@ -244,9 +256,13 @@ impl Parser {
 
     fn parse_break(&mut self) -> Result<Stmt, SyntaxError> {
         self.advance();
-        let label = if let TokenKind::Ident(name) = self.peek().clone() {
-            self.advance();
-            Some(name)
+        let label = if !self.has_line_terminator_before_current() {
+            if let TokenKind::Ident(name) = self.peek().clone() {
+                self.advance();
+                Some(name)
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -256,9 +272,13 @@ impl Parser {
 
     fn parse_continue(&mut self) -> Result<Stmt, SyntaxError> {
         self.advance();
-        let label = if let TokenKind::Ident(name) = self.peek().clone() {
-            self.advance();
-            Some(name)
+        let label = if !self.has_line_terminator_before_current() {
+            if let TokenKind::Ident(name) = self.peek().clone() {
+                self.advance();
+                Some(name)
+            } else {
+                None
+            }
         } else {
             None
         };

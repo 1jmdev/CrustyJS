@@ -6,6 +6,15 @@ use crate::runtime::value::iterator::get_property_simple;
 use crate::runtime::value::symbol;
 use crate::runtime::value::JsValue;
 
+fn to_int32(value: f64) -> i32 {
+    if !value.is_finite() || value == 0.0 {
+        return 0;
+    }
+    let truncated = value.trunc();
+    let int = truncated as i64;
+    int as i32
+}
+
 impl Interpreter {
     pub(crate) fn eval_call_args(
         &mut self,
@@ -222,6 +231,7 @@ impl Interpreter {
             BinOp::LessEq => Ok(JsValue::Boolean(ln <= rn)),
             BinOp::Greater => Ok(JsValue::Boolean(ln > rn)),
             BinOp::GreaterEq => Ok(JsValue::Boolean(ln >= rn)),
+            BinOp::BitAnd => Ok(JsValue::Number((to_int32(ln) & to_int32(rn)) as f64)),
             BinOp::EqEqEq => Ok(JsValue::Boolean(lhs == rhs)),
             BinOp::NotEqEq => Ok(JsValue::Boolean(lhs != rhs)),
             BinOp::EqEq => Ok(JsValue::Boolean(abstract_equals(&lhs, &rhs))),

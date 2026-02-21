@@ -88,6 +88,10 @@ impl Parser {
         self.peek() == kind
     }
 
+    pub(crate) fn has_line_terminator_before_current(&self) -> bool {
+        self.tokens[self.pos].had_line_terminator_before
+    }
+
     pub(crate) fn expect_ident(&mut self) -> Result<String, SyntaxError> {
         let token = self.advance().clone();
         match token.kind {

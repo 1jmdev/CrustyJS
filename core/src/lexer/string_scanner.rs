@@ -54,6 +54,7 @@ impl Scanner<'_> {
         Ok(Token {
             kind,
             span: Span::new(start, end),
+            had_line_terminator_before: false,
         })
     }
 
@@ -69,6 +70,7 @@ impl Scanner<'_> {
         Ok(Token {
             kind,
             span: Span::new(start, end),
+            had_line_terminator_before: false,
         })
     }
 

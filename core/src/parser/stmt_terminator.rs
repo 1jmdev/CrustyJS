@@ -11,6 +11,9 @@ impl Parser {
         if self.check(&TokenKind::RightBrace) || self.check(&TokenKind::Eof) {
             return Ok(());
         }
+        if self.has_line_terminator_before_current() {
+            return Ok(());
+        }
         let token = self.tokens[self.pos].clone();
         Err(SyntaxError::new(
             format!("expected Semicolon, found {:?}", token.kind),

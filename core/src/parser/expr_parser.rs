@@ -95,6 +95,9 @@ impl Parser {
                     }
                 }
                 TokenKind::PlusPlus => {
+                    if self.has_line_terminator_before_current() {
+                        break;
+                    }
                     self.advance();
                     match lhs {
                         Expr::Identifier(name) => Expr::UpdateExpr {
@@ -112,6 +115,9 @@ impl Parser {
                     }
                 }
                 TokenKind::MinusMinus => {
+                    if self.has_line_terminator_before_current() {
+                        break;
+                    }
                     self.advance();
                     match lhs {
                         Expr::Identifier(name) => Expr::UpdateExpr {

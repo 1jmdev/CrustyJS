@@ -27,6 +27,7 @@ pub fn create_error_object(message: JsValue, heap: &mut Heap) -> JsValue {
         "message".to_string(),
         JsValue::String(message.to_js_string()),
     );
+    obj.set("constructor".to_string(), JsValue::Undefined);
     JsValue::Object(heap.alloc_cell(obj))
 }
 
@@ -37,6 +38,8 @@ impl Interpreter {
         let mut obj = JsObject::new();
         obj.set("name".to_string(), JsValue::String(error_type.to_string()));
         obj.set("message".to_string(), JsValue::String(message.to_string()));
+        let constructor = self.env.get(error_type).unwrap_or(JsValue::Undefined);
+        obj.set("constructor".to_string(), constructor);
         // Set the constructor name so instanceof checks can work
         obj.set(
             "[[ErrorType]]".to_string(),

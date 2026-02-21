@@ -21,18 +21,21 @@ impl<'src> Scanner<'src> {
 
     pub fn scan_tokens(&mut self) -> Result<Vec<Token>, SyntaxError> {
         let mut tokens = Vec::new();
+        let eof_had_line_terminator_before;
 
         loop {
             if let Some(tok) = self.pending.pop() {
                 tokens.push(tok);
                 continue;
             }
-            self.skip_whitespace_and_comments();
+            let had_line_terminator_before = self.skip_whitespace_and_comments();
             if self.cursor.is_at_end() {
+                eof_had_line_terminator_before = had_line_terminator_before;
                 break;
             }
             let prev_kind = tokens.last().map(|t: &Token| &t.kind).cloned();
-            let token = self.scan_token_with_context(prev_kind.as_ref())?;
+            let mut token = self.scan_token_with_context(prev_kind.as_ref())?;
+            token.had_line_terminator_before = had_line_terminator_before;
             tokens.push(token);
         }
 
@@ -40,14 +43,19 @@ impl<'src> Scanner<'src> {
         tokens.push(Token {
             kind: TokenKind::Eof,
             span: Span::new(eof_pos, eof_pos),
+            had_line_terminator_before: eof_had_line_terminator_before,
         });
 
         Ok(tokens)
     }
 
-    fn skip_whitespace_and_comments(&mut self) {
+    fn skip_whitespace_and_comments(&mut self) -> bool {
+        let mut had_line_terminator = false;
         loop {
             if let Some(len) = self.cursor.whitespace_len() {
+                if self.cursor.line_terminator_len().is_some() {
+                    had_line_terminator = true;
+                }
                 self.cursor.advance_by(len);
                 continue;
             }
@@ -56,6 +64,7 @@ impl<'src> Scanner<'src> {
                 Some(b'/') if self.cursor.peek_next() == Some(b'/') => {
                     while let Some(_) = self.cursor.peek() {
                         if self.cursor.line_terminator_len().is_some() {
+                            had_line_terminator = true;
                             break;
                         }
                         self.cursor.advance();
@@ -65,6 +74,11 @@ impl<'src> Scanner<'src> {
                     self.cursor.advance();
                     self.cursor.advance();
                     loop {
+                        if let Some(len) = self.cursor.line_terminator_len() {
+                            had_line_terminator = true;
+                            self.cursor.advance_by(len);
+                            continue;
+                        }
                         match self.cursor.advance() {
                             Some(b'*') if self.cursor.peek() == Some(b'/') => {
                                 self.cursor.advance();
@@ -78,6 +92,7 @@ impl<'src> Scanner<'src> {
                 _ => break,
             }
         }
+        had_line_terminator
     }
 
     fn scan_token_with_context(&mut self, prev: Option<&TokenKind>) -> Result<Token, SyntaxError> {
@@ -150,6 +165,7 @@ impl<'src> Scanner<'src> {
         Ok(Token {
             kind: TokenKind::RegexLiteral { pattern, flags },
             span: Span::new(start, end),
+            had_line_terminator_before: false,
         })
     }
 
@@ -222,7 +238,7 @@ impl<'src> Scanner<'src> {
                 if self.cursor.match_char(b'&') {
                     TokenKind::AmpAmp
                 } else {
-                    return Err(SyntaxError::new("unexpected '&'", start, 1));
+                    TokenKind::Amp
                 }
             }
             b'|' => {
@@ -299,6 +315,7 @@ impl<'src> Scanner<'src> {
         Ok(Token {
             kind,
             span: Span::new(start, end),
+            had_line_terminator_before: false,
         })
     }
 }

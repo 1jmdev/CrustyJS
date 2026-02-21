@@ -146,6 +146,16 @@ impl PartialEq for JsValue {
                     ..
                 },
             ) => a.ptr_eq(b),
+            (
+                JsValue::NativeFunction {
+                    handler: NativeFunction::ErrorCtor(a),
+                    ..
+                },
+                JsValue::NativeFunction {
+                    handler: NativeFunction::ErrorCtor(b),
+                    ..
+                },
+            ) => a == b,
             _ => false,
         }
     }

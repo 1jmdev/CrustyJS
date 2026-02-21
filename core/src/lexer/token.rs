@@ -3,6 +3,7 @@
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
+    pub had_line_terminator_before: bool,
 }
 
 /// Byte offset span in the source string.
@@ -99,6 +100,7 @@ pub enum TokenKind {
     PlusPlus,
     MinusMinus,
     AmpAmp,
+    Amp,
     PipePipe,
     NullishCoalescing,
     QuestionDot,
