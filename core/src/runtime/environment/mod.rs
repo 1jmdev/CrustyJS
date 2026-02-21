@@ -24,8 +24,9 @@ impl Environment {
     }
 
     pub fn push_scope_with_this(&mut self, heap: &mut Heap, this_binding: Option<JsValue>) {
-        self.scopes
-            .push(heap.alloc_cell(Scope::new_with_this(this_binding)));
+        self.scopes.push(heap.alloc_cell(Scope::new_with_this(Some(
+            this_binding.unwrap_or(JsValue::Undefined),
+        ))));
     }
 
     pub fn set_global_this(&mut self, value: JsValue) {

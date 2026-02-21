@@ -184,8 +184,14 @@ impl Interpreter {
             }
             JsValue::Proxy(_) | _ => {
                 if is_call {
+                    let call_args = vals.unwrap();
+                    if let Some(result) =
+                        self.call_object_prototype_method(receiver, property, &call_args)
+                    {
+                        return result;
+                    }
                     let method = self.get_property(receiver, property)?;
-                    self.call_function_with_this(&method, &vals.unwrap(), Some(receiver.clone()))
+                    self.call_function_with_this(&method, &call_args, Some(receiver.clone()))
                 } else {
                     self.get_property(receiver, property)
                 }

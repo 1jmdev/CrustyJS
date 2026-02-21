@@ -6,6 +6,9 @@ pub struct Property {
     pub value: JsValue,
     pub getter: Option<JsValue>,
     pub setter: Option<JsValue>,
+    pub writable: bool,
+    pub enumerable: bool,
+    pub configurable: bool,
 }
 
 impl Property {
@@ -14,6 +17,9 @@ impl Property {
             value,
             getter: None,
             setter: None,
+            writable: true,
+            enumerable: true,
+            configurable: true,
         }
     }
 
@@ -22,6 +28,9 @@ impl Property {
             value: JsValue::Undefined,
             getter: Some(getter),
             setter: None,
+            writable: false,
+            enumerable: true,
+            configurable: true,
         }
     }
 
@@ -30,6 +39,9 @@ impl Property {
             value: JsValue::Undefined,
             getter: None,
             setter: Some(setter),
+            writable: false,
+            enumerable: true,
+            configurable: true,
         }
     }
 }

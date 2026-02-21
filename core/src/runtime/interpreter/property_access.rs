@@ -221,7 +221,7 @@ impl Interpreter {
     ) -> Result<JsValue, RuntimeError> {
         match obj_val {
             JsValue::Object(obj) => {
-                let removed = obj.borrow_mut().properties.remove(key).is_some();
+                let removed = obj.borrow_mut().delete(key);
                 Ok(JsValue::Boolean(removed))
             }
             JsValue::Proxy(proxy) => {

@@ -79,6 +79,124 @@ fn object_statics_and_date_now() {
 }
 
 #[test]
+fn object_extended_statics() {
+    let output = run_and_capture(
+        r#"
+        const fromObj = Object.fromEntries([["x", 1], ["y", 2]]);
+        console.log(fromObj.x + fromObj.y);
+
+        const obj = { a: 1 };
+        Object.defineProperty(obj, "b", { value: 3 });
+        console.log(Object.hasOwn(obj, "b"));
+        console.log(Object.getOwnPropertyNames(obj).length);
+        console.log(Object.getOwnPropertyDescriptor(obj, "b").value);
+
+        const proto = { p: 9 };
+        const child = {};
+        Object.setPrototypeOf(child, proto);
+        console.log(Object.getPrototypeOf(child) === proto);
+
+        console.log(Object.is(NaN, NaN));
+        console.log(Object.is(0, -0));
+        "#,
+    );
+
+    assert_eq!(output, vec!["3", "true", "2", "3", "true", "true", "false"]);
+}
+
+#[test]
+fn object_prototype_methods_work() {
+    let output = run_and_capture(
+        r#"
+        const base = { a: 1 };
+        const child = Object.create(base);
+        child.b = 2;
+
+        console.log(base.isPrototypeOf(child));
+        console.log(child.hasOwnProperty("b"));
+        console.log(child.hasOwnProperty("a"));
+
+        Object.defineProperty(child, "hidden", { value: 9, enumerable: false });
+        console.log(child.propertyIsEnumerable("b"));
+        console.log(child.propertyIsEnumerable("hidden"));
+
+        console.log(child.toLocaleString());
+        console.log(child.valueOf() === child);
+        console.log(child.toString());
+        "#,
+    );
+
+    assert_eq!(
+        output,
+        vec![
+            "true",
+            "true",
+            "false",
+            "true",
+            "false",
+            "[object Object]",
+            "true",
+            "[object Object]"
+        ]
+    );
+}
+
+#[test]
+fn object_integrity_apis_work() {
+    let output = run_and_capture(
+        r#"
+        const o1 = { x: 1 };
+        console.log(Object.isExtensible(o1));
+        Object.preventExtensions(o1);
+        o1.y = 2;
+        console.log(Object.isExtensible(o1));
+        console.log(o1.y);
+
+        const o2 = { a: 1 };
+        Object.seal(o2);
+        console.log(Object.isSealed(o2));
+        delete o2.a;
+        console.log(o2.a);
+
+        const o3 = { a: 1 };
+        Object.freeze(o3);
+        o3.a = 9;
+        console.log(Object.isFrozen(o3));
+        console.log(o3.a);
+        "#,
+    );
+
+    assert_eq!(
+        output,
+        vec!["true", "false", "undefined", "true", "1", "true", "1"]
+    );
+}
+
+#[test]
+fn object_descriptor_apis_work() {
+    let output = run_and_capture(
+        r#"
+        const obj = {};
+        Object.defineProperties(obj, {
+            a: { value: 1, enumerable: true },
+            b: { value: 2, enumerable: false }
+        });
+
+        console.log(Object.keys(obj).length);
+        console.log(Object.getOwnPropertyNames(obj).length);
+        console.log(Object.getOwnPropertyDescriptor(obj, "b").enumerable);
+        console.log(Object.getOwnPropertyDescriptors(obj).a.value);
+
+        const arr = [10, 20];
+        console.log(Object.getOwnPropertyNames(arr).length >= 3);
+        console.log(Object.getOwnPropertyDescriptor(arr, "length").writable);
+        "#,
+    );
+
+    assert_eq!(output, vec!["1", "2", "false", "1", "true", "true"]);
+}
+
+#[test]
 fn array_reduce_and_sort() {
     let output = run_and_capture(
         r#"

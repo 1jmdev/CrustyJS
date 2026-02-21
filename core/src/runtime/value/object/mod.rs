@@ -17,6 +17,9 @@ pub struct JsObject {
     pub properties: HashMap<String, Property>,
     pub symbol_properties: HashMap<u64, (JsSymbol, Property)>,
     pub prototype: Option<Gc<GcCell<JsObject>>>,
+    pub extensible: bool,
+    pub sealed: bool,
+    pub frozen: bool,
     pub revision: u64,
 }
 
@@ -32,6 +35,9 @@ impl JsObject {
             properties: HashMap::new(),
             symbol_properties: HashMap::new(),
             prototype: None,
+            extensible: true,
+            sealed: false,
+            frozen: false,
             revision: 0,
         }
     }
@@ -49,20 +55,36 @@ impl JsObject {
     pub fn set(&mut self, key: String, value: JsValue) {
         self.revision += 1;
         if let Some(existing) = self.properties.get_mut(&key) {
+            if !existing.writable || self.frozen {
+                return;
+            }
             existing.value = value;
+            return;
+        }
+        if !self.extensible {
             return;
         }
         self.properties.insert(key, Property::new(value));
     }
 
     pub fn set_symbol(&mut self, sym: JsSymbol, value: JsValue) {
+        if !self.extensible {
+            return;
+        }
         self.symbol_properties
             .insert(sym.id, (sym, Property::new(value)));
     }
 
     pub fn set_getter(&mut self, key: String, getter: JsValue) {
         if let Some(existing) = self.properties.get_mut(&key) {
+            if !existing.configurable || self.frozen {
+                return;
+            }
             existing.getter = Some(getter);
+            existing.writable = false;
+            return;
+        }
+        if !self.extensible {
             return;
         }
         self.properties.insert(key, Property::with_getter(getter));
@@ -70,7 +92,14 @@ impl JsObject {
 
     pub fn set_setter(&mut self, key: String, setter: JsValue) {
         if let Some(existing) = self.properties.get_mut(&key) {
+            if !existing.configurable || self.frozen {
+                return;
+            }
             existing.setter = Some(setter);
+            existing.writable = false;
+            return;
+        }
+        if !self.extensible {
             return;
         }
         self.properties.insert(key, Property::with_setter(setter));
@@ -78,12 +107,42 @@ impl JsObject {
 
     pub fn delete(&mut self, key: &str) -> bool {
         self.revision += 1;
+        if let Some(prop) = self.properties.get(key)
+            && (!prop.configurable || self.sealed || self.frozen)
+        {
+            return false;
+        }
         self.properties.remove(key).is_some()
     }
 
     pub fn set_prototype(&mut self, proto: Option<Gc<GcCell<JsObject>>>) {
+        if !self.extensible {
+            return;
+        }
         self.revision += 1;
         self.prototype = proto;
+    }
+
+    pub fn prevent_extensions(&mut self) {
+        self.extensible = false;
+    }
+
+    pub fn seal(&mut self) {
+        self.extensible = false;
+        self.sealed = true;
+        for prop in self.properties.values_mut() {
+            prop.configurable = false;
+        }
+    }
+
+    pub fn freeze(&mut self) {
+        self.extensible = false;
+        self.sealed = true;
+        self.frozen = true;
+        for prop in self.properties.values_mut() {
+            prop.configurable = false;
+            prop.writable = false;
+        }
     }
 }
 
