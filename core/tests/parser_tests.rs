@@ -389,3 +389,27 @@ fn parse_rejects_with_identifier_reference() {
     let err = parse_error("with = 1;");
     assert!(err.contains("unexpected token 'with'"));
 }
+
+#[test]
+fn parse_rejects_debugger_as_identifier() {
+    let err = parse_error("var debugger = 1;");
+    assert!(err.contains("unexpected token 'debugger'"));
+}
+
+#[test]
+fn parse_allows_future_reserved_in_non_strict() {
+    let stmts = parse_source("var package = 1; var impl\\u0065ments = 2;");
+    assert_eq!(stmts.len(), 2);
+}
+
+#[test]
+fn parse_rejects_future_reserved_in_strict() {
+    let err = parse_error("\"use strict\"; var package = 1;");
+    assert!(err.contains("unexpected token 'package'"));
+}
+
+#[test]
+fn parse_rejects_escaped_future_reserved_in_strict() {
+    let err = parse_error("\"use strict\"; var \\u0070\\u0075\\u0062\\u006c\\u0069\\u0063 = 1;");
+    assert!(err.contains("unexpected token 'public'"));
+}

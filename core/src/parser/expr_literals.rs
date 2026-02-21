@@ -27,10 +27,10 @@ impl Parser {
     }
 
     pub(crate) fn parse_ident_or_arrow(&mut self, name: String) -> Result<Expr, SyntaxError> {
-        if name == "with" {
+        if self.is_disallowed_identifier_reference(&name) {
             let token = self.tokens[self.pos - 1].clone();
             return Err(SyntaxError::new(
-                "unexpected token 'with'",
+                format!("unexpected token '{}'", name),
                 token.span.start,
                 token.span.len().max(1),
             ));
@@ -182,7 +182,10 @@ impl Parser {
                         },
                     )
                 } else {
-                    if !was_identifier || key_name == "this" || key_name == "with" {
+                    if !was_identifier
+                        || key_name == "this"
+                        || self.is_disallowed_identifier_reference(&key_name)
+                    {
                         return Err(SyntaxError::new(
                             format!("unexpected token '{}'", key_name),
                             key_token.span.start,

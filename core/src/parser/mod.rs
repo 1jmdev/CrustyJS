@@ -12,7 +12,7 @@ mod switch_parser;
 
 use crate::errors::SyntaxError;
 use crate::lexer::token::{Token, TokenKind};
-use ast::Program;
+use ast::{Expr, Literal, Program, Stmt};
 
 /// Parse a token stream into a Program AST.
 pub fn parse(tokens: Vec<Token>) -> Result<Program, SyntaxError> {
@@ -24,17 +24,33 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, SyntaxError> {
 pub(crate) struct Parser {
     tokens: Vec<Token>,
     pos: usize,
+    strict_mode: bool,
 }
 
 impl Parser {
     fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, pos: 0 }
+        Self {
+            tokens,
+            pos: 0,
+            strict_mode: false,
+        }
     }
 
     fn parse_program(&mut self) -> Result<Program, SyntaxError> {
         let mut body = Vec::new();
+        let mut in_directive_prologue = true;
         while !self.is_at_end() {
-            body.push(self.parse_statement()?);
+            let stmt = self.parse_statement()?;
+            if in_directive_prologue {
+                if let Stmt::ExprStmt(Expr::Literal(Literal::String(s))) = &stmt {
+                    if s == "use strict" {
+                        self.strict_mode = true;
+                    }
+                } else {
+                    in_directive_prologue = false;
+                }
+            }
+            body.push(stmt);
         }
         Ok(Program { body })
     }
@@ -75,13 +91,42 @@ impl Parser {
     pub(crate) fn expect_ident(&mut self) -> Result<String, SyntaxError> {
         let token = self.advance().clone();
         match token.kind {
-            TokenKind::Ident(name) => Ok(name),
+            TokenKind::Ident(name) => {
+                if self.is_disallowed_binding_identifier(&name) {
+                    return Err(SyntaxError::new(
+                        format!("unexpected token '{}'", name),
+                        token.span.start,
+                        token.span.len().max(1),
+                    ));
+                }
+                Ok(name)
+            }
             _ => Err(SyntaxError::new(
                 format!("expected identifier, found {:?}", token.kind),
                 token.span.start,
                 token.span.len().max(1),
             )),
         }
+    }
+
+    pub(crate) fn is_disallowed_binding_identifier(&self, name: &str) -> bool {
+        matches!(name, "this") || self.is_disallowed_identifier_reference(name)
+    }
+
+    pub(crate) fn is_disallowed_identifier_reference(&self, name: &str) -> bool {
+        matches!(name, "with" | "enum" | "debugger")
+            || (self.strict_mode
+                && matches!(
+                    name,
+                    "implements"
+                        | "interface"
+                        | "package"
+                        | "private"
+                        | "protected"
+                        | "public"
+                        | "static"
+                        | "yield"
+                ))
     }
 
     pub(crate) fn expect_property_name(&mut self) -> Result<String, SyntaxError> {

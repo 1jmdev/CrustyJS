@@ -282,7 +282,10 @@ impl<'src> Scanner<'src> {
             b'"' | b'\'' => self.scan_string(ch, start)?,
             b'`' => return self.scan_template(start),
             c if c.is_ascii_digit() => self.scan_number(start),
-            c if is_ident_start(c) => self.scan_identifier(start),
+            c if is_ident_start(c) => self.scan_identifier(start)?,
+            b'\\' if self.cursor.peek() == Some(b'u') => {
+                self.scan_identifier_after_escape_start(start)?
+            }
             _ => {
                 return Err(SyntaxError::new(
                     format!("unexpected character '{}'", ch as char),

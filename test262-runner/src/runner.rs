@@ -34,12 +34,8 @@ pub fn run_test(path: &Path, source: &str, metadata: &TestMetadata) -> TestResul
     }
 
     if metadata.is_only_strict() {
-        let strict_source = format!("\"use strict\";\n{}", test_source);
-        return run_single(
-            &compose(metadata, &strict_source),
-            metadata,
-            metadata.is_async(),
-        );
+        let strict_source = format!("\"use strict\";\n{}", compose(metadata, test_source));
+        return run_single(&strict_source, metadata, metadata.is_async());
     }
 
     let sloppy_result = run_single(
@@ -51,12 +47,8 @@ pub fn run_test(path: &Path, source: &str, metadata: &TestMetadata) -> TestResul
         return sloppy_result;
     }
 
-    let strict_source = format!("\"use strict\";\n{}", test_source);
-    run_single(
-        &compose(metadata, &strict_source),
-        metadata,
-        metadata.is_async(),
-    )
+    let strict_source = format!("\"use strict\";\n{}", compose(metadata, test_source));
+    run_single(&strict_source, metadata, metadata.is_async())
 }
 
 fn compose(metadata: &TestMetadata, test_source: &str) -> String {
