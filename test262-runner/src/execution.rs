@@ -19,9 +19,13 @@ pub struct SuiteSummary {
 }
 
 pub fn init_thread_pool() {
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(8);
+
     rayon::ThreadPoolBuilder::new()
         .stack_size(32 * 1024 * 1024)
-        .num_threads(16)
+        .num_threads(threads)
         .build_global()
         .ok();
 }
