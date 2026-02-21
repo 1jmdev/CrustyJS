@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::errors::RuntimeError;
-use crate::parser::ast::{AssignOp, BinOp, Literal, PropertyKey, UnaryOp};
+use crate::parser::ast::{AssignOp, BinOp, PropertyKey};
 use crate::runtime::value::abstract_equals;
 use crate::runtime::value::iterator::get_property_simple;
 use crate::runtime::value::symbol;
@@ -245,24 +245,5 @@ impl Interpreter {
             AssignOp::Mod => BinOp::Mod,
         };
         self.eval_binary(lhs, &bin, rhs)
-    }
-}
-
-pub(crate) fn eval_literal(lit: &Literal) -> JsValue {
-    match lit {
-        Literal::Number(n) => JsValue::Number(*n),
-        Literal::String(s) => JsValue::String(s.clone()),
-        Literal::Boolean(b) => JsValue::Boolean(*b),
-        Literal::Null => JsValue::Null,
-        Literal::Undefined => JsValue::Undefined,
-    }
-}
-
-pub(crate) fn eval_unary(op: &UnaryOp, val: JsValue) -> Result<JsValue, RuntimeError> {
-    match op {
-        UnaryOp::Neg => Ok(JsValue::Number(-val.to_number())),
-        UnaryOp::Not => Ok(JsValue::Boolean(!val.to_boolean())),
-        UnaryOp::Void => Ok(JsValue::Undefined),
-        UnaryOp::Pos => Ok(JsValue::Number(val.to_number())),
     }
 }

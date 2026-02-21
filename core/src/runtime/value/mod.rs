@@ -11,7 +11,7 @@ pub mod regexp;
 pub mod string_methods;
 pub mod symbol;
 
-pub use coercion::abstract_equals;
+pub use coercion::{abstract_equals, eval_literal, eval_unary};
 
 use crate::embedding::callback::NativeFunctionBoxed;
 use crate::parser::ast::{Param, Stmt};

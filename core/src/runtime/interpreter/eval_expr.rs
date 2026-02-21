@@ -1,4 +1,3 @@
-use super::eval_expr_helpers::{eval_literal, eval_unary};
 use super::Interpreter;
 use crate::errors::RuntimeError;
 use crate::parser::ast::{
@@ -8,6 +7,7 @@ use crate::runtime::value::array::JsArray;
 use crate::runtime::value::object::JsObject;
 use crate::runtime::value::regexp::{JsRegExp, RegExpFlags};
 use crate::runtime::value::JsValue;
+use crate::runtime::value::{eval_literal, eval_unary};
 impl Interpreter {
     pub(crate) fn eval_expr(&mut self, expr: &Expr) -> Result<JsValue, RuntimeError> {
         match expr {
