@@ -27,6 +27,15 @@ impl Parser {
     }
 
     pub(crate) fn parse_ident_or_arrow(&mut self, name: String) -> Result<Expr, SyntaxError> {
+        if name == "with" {
+            let token = self.tokens[self.pos - 1].clone();
+            return Err(SyntaxError::new(
+                "unexpected token 'with'",
+                token.span.start,
+                token.span.len().max(1),
+            ));
+        }
+
         if self.check(&TokenKind::Arrow) {
             self.advance();
             let body = self.parse_arrow_body()?;
@@ -110,7 +119,9 @@ impl Parser {
                 self.expect(&TokenKind::Colon)?;
                 (PropertyKey::Computed(key_expr), self.parse_expr(0)?)
             } else {
-                let key_name = self.expect_ident()?;
+                let was_identifier = matches!(self.peek(), TokenKind::Ident(_));
+                let key_name = self.expect_property_name()?;
+                let key_token = self.tokens[self.pos - 1].clone();
                 if (key_name == "get" || key_name == "set") && !self.check(&TokenKind::Colon) {
                     let accessor_key = PropertyKey::Identifier(self.expect_ident()?);
                     self.expect(&TokenKind::LeftParen)?;
@@ -171,6 +182,13 @@ impl Parser {
                         },
                     )
                 } else {
+                    if !was_identifier || key_name == "this" || key_name == "with" {
+                        return Err(SyntaxError::new(
+                            format!("unexpected token '{}'", key_name),
+                            key_token.span.start,
+                            key_token.span.len().max(1),
+                        ));
+                    }
                     (
                         PropertyKey::Identifier(key_name.clone()),
                         Expr::Identifier(key_name),

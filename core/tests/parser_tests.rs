@@ -11,6 +11,14 @@ fn parse_source(source: &str) -> Vec<Stmt> {
     program.body
 }
 
+fn parse_error(source: &str) -> String {
+    let tokens = lex(source).expect("lexing should succeed");
+    parse(tokens)
+        .err()
+        .expect("parsing should fail")
+        .to_string()
+}
+
 #[test]
 fn parse_variable_declaration() {
     let stmts = parse_source("let x = 42;");
@@ -368,4 +376,16 @@ fn parse_arrow_params_with_trailing_comma() {
         }
         other => panic!("expected trailing-comma arrow function, got {other:?}"),
     }
+}
+
+#[test]
+fn parse_rejects_this_in_object_shorthand() {
+    let err = parse_error("({this});");
+    assert!(err.contains("unexpected token 'this'"));
+}
+
+#[test]
+fn parse_rejects_with_identifier_reference() {
+    let err = parse_error("with = 1;");
+    assert!(err.contains("unexpected token 'with'"));
 }
