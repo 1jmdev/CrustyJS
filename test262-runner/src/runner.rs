@@ -3,7 +3,7 @@ use std::path::Path;
 use crustyjs_core::Context;
 
 use crate::harness;
-use crate::metadata::{strip_frontmatter, Negative, TestMetadata};
+use crate::metadata::{Negative, TestMetadata, strip_frontmatter};
 
 #[derive(Debug, Clone)]
 pub enum TestResult {
@@ -59,7 +59,7 @@ fn run_module_test(path: &Path, metadata: &TestMetadata) -> TestResult {
                 TestResult::Passed
             }
         }
-        Err(e) => evaluate_error(metadata, &e.to_string()),
+        Err(e) => evaluate_error_with_neg(&metadata.negative, &e.to_string()),
     }
 }
 
@@ -80,10 +80,6 @@ fn run_single(source: &str, metadata: &TestMetadata) -> TestResult {
         }
         Err(e) => evaluate_error_with_neg(&negative, &e.to_string()),
     }
-}
-
-fn evaluate_error(metadata: &TestMetadata, error_msg: &str) -> TestResult {
-    evaluate_error_with_neg(&metadata.negative, error_msg)
 }
 
 fn evaluate_error_with_neg(negative: &Option<Negative>, error_msg: &str) -> TestResult {
