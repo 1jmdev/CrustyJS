@@ -4,6 +4,38 @@ use crate::parser::ast::{Stmt, VarDeclKind};
 use crate::runtime::environment::BindingKind;
 use crate::runtime::value::JsValue;
 
+macro_rules! loop_body {
+    ($flow:expr) => {
+        match $flow {
+            ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
+            ControlFlow::Break(None) => break,
+            ControlFlow::Break(label) => return Ok(ControlFlow::Break(label)),
+            ControlFlow::Continue(None) => {}
+            ControlFlow::Continue(label) => return Ok(ControlFlow::Continue(label)),
+            ControlFlow::None => {}
+        }
+    };
+    ($flow:expr, scope: $self:expr) => {
+        match $flow {
+            ControlFlow::Return(v) => {
+                $self.env.pop_scope();
+                return Ok(ControlFlow::Return(v));
+            }
+            ControlFlow::Break(None) => break,
+            ControlFlow::Break(label) => {
+                $self.env.pop_scope();
+                return Ok(ControlFlow::Break(label));
+            }
+            ControlFlow::Continue(None) => {}
+            ControlFlow::Continue(label) => {
+                $self.env.pop_scope();
+                return Ok(ControlFlow::Continue(label));
+            }
+            ControlFlow::None => {}
+        }
+    };
+}
+
 impl Interpreter {
     pub(crate) fn eval_stmt(&mut self, stmt: &Stmt) -> Result<ControlFlow, RuntimeError> {
         self.check_step_limit()?;
@@ -19,30 +51,20 @@ impl Interpreter {
                 init,
             } => {
                 let value = match init {
-                    Some(expr) => self.eval_expr(expr)?,
+                    Some(e) => self.eval_expr(e)?,
                     None => JsValue::Undefined,
                 };
-                let binding_kind = match kind {
-                    VarDeclKind::Let => BindingKind::Let,
-                    VarDeclKind::Const => BindingKind::Const,
-                    VarDeclKind::Var => BindingKind::Var,
-                };
-                self.eval_pattern_binding_with_kind(pattern, value, binding_kind)?;
+                self.eval_pattern_binding_with_kind(pattern, value, var_binding(kind))?;
                 Ok(ControlFlow::None)
             }
             Stmt::Block(stmts) => self.eval_block(stmts),
             Stmt::VarDeclList { kind, declarations } => {
-                let binding_kind = match kind {
-                    VarDeclKind::Let => BindingKind::Let,
-                    VarDeclKind::Const => BindingKind::Const,
-                    VarDeclKind::Var => BindingKind::Var,
-                };
                 for (pattern, init) in declarations {
                     let value = match init {
-                        Some(expr) => self.eval_expr(expr)?,
+                        Some(e) => self.eval_expr(e)?,
                         None => JsValue::Undefined,
                     };
-                    self.eval_pattern_binding_with_kind(pattern, value, binding_kind)?;
+                    self.eval_pattern_binding_with_kind(pattern, value, var_binding(kind))?;
                 }
                 Ok(ControlFlow::None)
             }
@@ -51,30 +73,92 @@ impl Interpreter {
                 then_branch,
                 else_branch,
             } => {
-                let cond_val = self.eval_expr(condition)?;
-                if cond_val.to_boolean() {
+                if self.eval_expr(condition)?.to_boolean() {
                     self.eval_stmt(then_branch)
-                } else if let Some(else_branch) = else_branch {
-                    self.eval_stmt(else_branch)
+                } else if let Some(b) = else_branch {
+                    self.eval_stmt(b)
                 } else {
                     Ok(ControlFlow::None)
                 }
             }
             Stmt::While { condition, body } => {
                 loop {
-                    let cond_val = self.eval_expr(condition)?;
-                    if !cond_val.to_boolean() {
+                    if !self.eval_expr(condition)?.to_boolean() {
                         break;
                     }
-                    match self.eval_stmt(body)? {
-                        ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
-                        ControlFlow::Break(None) => break,
-                        ControlFlow::Break(label) => return Ok(ControlFlow::Break(label)),
-                        ControlFlow::Continue(None) => {}
-                        ControlFlow::Continue(label) => return Ok(ControlFlow::Continue(label)),
-                        ControlFlow::None => {}
+                    loop_body!(self.eval_stmt(body)?);
+                }
+                Ok(ControlFlow::None)
+            }
+            Stmt::DoWhile { body, condition } => {
+                loop {
+                    loop_body!(self.eval_stmt(body)?);
+                    if !self.eval_expr(condition)?.to_boolean() {
+                        break;
                     }
                 }
+                Ok(ControlFlow::None)
+            }
+            Stmt::ForLoop {
+                init,
+                condition,
+                update,
+                body,
+            } => {
+                self.env.push_scope(&mut self.heap);
+                if let Some(s) = init {
+                    self.eval_stmt(s)?;
+                }
+                loop {
+                    if let Some(c) = condition {
+                        if !self.eval_expr(c)?.to_boolean() {
+                            break;
+                        }
+                    }
+                    loop_body!(self.eval_stmt(body)?, scope: self);
+                    if let Some(u) = update {
+                        self.eval_expr(u)?;
+                    }
+                }
+                self.env.pop_scope();
+                Ok(ControlFlow::None)
+            }
+            Stmt::ForOf {
+                variable,
+                iterable,
+                body,
+            } => {
+                let iter_val = self.eval_expr(iterable)?;
+                let elements = self.collect_iterable(&iter_val)?;
+                self.env.push_scope(&mut self.heap);
+                self.env.define(variable.clone(), JsValue::Undefined);
+                for elem in &elements {
+                    self.env.set(variable, elem.clone())?;
+                    loop_body!(self.eval_stmt(body)?, scope: self);
+                }
+                self.env.pop_scope();
+                Ok(ControlFlow::None)
+            }
+            Stmt::ForIn {
+                variable,
+                object,
+                body,
+            } => {
+                let source = self.eval_expr(object)?;
+                let keys: Vec<String> = match source {
+                    JsValue::Object(obj) => obj.borrow().properties.keys().cloned().collect(),
+                    JsValue::Array(arr) => (0..arr.borrow().len()).map(|i| i.to_string()).collect(),
+                    JsValue::String(s) => (0..s.chars().count()).map(|i| i.to_string()).collect(),
+                    _ => Vec::new(),
+                };
+                self.env.push_scope(&mut self.heap);
+                self.env
+                    .define(variable.clone(), JsValue::String(String::new()));
+                for key in keys {
+                    self.env.set(variable, JsValue::String(key))?;
+                    loop_body!(self.eval_stmt(body)?, scope: self);
+                }
+                self.env.pop_scope();
                 Ok(ControlFlow::None)
             }
             Stmt::FunctionDecl {
@@ -85,10 +169,11 @@ impl Interpreter {
                 is_generator,
                 decl_offset,
             } => {
-                let proto = crate::runtime::value::object::JsObject::new();
-                let proto_gc = self.heap.alloc_cell(proto);
+                let proto_gc = self
+                    .heap
+                    .alloc_cell(crate::runtime::value::object::JsObject::new());
                 let mut fn_props = crate::runtime::value::object::JsObject::new();
-                fn_props.set("prototype".to_string(), JsValue::Object(proto_gc));
+                fn_props.set("prototype".into(), JsValue::Object(proto_gc));
                 let func = JsValue::Function {
                     name: name.clone(),
                     params: params.clone(),
@@ -112,140 +197,10 @@ impl Interpreter {
             }
             Stmt::Break { label } => Ok(ControlFlow::Break(label.clone())),
             Stmt::Continue { label } => Ok(ControlFlow::Continue(label.clone())),
-            Stmt::Labeled { label, body } => {
-                let flow = self.eval_stmt(body)?;
-                match flow {
-                    ControlFlow::Break(Some(ref l)) if l == label => Ok(ControlFlow::None),
-                    other => Ok(other),
-                }
-            }
-            Stmt::ForLoop {
-                init,
-                condition,
-                update,
-                body,
-            } => {
-                self.env.push_scope(&mut self.heap);
-                if let Some(init_stmt) = init {
-                    self.eval_stmt(init_stmt)?;
-                }
-                loop {
-                    if let Some(cond) = condition
-                        && !self.eval_expr(cond)?.to_boolean()
-                    {
-                        break;
-                    }
-                    match self.eval_stmt(body)? {
-                        ControlFlow::Return(v) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Return(v));
-                        }
-                        ControlFlow::Break(None) => break,
-                        ControlFlow::Break(label) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Break(label));
-                        }
-                        ControlFlow::Continue(None) => {}
-                        ControlFlow::Continue(label) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Continue(label));
-                        }
-                        ControlFlow::None => {}
-                    }
-                    if let Some(upd) = update {
-                        self.eval_expr(upd)?;
-                    }
-                }
-                self.env.pop_scope();
-                Ok(ControlFlow::None)
-            }
-            Stmt::ForOf {
-                variable,
-                iterable,
-                body,
-            } => {
-                let iter_val = self.eval_expr(iterable)?;
-                let elements = self.collect_iterable(&iter_val)?;
-                self.env.push_scope(&mut self.heap);
-                self.env.define(variable.clone(), JsValue::Undefined);
-                for elem in &elements {
-                    self.env.set(variable, elem.clone())?;
-                    match self.eval_stmt(body)? {
-                        ControlFlow::Return(v) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Return(v));
-                        }
-                        ControlFlow::Break(None) => break,
-                        ControlFlow::Break(label) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Break(label));
-                        }
-                        ControlFlow::Continue(None) => {}
-                        ControlFlow::Continue(label) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Continue(label));
-                        }
-                        ControlFlow::None => {}
-                    }
-                }
-                self.env.pop_scope();
-                Ok(ControlFlow::None)
-            }
-            Stmt::ForIn {
-                variable,
-                object,
-                body,
-            } => {
-                let source = self.eval_expr(object)?;
-                let keys: Vec<String> = match source {
-                    JsValue::Object(obj) => obj.borrow().properties.keys().cloned().collect(),
-                    JsValue::Array(arr) => (0..arr.borrow().len()).map(|i| i.to_string()).collect(),
-                    JsValue::String(s) => (0..s.chars().count()).map(|i| i.to_string()).collect(),
-                    _ => Vec::new(),
-                };
-
-                self.env.push_scope(&mut self.heap);
-                self.env
-                    .define(variable.clone(), JsValue::String(String::new()));
-                for key in keys {
-                    self.env.set(variable, JsValue::String(key))?;
-                    match self.eval_stmt(body)? {
-                        ControlFlow::Return(v) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Return(v));
-                        }
-                        ControlFlow::Break(None) => break,
-                        ControlFlow::Break(label) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Break(label));
-                        }
-                        ControlFlow::Continue(None) => {}
-                        ControlFlow::Continue(label) => {
-                            self.env.pop_scope();
-                            return Ok(ControlFlow::Continue(label));
-                        }
-                        ControlFlow::None => {}
-                    }
-                }
-                self.env.pop_scope();
-                Ok(ControlFlow::None)
-            }
-            Stmt::DoWhile { body, condition } => {
-                loop {
-                    match self.eval_stmt(body)? {
-                        ControlFlow::Return(v) => return Ok(ControlFlow::Return(v)),
-                        ControlFlow::Break(None) => return Ok(ControlFlow::None),
-                        ControlFlow::Break(label) => return Ok(ControlFlow::Break(label)),
-                        ControlFlow::Continue(None) => {}
-                        ControlFlow::Continue(label) => return Ok(ControlFlow::Continue(label)),
-                        ControlFlow::None => {}
-                    }
-                    if !self.eval_expr(condition)?.to_boolean() {
-                        break;
-                    }
-                }
-                Ok(ControlFlow::None)
-            }
+            Stmt::Labeled { label, body } => match self.eval_stmt(body)? {
+                ControlFlow::Break(Some(ref l)) if l == label => Ok(ControlFlow::None),
+                other => Ok(other),
+            },
             Stmt::Throw(expr) => self.eval_throw_expr(expr),
             Stmt::TryCatch {
                 try_block,
@@ -281,14 +236,19 @@ impl Interpreter {
         let mut result = ControlFlow::None;
         for s in stmts {
             result = self.eval_stmt(s)?;
-            if matches!(
-                result,
-                ControlFlow::Return(_) | ControlFlow::Break(_) | ControlFlow::Continue(_)
-            ) {
+            if !matches!(result, ControlFlow::None) {
                 break;
             }
         }
         self.env.pop_scope();
         Ok(result)
+    }
+}
+
+fn var_binding(kind: &VarDeclKind) -> BindingKind {
+    match kind {
+        VarDeclKind::Let => BindingKind::Let,
+        VarDeclKind::Const => BindingKind::Const,
+        VarDeclKind::Var => BindingKind::Var,
     }
 }
