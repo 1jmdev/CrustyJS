@@ -64,7 +64,7 @@ fn compose(metadata: &TestMetadata, test_source: &str) -> String {
 }
 
 fn run_module_test(path: &Path, metadata: &TestMetadata) -> TestResult {
-    let mut ctx = Context::new();
+    let mut ctx = Context::new_with_realtime(false);
     ctx.set_max_steps(1_000_000);
 
     if let Err(err) = ctx.eval(harness::host_harness_source()) {
@@ -94,7 +94,7 @@ fn run_module_test(path: &Path, metadata: &TestMetadata) -> TestResult {
 fn run_single(source: &str, metadata: &TestMetadata, is_async: bool) -> TestResult {
     let negative = metadata.negative.clone();
 
-    let mut ctx = Context::new();
+    let mut ctx = Context::new_with_realtime(false);
     ctx.set_max_steps(1_000_000);
 
     let done_state = if is_async {
