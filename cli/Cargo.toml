@@ -6,4 +6,6 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.57", features = ["derive"] }
 crustyjs = { package = "core", path = "../core" }
-rustyline = "14"
+rustyline = { version = "17", features = ["derive"] }
+owo-colors = "4"
+nu-ansi-term = "0.50.3"

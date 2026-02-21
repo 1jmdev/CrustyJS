@@ -1,78 +1,63 @@
 mod completer;
+mod helper;
+mod highlighter;
+mod hinter;
 
+use crustyjs::context::Context;
 use crustyjs::errors::{CrustyError, RuntimeError};
-use crustyjs::runtime::interpreter::Interpreter;
-use rustyline::DefaultEditor;
+use owo_colors::OwoColorize;
 use rustyline::error::ReadlineError;
+use rustyline::{Config, EditMode, Editor};
 use std::fs;
 
-pub fn run() -> Result<(), CrustyError> {
-    let mut rl = DefaultEditor::new().map_err(|e| {
-        CrustyError::Runtime(RuntimeError::TypeError {
-            message: format!("failed to initialize REPL: {e}"),
-        })
-    })?;
-    let mut interp = Interpreter::new_with_realtime_timers(true);
+use self::helper::ReplHelper;
 
-    let _ = completer::keywords();
-    println!("CrustyJS v0.1.0");
+pub fn run() -> Result<(), CrustyError> {
+    let config = Config::builder()
+        .history_ignore_dups(true)
+        .map_err(to_runtime_error)?
+        .completion_type(rustyline::CompletionType::List)
+        .edit_mode(EditMode::Emacs)
+        .build();
+
+    let mut rl: Editor<ReplHelper, rustyline::history::DefaultHistory> =
+        Editor::with_config(config).map_err(to_runtime_error)?;
+    rl.set_helper(Some(ReplHelper));
+
+    let mut ctx = Context::new_with_realtime(true);
+
+    println!(
+        "{} {}",
+        "CrustyJS".bright_cyan().bold(),
+        env!("CARGO_PKG_VERSION").bright_black()
+    );
+    println!("{}", "Type .help for REPL commands".bright_black());
 
     loop {
         match rl.readline("> ") {
-            Ok(mut line) => {
-                while needs_more_input(&line) {
-                    match rl.readline("... ") {
-                        Ok(next) => {
-                            line.push('\n');
-                            line.push_str(&next);
-                        }
-                        Err(_) => break,
-                    }
-                }
-
+            Ok(line) => {
                 let trimmed = line.trim();
                 if trimmed.is_empty() {
                     continue;
                 }
-                if trimmed == ".exit" || trimmed == "exit" {
-                    break;
-                }
-                if trimmed == ".help" {
-                    println!(".help                Show commands");
-                    println!(".clear               Reset interpreter state");
-                    println!(".load <file.js>      Load and run script");
-                    println!(".exit                Exit REPL");
-                    continue;
-                }
-                if trimmed == ".clear" {
-                    interp = Interpreter::new_with_realtime_timers(true);
-                    println!("environment cleared");
-                    continue;
-                }
-                if let Some(path) = trimmed.strip_prefix(".load ") {
-                    match fs::read_to_string(path.trim()) {
-                        Ok(src) => {
-                            run_snippet(&mut interp, &src)?;
-                        }
-                        Err(err) => eprintln!("load error: {err}"),
-                    }
+
+                if handle_command(trimmed, &mut ctx)? {
                     continue;
                 }
 
-                let suggestions = completer::suggest_for(trimmed);
-                if suggestions.len() <= 5 && suggestions.iter().any(|kw| kw.starts_with(trimmed)) {
-                    let _ = suggestions;
-                }
                 let _ = rl.add_history_entry(trimmed);
-
-                match run_snippet(&mut interp, trimmed) {
-                    Ok(_) => println!("undefined"),
-                    Err(err) => eprintln!("{err:?}"),
-                }
+                run_snippet(&mut ctx, trimmed);
             }
-            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
-            Err(e) => {
-                eprintln!("repl error: {e}");
+            Err(ReadlineError::Interrupted) => {
+                println!("{}", "^C".yellow());
+                continue;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("{}", "bye".bright_black());
+                break;
+            }
+            Err(err) => {
+                eprintln!("{} {err}", "repl error:".red().bold());
                 break;
             }
         }
@@ -81,22 +66,76 @@ pub fn run() -> Result<(), CrustyError> {
     Ok(())
 }
 
-fn run_snippet(interp: &mut Interpreter, source: &str) -> Result<(), CrustyError> {
-    crustyjs::lexer::lex(source)
-        .map_err(CrustyError::from)
-        .and_then(|tokens| crustyjs::parser::parse(tokens).map_err(CrustyError::from))
-        .and_then(|program| {
-            interp
-                .run_with_path(&program, std::path::PathBuf::from("."))
-                .map_err(CrustyError::from)
-        })
+fn handle_command(trimmed: &str, ctx: &mut Context) -> Result<bool, CrustyError> {
+    if trimmed == ".exit" || trimmed == "exit" {
+        std::process::exit(0);
+    }
+    if trimmed == ".help" {
+        println!("{}", ".help                show commands".bright_blue());
+        println!(
+            "{}",
+            ".clear               reset interpreter state".bright_blue()
+        );
+        println!(
+            "{}",
+            ".load <file.js>      load and run script".bright_blue()
+        );
+        println!("{}", ".exit                exit REPL".bright_blue());
+        return Ok(true);
+    }
+    if trimmed == ".clear" {
+        *ctx = Context::new_with_realtime(true);
+        println!("{}", "environment cleared".green());
+        return Ok(true);
+    }
+    if let Some(path) = trimmed.strip_prefix(".load ") {
+        let path = path.trim();
+        match fs::read_to_string(path) {
+            Ok(source) => {
+                run_snippet(ctx, &source);
+            }
+            Err(err) => eprintln!("{} {err}", "load error:".red().bold()),
+        }
+        return Ok(true);
+    }
+    Ok(false)
 }
 
-fn needs_more_input(source: &str) -> bool {
+fn run_snippet(ctx: &mut Context, source: &str) {
+    match ctx.eval(source) {
+        Ok(()) => println!("{}", "undefined".bright_black()),
+        Err(err) => eprintln!("{} {err:?}", "error:".red().bold()),
+    }
+}
+
+pub fn needs_more_input(source: &str) -> bool {
     let mut parens = 0i32;
     let mut braces = 0i32;
     let mut brackets = 0i32;
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut escaped = false;
+
     for ch in source.chars() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if ch == '\\' {
+            escaped = true;
+            continue;
+        }
+        if !in_double && ch == '\'' {
+            in_single = !in_single;
+            continue;
+        }
+        if !in_single && ch == '"' {
+            in_double = !in_double;
+            continue;
+        }
+        if in_single || in_double {
+            continue;
+        }
         match ch {
             '(' => parens += 1,
             ')' => parens -= 1,
@@ -108,5 +147,16 @@ fn needs_more_input(source: &str) -> bool {
         }
     }
 
-    parens > 0 || braces > 0 || brackets > 0 || source.trim_end().ends_with('\\')
+    in_single
+        || in_double
+        || parens > 0
+        || braces > 0
+        || brackets > 0
+        || source.trim_end().ends_with('\\')
+}
+
+fn to_runtime_error(err: ReadlineError) -> CrustyError {
+    CrustyError::Runtime(RuntimeError::TypeError {
+        message: format!("failed to initialize REPL: {err}"),
+    })
 }

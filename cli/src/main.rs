@@ -4,6 +4,7 @@ use std::fs;
 use std::process;
 
 use clap::Parser;
+use owo_colors::OwoColorize;
 
 mod repl;
 
@@ -36,13 +37,17 @@ fn main() {
     let cli = Cli::parse();
 
     if cli.version {
-        println!("crustyjs {}", env!("CARGO_PKG_VERSION"));
+        println!(
+            "{} {}",
+            "crustyjs".bright_cyan().bold(),
+            env!("CARGO_PKG_VERSION").bright_black()
+        );
         return;
     }
 
     if cli.file.is_none() && cli.eval.is_none() {
         if let Err(err) = repl::run() {
-            eprintln!("{err:?}");
+            eprintln!("{} {err:?}", "error:".red().bold());
             process::exit(1);
         }
         return;
@@ -55,7 +60,11 @@ fn main() {
         match fs::read_to_string(&file) {
             Ok(s) => (s, std::path::PathBuf::from(file)),
             Err(e) => {
-                eprintln!("error: could not read '{}': {e}", file);
+                eprintln!(
+                    "{} could not read '{}': {e}",
+                    "error:".red().bold(),
+                    file.yellow()
+                );
                 process::exit(1);
             }
         }
@@ -74,7 +83,7 @@ fn main() {
 
     if cli.tokens {
         for token in &tokens {
-            println!("{:?}", token);
+            println!("{} {:?}", "token".bright_black(), token);
         }
     }
 
@@ -90,12 +99,14 @@ fn main() {
     };
 
     if cli.ast {
-        println!("{:#?}", program);
+        println!("{}", "AST".bright_blue().bold());
+        println!("{program:#?}");
     }
 
     if cli.bytecode {
         let mut compiler = crustyjs::vm::compiler::Compiler::new();
         let chunk = compiler.compile(program.clone());
+        println!("{}", "Bytecode".bright_blue().bold());
         print!("{}", chunk.disassemble());
     }
 
@@ -110,7 +121,7 @@ fn main() {
     };
 
     if let Err(err) = result {
-        eprintln!("{err:?}");
+        eprintln!("{} {err:?}", "runtime error:".red().bold());
         process::exit(1);
     }
 }
@@ -124,11 +135,12 @@ fn format_syntax_error(
     let map = crustyjs::diagnostics::source_map::SourceMap::from_source(source);
     let pos = map.byte_to_pos(err.span.offset());
     format!(
-        "{} error at {}:{}:{}: {}",
-        phase,
-        source_path.display(),
+        "{} {} at {}:{}:{}: {}",
+        "syntax".red().bold(),
+        phase.yellow(),
+        source_path.display().to_string().cyan(),
         pos.line,
         pos.col,
-        err.message
+        err.message.bright_white()
     )
 }
