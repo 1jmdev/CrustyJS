@@ -17,9 +17,15 @@ pub struct Context {
 
 impl Context {
     pub fn new() -> Self {
-        Self {
-            interpreter: Interpreter::new_with_realtime_timers(true),
-        }
+        Self::new_with_realtime(true)
+    }
+
+    pub fn new_with_realtime(realtime: bool) -> Self {
+        Self { interpreter: Interpreter::new_with_realtime_timers(realtime) }
+    }
+
+    pub fn set_max_steps(&mut self, max: usize) {
+        self.interpreter.set_max_steps(max);
     }
 
     pub fn eval(&mut self, source: &str) -> Result<(), CrustyError> {
@@ -29,15 +35,11 @@ impl Context {
         Ok(())
     }
 
-    pub fn set_max_steps(&mut self, max: usize) {
-        self.interpreter.set_max_steps(max);
-    }
-
     pub fn eval_module<P: AsRef<Path>>(&mut self, path: P) -> Result<(), CrustyError> {
         let path_buf: PathBuf = path.as_ref().to_path_buf();
-        let source = fs::read_to_string(&path_buf).map_err(|err| {
+        let source = fs::read_to_string(&path_buf).map_err(|e| {
             CrustyError::Runtime(crate::errors::RuntimeError::TypeError {
-                message: format!("failed to read module '{}': {err}", path_buf.display()),
+                message: format!("failed to read module '{}': {e}", path_buf.display()),
             })
         })?;
         let tokens = crate::lexer::lex(&source)?;
@@ -53,9 +55,7 @@ impl Context {
     pub fn set_global(&mut self, name: impl Into<String>, value: JsValue) {
         let name = name.into();
         if self.interpreter.env.set(&name, value.clone()).is_err() {
-            self.interpreter
-                .env
-                .define_with_kind(name, value, BindingKind::Var);
+            self.interpreter.env.define_with_kind(name, value, BindingKind::Var);
         }
     }
 
@@ -73,7 +73,6 @@ impl Context {
 
     pub fn register_class(&mut self, class_def: NativeClassDef) {
         let class_name = class_def.name.clone();
-
         let mut merged_methods = HashMap::new();
         let mut merged_getters = HashMap::new();
         let mut merged_setters = HashMap::new();
@@ -90,7 +89,7 @@ impl Context {
         merged_getters.extend(class_def.getters.clone());
         merged_setters.extend(class_def.setters.clone());
 
-        let stored_def = NativeClassDef {
+        let stored = NativeClassDef {
             name: class_def.name.clone(),
             constructor: class_def.constructor.clone(),
             methods: merged_methods,
@@ -100,15 +99,11 @@ impl Context {
             parent: class_def.parent.clone(),
         };
 
-        self.interpreter
-            .native_classes
-            .insert(class_name.clone(), stored_def);
-
-        let function = JsValue::NativeFunction {
+        self.interpreter.native_classes.insert(class_name.clone(), stored);
+        self.set_global(class_def.name, JsValue::NativeFunction {
             name: class_name.clone(),
             handler: NativeFunction::NativeClassConstructor(class_name),
-        };
-        self.set_global(class_def.name, function);
+        });
     }
 
     pub fn run_microtasks(&mut self) -> Result<(), CrustyError> {
