@@ -179,8 +179,29 @@ impl Interpreter {
                 }
             }
             other => Err(RuntimeError::NotAFunction {
-                name: format!("{other}"),
+                name: Self::non_callable_label(other),
             }),
+        }
+    }
+
+    fn non_callable_label(value: &JsValue) -> String {
+        match value {
+            JsValue::Undefined => "undefined".into(),
+            JsValue::Null => "null".into(),
+            JsValue::Boolean(v) => v.to_string(),
+            JsValue::Number(v) => v.to_string(),
+            JsValue::String(v) => v.clone(),
+            JsValue::Function { .. } | JsValue::NativeFunction { .. } => "function".into(),
+            JsValue::Symbol(_) => "symbol".into(),
+            JsValue::Object(_) => "object".into(),
+            JsValue::Array(_) => "array".into(),
+            JsValue::Promise(_) => "promise".into(),
+            JsValue::Map(_) => "map".into(),
+            JsValue::Set(_) => "set".into(),
+            JsValue::WeakMap(_) => "weakmap".into(),
+            JsValue::WeakSet(_) => "weakset".into(),
+            JsValue::RegExp(_) => "regexp".into(),
+            JsValue::Proxy(_) => "proxy".into(),
         }
     }
 

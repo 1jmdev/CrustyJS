@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use crustyjs_core::errors::{CrustyError, RuntimeError};
 use crustyjs_core::{Context, Value};
 
 use crate::harness;
@@ -86,7 +87,7 @@ fn run_module_test(path: &Path, metadata: &TestMetadata) -> TestResult {
                 TestResult::Passed
             }
         }
-        Err(e) => evaluate_error_with_neg(&metadata.negative, &e.to_string()),
+        Err(e) => evaluate_error_with_neg(&metadata.negative, &safe_error_message(&e)),
     }
 }
 
@@ -114,7 +115,7 @@ fn run_single(source: &str, metadata: &TestMetadata, is_async: bool) -> TestResu
                 TestResult::Passed
             }
         }
-        Err(e) => evaluate_error_with_neg(&negative, &e.to_string()),
+        Err(e) => evaluate_error_with_neg(&negative, &safe_error_message(&e)),
     }
 }
 
@@ -135,10 +136,7 @@ fn install_done_callback(ctx: &mut Context) -> Arc<Mutex<AsyncDoneState>> {
 
         state.called = true;
         if state.error.is_none() {
-            state.error = args
-                .get(0)
-                .filter(|value| !matches!(value, Value::Undefined))
-                .map(ToString::to_string);
+            state.error = args.get(0).and_then(done_error_message);
         }
 
         Ok(Value::Undefined)
@@ -161,6 +159,72 @@ fn evaluate_async_completion(state: &Arc<Mutex<AsyncDoneState>>) -> TestResult {
     }
 
     TestResult::Passed
+}
+
+fn done_error_message(value: &Value) -> Option<String> {
+    match value {
+        Value::Undefined => None,
+        Value::Null | Value::Boolean(_) | Value::Number(_) | Value::String(_) => {
+            Some(value.to_string())
+        }
+        Value::Function { .. } => Some("function".into()),
+        Value::NativeFunction { .. } => Some("native function".into()),
+        Value::Symbol(_) => Some("symbol".into()),
+        Value::Object(_) => Some("object".into()),
+        Value::Array(_) => Some("array".into()),
+        Value::Promise(_) => Some("promise".into()),
+        Value::Map(_) => Some("map".into()),
+        Value::Set(_) => Some("set".into()),
+        Value::WeakMap(_) => Some("weakmap".into()),
+        Value::WeakSet(_) => Some("weakset".into()),
+        Value::RegExp(_) => Some("regexp".into()),
+        Value::Proxy(_) => Some("proxy".into()),
+    }
+}
+
+fn safe_error_message(error: &CrustyError) -> String {
+    match error {
+        CrustyError::Syntax(err) => format!("SyntaxError: {}", err.message),
+        CrustyError::Runtime(err) => safe_runtime_error_message(err),
+    }
+}
+
+fn safe_runtime_error_message(error: &RuntimeError) -> String {
+    match error {
+        RuntimeError::UndefinedVariable { name } => {
+            format!("ReferenceError: '{name}' is not defined")
+        }
+        RuntimeError::NotAFunction { name } => format!("TypeError: '{name}' is not a function"),
+        RuntimeError::ArityMismatch { expected, got } => {
+            format!("TypeError: expected {expected} arguments but got {got}")
+        }
+        RuntimeError::TypeError { message } => format!("TypeError: {message}"),
+        RuntimeError::ConstReassignment { name } => {
+            format!("TypeError: Assignment to constant variable '{name}'")
+        }
+        RuntimeError::Thrown { value } => format!("Uncaught {}", format_thrown_value(value)),
+    }
+}
+
+fn format_thrown_value(value: &Value) -> String {
+    match value {
+        Value::Object(obj) => {
+            let obj = obj.borrow();
+            let name = obj.get("name");
+            let message = obj.get("message");
+
+            match (name, message) {
+                (Some(Value::String(name)), Some(Value::String(message)))
+                    if !message.is_empty() =>
+                {
+                    format!("{name}: {message}")
+                }
+                (Some(Value::String(name)), _) => name,
+                _ => "object".into(),
+            }
+        }
+        _ => value.to_string(),
+    }
 }
 
 fn evaluate_error_with_neg(negative: &Option<Negative>, error_msg: &str) -> TestResult {

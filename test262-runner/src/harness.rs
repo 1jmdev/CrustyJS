@@ -6,20 +6,20 @@ use std::sync::OnceLock;
 static HARNESS_CACHE: OnceLock<HashMap<String, String>> = OnceLock::new();
 
 const HOST_HARNESS: &str = r#"(function (global) {
-  if (typeof global.$262 !== \"object\" || global.$262 === null) {
+  if (typeof global.$262 !== "object" || global.$262 === null) {
     global.$262 = {};
   }
 
   var host262 = global.$262;
   host262.global = global;
 
-  if (typeof host262.evalScript !== \"function\") {
+  if (typeof host262.evalScript !== "function") {
     host262.evalScript = function (source) {
       return global.eval(source);
     };
   }
 
-  if (typeof host262.createRealm !== \"function\") {
+  if (typeof host262.createRealm !== "function") {
     host262.createRealm = function () {
       return {
         global: global,
@@ -28,14 +28,16 @@ const HOST_HARNESS: &str = r#"(function (global) {
     };
   }
 
-  if (typeof host262.detachArrayBuffer !== \"function\") {
+  if (typeof host262.detachArrayBuffer !== "function") {
     host262.detachArrayBuffer = function () {};
   }
 
-  if (typeof host262.gc !== \"function\") {
+  if (typeof host262.gc !== "function") {
     host262.gc = function () {};
   }
-})(globalThis);"#;
+})(globalThis);
+
+var $262 = globalThis.$262;"#;
 
 fn harness_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
