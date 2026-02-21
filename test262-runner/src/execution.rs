@@ -24,7 +24,7 @@ pub fn init_thread_pool() {
         .unwrap_or(8);
 
     rayon::ThreadPoolBuilder::new()
-        .stack_size(32 * 1024 * 1024)
+        .stack_size(4 * 1024 * 1024)
         .num_threads(threads)
         .build_global()
         .ok();
