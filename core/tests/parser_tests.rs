@@ -316,3 +316,56 @@ fn parse_for_in_statement() {
         other => panic!("expected for-in statement, got {other:?}"),
     }
 }
+
+#[test]
+fn parse_empty_call_arguments() {
+    let stmts = parse_source("foo();");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::Call { callee, args }) => {
+            assert_eq!(**callee, Expr::Identifier("foo".into()));
+            assert!(args.is_empty());
+        }
+        other => panic!("expected empty-arg call, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_call_with_trailing_comma() {
+    let stmts = parse_source("foo(1, 2,);");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::Call { callee, args }) => {
+            assert_eq!(**callee, Expr::Identifier("foo".into()));
+            assert_eq!(args.len(), 2);
+            assert_eq!(args[0], Expr::Literal(Literal::Number(1.0)));
+            assert_eq!(args[1], Expr::Literal(Literal::Number(2.0)));
+        }
+        other => panic!("expected trailing-comma call, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_empty_arrow_params() {
+    let stmts = parse_source("() => {};");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::ArrowFunction { params, .. }) => {
+            assert!(params.is_empty());
+        }
+        other => panic!("expected empty-param arrow function, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_arrow_params_with_trailing_comma() {
+    let stmts = parse_source("(a,) => a;");
+    assert_eq!(stmts.len(), 1);
+    match &stmts[0] {
+        Stmt::ExprStmt(Expr::ArrowFunction { params, .. }) => {
+            assert_eq!(params.len(), 1);
+            assert_eq!(params[0].pattern, Pattern::Identifier("a".into()));
+        }
+        other => panic!("expected trailing-comma arrow function, got {other:?}"),
+    }
+}

@@ -22,6 +22,9 @@ impl Parser {
 
             if self.check(&TokenKind::Comma) {
                 self.advance();
+                if self.check(&TokenKind::RightParen) {
+                    break;
+                }
                 continue;
             }
             break;

@@ -40,6 +40,9 @@ impl Parser {
                 params.push(self.expect_ident()?);
                 while self.check(&TokenKind::Comma) {
                     self.advance();
+                    if self.check(&TokenKind::RightParen) {
+                        break;
+                    }
                     params.push(self.expect_ident()?);
                 }
             }

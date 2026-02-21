@@ -345,6 +345,9 @@ impl Parser {
             args.push(self.parse_expr(0)?);
             while self.check(&TokenKind::Comma) {
                 self.advance();
+                if self.check(&TokenKind::RightParen) {
+                    break;
+                }
                 args.push(self.parse_expr(0)?);
             }
         }
