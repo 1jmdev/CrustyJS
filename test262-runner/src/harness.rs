@@ -5,6 +5,38 @@ use std::sync::OnceLock;
 
 static HARNESS_CACHE: OnceLock<HashMap<String, String>> = OnceLock::new();
 
+const HOST_HARNESS: &str = r#"(function (global) {
+  if (typeof global.$262 !== \"object\" || global.$262 === null) {
+    global.$262 = {};
+  }
+
+  var host262 = global.$262;
+  host262.global = global;
+
+  if (typeof host262.evalScript !== \"function\") {
+    host262.evalScript = function (source) {
+      return global.eval(source);
+    };
+  }
+
+  if (typeof host262.createRealm !== \"function\") {
+    host262.createRealm = function () {
+      return {
+        global: global,
+        evalScript: host262.evalScript,
+      };
+    };
+  }
+
+  if (typeof host262.detachArrayBuffer !== \"function\") {
+    host262.detachArrayBuffer = function () {};
+  }
+
+  if (typeof host262.gc !== \"function\") {
+    host262.gc = function () {};
+  }
+})(globalThis);"#;
+
 fn harness_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -36,9 +68,15 @@ pub fn get_harness_cache() -> &'static HashMap<String, String> {
     HARNESS_CACHE.get_or_init(load_harness_files)
 }
 
+pub fn host_harness_source() -> &'static str {
+    HOST_HARNESS
+}
+
 pub fn compose_source(includes: &[String], test_source: &str) -> String {
     let cache = get_harness_cache();
     let mut parts: Vec<&str> = Vec::new();
+
+    parts.push(host_harness_source());
 
     if let Some(sta) = cache.get("sta.js") {
         parts.push(sta);
@@ -76,6 +114,7 @@ mod tests {
         let source = compose_source(&[], "var x = 1;");
         assert!(source.contains("Test262Error"));
         assert!(source.contains("assert"));
+        assert!(source.contains("$262"));
         assert!(source.contains("var x = 1;"));
     }
 
